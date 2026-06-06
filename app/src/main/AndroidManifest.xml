@@ -15,7 +15,7 @@
         android:label="@string/app_name"
         android:theme="@style/Theme.AppCompat.NoActionBar"
         android:usesCleartextTraffic="true"
-        tools:overrideLibrary="rfidapi3lib">
+        tools:overrideLibrary="com.zebra.rfid.api3">
 
         <activity
             android:name=".MainActivity"
