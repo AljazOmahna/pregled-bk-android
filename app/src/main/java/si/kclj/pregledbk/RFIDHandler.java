@@ -45,6 +45,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
     private final Callback callback;
     private EventHandler eventHandler;
     private int maxPower = 270;
+    private volatile boolean initializing = false;
 
     RFIDHandler(Context context, Callback callback) {
         this.context = context;
@@ -52,6 +53,8 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
     }
 
     void init() {
+        if (initializing) return;
+        initializing = true;
         new InitTask().execute();
     }
 
@@ -96,14 +99,15 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                 configureReader();
                 return "Povezan: " + readerDevice.getName();
 
-            } catch (InvalidUsageException | OperationFailureException e) {
-                Log.e(TAG, "Init error: " + e.getMessage());
-                return "Napaka: " + e.getMessage();
+            } catch (Throwable e) {
+                Log.e(TAG, "Init error: " + e.getMessage(), e);
+                return "RFID ni podprt: " + e.getMessage();
             }
         }
 
         @Override
         protected void onPostExecute(String result) {
+            initializing = false;
             callback.onStatus(result);
         }
     }
