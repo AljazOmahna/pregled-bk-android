@@ -40,8 +40,13 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         webView.addJavascriptInterface(new JsBridge(), "AndroidBridge");
         webView.loadUrl("file:///android_asset/pregled_bk.html");
 
-        rfidHandler = new RFIDHandler(this, this);
-        rfidHandler.init();
+        try {
+            rfidHandler = new RFIDHandler(this, this);
+            rfidHandler.init();
+        } catch (Throwable t) {
+            Log.e(TAG, "RFID init failed: " + t);
+            Toast.makeText(this, "RFID ni podprt: " + t.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     // Called from RFIDHandler when a tag EPC is read
@@ -68,7 +73,11 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
     @Override
     protected void onResume() {
         super.onResume();
-        if (rfidHandler != null) rfidHandler.init();
+        try {
+            if (rfidHandler != null) rfidHandler.init();
+        } catch (Throwable t) {
+            Log.e(TAG, "RFID resume failed: " + t);
+        }
     }
 
     @Override
