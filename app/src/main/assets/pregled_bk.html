@@ -256,6 +256,7 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
     <div style="font-size:11px;color:var(--text3);margin-bottom:14px">Za&#269;nite novo sejo inventure.</div>
     <button class="btn btn-a" onclick="openNewSession()" style="width:100%;-webkit-justify-content:center;justify-content:center">+ Za&#269;ni novo sejo</button>
     <button class="btn" onclick="openSprejem()" style="width:100%;margin-top:8px;background:var(--bg3);border:1px solid var(--border);-webkit-justify-content:center;justify-content:center">&#128230; Sprejmi material</button>
+    <button class="btn" onclick="launch123RFID()" style="width:100%;margin-top:8px;background:var(--bg3);border:1px solid var(--border);-webkit-justify-content:center;justify-content:center">&#128225; Odpri 123RFID (poveži skener)</button>
   </div>
 
   <!-- Scan panel -->
@@ -566,19 +567,14 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
   <div class="modal">
     <div class="mh"><h3>&#128225; RFID Skeniranje</h3><button class="mc" onclick="closeMo('moRfid')">&#10005;</button></div>
     <div class="mb">
-      <div id="rfidStatus" style="margin-bottom:10px;padding:8px;border-radius:6px;background:var(--bg3);font-size:13px;color:var(--text2)">Inicializacija...</div>
-      <div style="font-size:13px;color:var(--text3);margin-bottom:12px">Pritisnite in dr&#382;ite fizi&#269;ni gumb za RFID skeniranje. Ali pa pritisnite gumb spodaj.</div>
-      <div id="rfidCount" style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px"></div>
-      <hr style="border:none;border-top:1px solid var(--border);margin:10px 0">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Uvoz iz 123RFID</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-a" style="flex:1" onclick="launch123RFID()">&#128225; Odpri 123RFID</button>
-        <button class="btn btn-g" style="flex:1" onclick="importFrom123RFID()">&#8659; Uvozi CSV</button>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:12px">1. Odprite 123RFID &#8594; skenirajte &#8594; ustavite &#8594; vrnite se &#8594; 2. Uvozi CSV</div>
+      <div style="display:-webkit-flex;display:flex;gap:8px;margin-bottom:12px">
+        <button class="btn btn-a" style="flex:1;-webkit-justify-content:center;justify-content:center" onclick="launch123RFID()">&#128225; Odpri 123RFID</button>
+        <button class="btn btn-g" style="flex:1;-webkit-justify-content:center;justify-content:center" onclick="importFrom123RFID()">&#8659; Uvozi CSV</button>
       </div>
-      <div style="font-size:11px;color:var(--text3);margin-top:6px">1. Skenirajte v 123RFID &#8594; 2. Vrnite se &#8594; 3. Uvozi CSV</div>
+      <div id="rfidCount" style="font-size:13px;font-weight:600;color:var(--text)"></div>
     </div>
     <div class="mf">
-      <button class="btn btn-g" id="rfidScanBtn" onclick="rfidScanToggle()">&#9654; Skeniraj</button>
       <button class="btn btn-d" onclick="closeMo('moRfid')">Zapri</button>
     </div>
   </div>
@@ -861,9 +857,6 @@ function rfidScanToggle(){
   }
 }
 function importRfidScan(){
-  if(typeof AndroidBridge==='undefined'){notify('RFID samo na napravi','warn');return;}
-  var el=$i('rfidStatus');
-  if(el&&!rfidReady){el.textContent='Bralnik ni povezan — priključite RFD2000';el.style.background='var(--ybg)';el.style.color='var(--yellow)';}
   updateRfidCount();
   showMo('moRfid');
 }
