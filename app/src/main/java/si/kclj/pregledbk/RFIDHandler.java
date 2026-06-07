@@ -1,12 +1,16 @@
 package si.kclj.pregledbk;
 
+import android.content.ComponentName;
 import android.content.Context;
-import android.os.AsyncTask;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 
 import com.zebra.rfid.RfidServiceMgr;
 import com.zebra.rfid.api3.IRFIDDeviceDataCallBack;
+import com.zebra.rfid.api3.IRFIDDeviceInterface;
 
 class RFIDHandler {
 
@@ -20,7 +24,7 @@ class RFIDHandler {
     private final Context context;
     private final Callback callback;
     private RfidServiceMgr rfidMgr;
-    private volatile boolean initializing = false;
+    private ServiceConnection serviceConnection;
 
     RFIDHandler(Context context, Callback callback) {
         this.context = context.getApplicationContext();
@@ -28,54 +32,72 @@ class RFIDHandler {
     }
 
     void init() {
-        if (initializing) return;
-        initializing = true;
-        new InitTask().execute();
-    }
+        if (rfidMgr != null) return;
+        try {
+            Intent intent = new Intent("com.zebra.rfid.rfidmanager.RFIDService");
+            intent.setPackage("com.zebra.rfid.rfidmanager");
+            serviceConnection = new ServiceConnection() {
+                @Override
+                public void onServiceConnected(ComponentName name, IBinder service) {
+                    try {
+                        IRFIDDeviceInterface deviceInterface = IRFIDDeviceInterface.Stub.asInterface(service);
+                        rfidMgr = new RfidServiceMgr(context, deviceInterface);
 
-    private class InitTask extends AsyncTask<Void, Void, String> {
-        @Override
-        protected String doInBackground(Void... v) {
-            try {
-                rfidMgr = new RfidServiceMgr(context);
-                String reader = rfidMgr.GetAvailableReader();
-                Log.d(TAG, "GetAvailableReader: " + reader);
+                        String reader = rfidMgr.GetAvailableReader();
+                        Log.d(TAG, "GetAvailableReader: " + reader);
 
-                if (reader == null || reader.trim().isEmpty()) return null;
+                        if (reader == null || reader.trim().isEmpty()) {
+                            callback.onStatus(null);
+                            return;
+                        }
 
-                boolean connected = rfidMgr.Connect(reader);
-                Log.d(TAG, "Connect(" + reader + "): " + connected);
-                if (!connected) return "Napaka povezave: " + reader;
+                        boolean connected = rfidMgr.Connect(reader);
+                        Log.d(TAG, "Connect(" + reader + "): " + connected);
+                        if (!connected) {
+                            callback.onStatus("RFID napaka: " + reader);
+                            return;
+                        }
 
-                rfidMgr.addDataListener(new IRFIDDeviceDataCallBack.Stub() {
-                    @Override
-                    public void onData(String data) throws RemoteException {
-                        if (data == null || data.trim().isEmpty()) return;
-                        Log.d(TAG, "onData: " + data);
-                        // Strip non-hex chars, extract EPC
-                        String epc = data.trim().replaceAll("[^0-9a-fA-F]", "").toUpperCase();
-                        if (!epc.isEmpty()) callback.onTagRead(epc);
+                        rfidMgr.addDataListener(new IRFIDDeviceDataCallBack.Stub() {
+                            @Override
+                            public void onData(String data) throws RemoteException {
+                                if (data == null || data.trim().isEmpty()) return;
+                                Log.d(TAG, "onData: " + data);
+                                String epc = data.trim().replaceAll("[^0-9a-fA-F]", "").toUpperCase();
+                                if (!epc.isEmpty()) callback.onTagRead(epc);
+                            }
+
+                            @Override
+                            public void onStatusChanged(int statusType, String readerName) throws RemoteException {
+                                Log.d(TAG, "onStatusChanged: type=" + statusType + " reader=" + readerName);
+                                if (statusType == 2) callback.onStatus("RFID odklopljen");
+                            }
+                        });
+
+                        callback.onStatus("Povezan: " + reader);
+
+                    } catch (Throwable e) {
+                        Log.e(TAG, "onServiceConnected: " + e.getMessage(), e);
+                        callback.onStatus(null);
                     }
+                }
 
-                    @Override
-                    public void onStatusChanged(int statusType, String readerName) throws RemoteException {
-                        Log.d(TAG, "onStatusChanged: type=" + statusType + " reader=" + readerName);
-                        if (statusType == 2) callback.onStatus("RFID odklopljen");
-                    }
-                });
+                @Override
+                public void onServiceDisconnected(ComponentName name) {
+                    Log.d(TAG, "Service disconnected");
+                    rfidMgr = null;
+                    callback.onStatus("RFID odklopljen");
+                }
+            };
 
-                return "Povezan: " + reader;
-
-            } catch (Throwable e) {
-                Log.e(TAG, "Init error: " + e.getMessage(), e);
-                return null;
+            boolean bound = context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
+            Log.d(TAG, "bindService: " + bound);
+            if (!bound) {
+                serviceConnection = null;
+                callback.onStatus(null);
             }
-        }
-
-        @Override
-        protected void onPostExecute(String result) {
-            initializing = false;
-            if (result != null) callback.onStatus(result);
+        } catch (Throwable e) {
+            Log.e(TAG, "init: " + e.getMessage(), e);
         }
     }
 
@@ -97,17 +119,27 @@ class RFIDHandler {
 
     void disconnect() {
         try {
-            if (rfidMgr != null) rfidMgr.Disconnect(rfidMgr.GetAvailableReader());
+            if (rfidMgr != null) rfidMgr.Disconnect();
         } catch (Exception e) {
             Log.e(TAG, "disconnect: " + e.getMessage());
         }
     }
 
     void dispose() {
+        disconnect();
         try {
             if (rfidMgr != null) rfidMgr.Unbind();
         } catch (Exception e) {
-            Log.e(TAG, "dispose: " + e.getMessage());
+            Log.e(TAG, "dispose unbind: " + e.getMessage());
         }
+        try {
+            if (serviceConnection != null) {
+                context.unbindService(serviceConnection);
+                serviceConnection = null;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "dispose unbindService: " + e.getMessage());
+        }
+        rfidMgr = null;
     }
 }
