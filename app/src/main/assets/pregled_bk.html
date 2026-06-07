@@ -1251,7 +1251,8 @@ function loadDemo(){
     }
   });
   saveDB();renderGtins();
-  notify('Naloženih '+added+' GTIN kod iz baze Abbott/Technopath/Randox','ok');
+  if(added>0) notify('Naloženih '+added+' novih GTIN kod','ok');
+  else notify('Vse GTIN kode so ze v bazi ('+DB.gtins.length+' skupaj)','ok');
 }
 
 // ===== SESSIONS =====
