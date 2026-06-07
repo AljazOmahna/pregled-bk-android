@@ -716,7 +716,7 @@ function parseGS1(raw){
         while(j < rest.length){
           if(rest.charCodeAt(j)<32) break;
           var nai = rest.slice(j,j+2);
-          if((nai==='17'||nai==='21'||nai==='11'||nai==='15'||nai==='24'||nai==='91'||nai==='92'||nai==='93'||nai==='30'||nai==='37') && j>i+4) break;
+          if((nai==='17'||nai==='21'||nai==='11'||nai==='15'||nai==='24'||nai==='91'||nai==='30'||nai==='37') && j>i+6) break;
           j++;
         }
         r.lot = rest.slice(i+2,j).replace(/[^\x20-\x7E]/g,'');
