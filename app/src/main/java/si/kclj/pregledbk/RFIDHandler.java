@@ -1,19 +1,26 @@
 package si.kclj.pregledbk;
 
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.os.Bundle;
+import android.os.AsyncTask;
 import android.util.Log;
 
-class RFIDHandler {
+import com.zebra.rfid.api3.ENUM_TRANSPORT;
+import com.zebra.rfid.api3.ENUM_TRIGGER_MODE;
+import com.zebra.rfid.api3.InvalidUsageException;
+import com.zebra.rfid.api3.OperationFailureException;
+import com.zebra.rfid.api3.RFIDReader;
+import com.zebra.rfid.api3.ReaderDevice;
+import com.zebra.rfid.api3.Readers;
+import com.zebra.rfid.api3.RfidEventsListener;
+import com.zebra.rfid.api3.RfidReadEvents;
+import com.zebra.rfid.api3.RfidStatusEvents;
+import com.zebra.rfid.api3.TagData;
+
+import java.util.ArrayList;
+
+class RFIDHandler implements Readers.RFIDReaderEventHandler {
 
     static final String TAG = "PregledBK_RFID";
-
-    private static final String DW_API_ACTION = "com.symbol.datawedge.api.ACTION";
-    private static final String PROFILE_NAME = "PregledBK";
-    private static final String SCAN_ACTION = "si.kclj.pregledbk.SCAN";
 
     interface Callback {
         void onTagRead(String epc);
@@ -22,8 +29,8 @@ class RFIDHandler {
 
     private final Context context;
     private final Callback callback;
-    private BroadcastReceiver scanReceiver;
-    private boolean initialized = false;
+    private Readers readers;
+    private RFIDReader reader;
 
     RFIDHandler(Context context, Callback callback) {
         this.context = context.getApplicationContext();
@@ -31,101 +38,121 @@ class RFIDHandler {
     }
 
     void init() {
-        if (initialized) return;
-        try {
-            createDataWedgeProfile();
-            registerScanReceiver();
-            initialized = true;
-            Log.d(TAG, "init: DataWedge profile configured");
-            callback.onStatus("RFID: pripravljen");
-        } catch (Throwable e) {
-            Log.e(TAG, "init: " + e.getMessage(), e);
-            callback.onStatus(null);
-        }
-    }
-
-    private void createDataWedgeProfile() {
-        // Associate profile with our app
-        Bundle appConfig = new Bundle();
-        appConfig.putString("PACKAGE_NAME", context.getPackageName());
-        appConfig.putStringArray("ACTIVITY_LIST", new String[]{"*"});
-
-        // RFID input plugin
-        Bundle rfidParams = new Bundle();
-        rfidParams.putString("rfid_input_enabled", "true");
-        rfidParams.putString("rfid_beeper_enable", "true");
-        rfidParams.putString("rfid_unique_tag_enable", "true");
-        Bundle rfidPlugin = new Bundle();
-        rfidPlugin.putString("PLUGIN_NAME", "RFID");
-        rfidPlugin.putString("RESET_CONFIG", "false");
-        rfidPlugin.putBundle("PARAM_LIST", rfidParams);
-
-        // Intent output plugin — broadcast to SCAN_ACTION
-        Bundle intentParams = new Bundle();
-        intentParams.putString("intent_output_enabled", "true");
-        intentParams.putString("intent_action", SCAN_ACTION);
-        intentParams.putString("intent_category", "android.intent.category.DEFAULT");
-        intentParams.putInt("intent_delivery", 2); // broadcast
-        Bundle intentPlugin = new Bundle();
-        intentPlugin.putString("PLUGIN_NAME", "INTENT");
-        intentPlugin.putString("RESET_CONFIG", "false");
-        intentPlugin.putBundle("PARAM_LIST", intentParams);
-
-        Bundle profileConfig = new Bundle();
-        profileConfig.putString("PROFILE_NAME", PROFILE_NAME);
-        profileConfig.putString("PROFILE_ENABLED", "true");
-        profileConfig.putString("CONFIG_MODE", "UPDATE");
-        profileConfig.putParcelableArray("APP_LIST", new Bundle[]{appConfig});
-        profileConfig.putParcelableArray("PLUGIN_CONFIG", new Bundle[]{rfidPlugin, intentPlugin});
-
-        Intent dwIntent = new Intent(DW_API_ACTION);
-        dwIntent.putExtra("com.symbol.datawedge.api.SET_CONFIG", profileConfig);
-        context.sendBroadcast(dwIntent);
-        Log.d(TAG, "createDataWedgeProfile: sent SET_CONFIG for " + PROFILE_NAME);
-    }
-
-    private void registerScanReceiver() {
-        scanReceiver = new BroadcastReceiver() {
+        if (readers != null) return;
+        new AsyncTask<Void, Void, Void>() {
             @Override
-            public void onReceive(Context ctx, Intent intent) {
-                String source = intent.getStringExtra("com.symbol.datawedge.source");
-                String data = intent.getStringExtra("com.symbol.datawedge.data_string");
-                String labelType = intent.getStringExtra("com.symbol.datawedge.label_type");
-                Log.d(TAG, "onReceive: source=" + source + " labelType=" + labelType + " data=" + data);
-
-                if (data == null || data.trim().isEmpty()) return;
-                String epc = data.trim().replaceAll("[^0-9a-fA-F]", "").toUpperCase();
-                if (!epc.isEmpty()) callback.onTagRead(epc);
+            protected Void doInBackground(Void... v) {
+                try {
+                    readers = new Readers(context, ENUM_TRANSPORT.SERVICE_SERIAL);
+                    readers.attach(RFIDHandler.this);
+                    ArrayList<ReaderDevice> list = readers.GetAvailableRFIDReaderList();
+                    Log.d(TAG, "GetAvailableRFIDReaderList: " + (list != null ? list.size() : "null"));
+                    if (list != null && !list.isEmpty()) {
+                        connectReader(list.get(0));
+                    } else {
+                        callback.onStatus("RFID: čakam na bralnik...");
+                    }
+                } catch (Throwable e) {
+                    Log.e(TAG, "init: " + e.getMessage(), e);
+                    callback.onStatus(null);
+                }
+                return null;
             }
-        };
-        context.registerReceiver(scanReceiver, new IntentFilter(SCAN_ACTION));
-        Log.d(TAG, "registerScanReceiver: registered for " + SCAN_ACTION);
+        }.execute();
+    }
+
+    @Override
+    public void RFIDReaderAppeared(ReaderDevice readerDevice) {
+        Log.d(TAG, "RFIDReaderAppeared: " + readerDevice.getName());
+        connectReader(readerDevice);
+    }
+
+    @Override
+    public void RFIDReaderDisappeared(ReaderDevice readerDevice) {
+        Log.d(TAG, "RFIDReaderDisappeared: " + readerDevice.getName());
+        reader = null;
+        callback.onStatus("RFID odklopljen");
+    }
+
+    private void connectReader(final ReaderDevice readerDevice) {
+        new Thread(() -> {
+            try {
+                reader = readerDevice.getRFIDReader();
+                reader.connect();
+                Log.d(TAG, "Connected: " + readerDevice.getName());
+
+                reader.Events.addEventsListener(new RfidEventsListener() {
+                    @Override
+                    public void eventReadNotify(RfidReadEvents e) {
+                        TagData[] tags = reader.Actions.getReadTags(100);
+                        if (tags == null) return;
+                        for (TagData tag : tags) {
+                            String epc = tag.getTagID();
+                            Log.d(TAG, "Tag: " + epc);
+                            if (epc != null && !epc.isEmpty()) callback.onTagRead(epc);
+                        }
+                    }
+
+                    @Override
+                    public void eventStatusNotify(RfidStatusEvents rfidStatusEvents) {
+                        Log.d(TAG, "Status: " + rfidStatusEvents.StatusEventData.getStatusEventType());
+                    }
+                });
+                reader.Events.setTagReadEvent(true);
+                reader.Events.setHandheldEvent(true);
+                reader.Events.setReaderDisconnectEvent(true);
+                reader.Config.setTriggerMode(ENUM_TRIGGER_MODE.RFID_MODE, true);
+
+                callback.onStatus("Povezan: " + readerDevice.getName());
+            } catch (Throwable e) {
+                Log.e(TAG, "connectReader: " + e.getMessage(), e);
+                callback.onStatus(null);
+            }
+        }).start();
     }
 
     void performInventory() {
-        Intent intent = new Intent(DW_API_ACTION);
-        intent.putExtra("com.symbol.datawedge.api.SOFT_SCAN_TRIGGER", "START_SCANNING");
-        context.sendBroadcast(intent);
-        Log.d(TAG, "performInventory: START_SCANNING");
+        new Thread(() -> {
+            try {
+                if (reader != null) reader.Actions.Inventory.perform();
+            } catch (Exception e) {
+                Log.e(TAG, "performInventory: " + e.getMessage());
+            }
+        }).start();
     }
 
     void stopInventory() {
-        Intent intent = new Intent(DW_API_ACTION);
-        intent.putExtra("com.symbol.datawedge.api.SOFT_SCAN_TRIGGER", "STOP_SCANNING");
-        context.sendBroadcast(intent);
-        Log.d(TAG, "stopInventory: STOP_SCANNING");
+        new Thread(() -> {
+            try {
+                if (reader != null) reader.Actions.Inventory.stop();
+            } catch (Exception e) {
+                Log.e(TAG, "stopInventory: " + e.getMessage());
+            }
+        }).start();
     }
 
     void disconnect() {
-        // DataWedge manages the connection; nothing to do here
+        new Thread(() -> {
+            try {
+                if (reader != null) {
+                    reader.disconnect();
+                    reader = null;
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "disconnect: " + e.getMessage());
+            }
+        }).start();
     }
 
     void dispose() {
-        if (scanReceiver != null) {
-            try { context.unregisterReceiver(scanReceiver); } catch (Exception ignored) {}
-            scanReceiver = null;
+        disconnect();
+        try {
+            if (readers != null) {
+                readers.Dispose();
+                readers = null;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "dispose: " + e.getMessage());
         }
-        initialized = false;
-        Log.d(TAG, "dispose");
     }
 }
