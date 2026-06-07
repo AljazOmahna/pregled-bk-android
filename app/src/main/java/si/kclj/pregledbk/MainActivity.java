@@ -18,7 +18,6 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
     private static final String TAG = "PregledBK";
     private WebView webView;
     private RFIDHandler rfidHandler;
-    private DataWedgeHandler dwHandler;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
@@ -47,9 +46,6 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         } catch (Throwable t) {
             Log.e(TAG, "RFID init failed: " + t);
         }
-
-        dwHandler = new DataWedgeHandler(this, this);
-        dwHandler.init();
     }
 
     // Called from RFIDHandler (RFID EPC) or DataWedgeHandler (barcode)
@@ -83,7 +79,6 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         } catch (Throwable t) {
             Log.e(TAG, "RFID resume failed: " + t);
         }
-        if (dwHandler != null) dwHandler.setupProfile();
     }
 
     @Override
@@ -96,7 +91,6 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
     protected void onDestroy() {
         super.onDestroy();
         if (rfidHandler != null) rfidHandler.dispose();
-        if (dwHandler != null) dwHandler.dispose();
     }
 
     // JavaScript interface — allows HTML to call Android
