@@ -138,14 +138,22 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
 
         @JavascriptInterface
         public String importRfidCsv() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                mainHandler.post(() -> requestPermissions(
+                    new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE}, 1001));
+                Log.w(TAG, "importRfidCsv: no READ_EXTERNAL_STORAGE permission");
+                return "NOPERM";
+            }
             try {
                 File dir = new File(Environment.getExternalStorageDirectory(), "inventory");
+                Log.d(TAG, "importRfidCsv: dir=" + dir.getAbsolutePath() + " exists=" + dir.exists());
                 if (!dir.exists()) return "[]";
                 File[] files = dir.listFiles((d, name) -> name.endsWith(".csv"));
                 if (files == null || files.length == 0) return "[]";
                 Arrays.sort(files, (a, b) -> b.getName().compareTo(a.getName()));
                 File latest = files[0];
-                Log.d(TAG, "importRfidCsv: reading " + latest.getName());
+                Log.d(TAG, "importRfidCsv: reading " + latest.getName() + " size=" + latest.length());
                 BufferedReader br = new BufferedReader(new FileReader(latest));
                 String line;
                 boolean headerFound = false;
@@ -157,6 +165,7 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
                     String[] parts = line.split(",");
                     if (parts.length < 1) continue;
                     String tagId = parts[0].trim();
+                    Log.d(TAG, "importRfidCsv candidate: '" + tagId + "'");
                     if (tagId.matches("[0-9A-Fa-f]{8,}")) epcs.add(tagId.toUpperCase());
                 }
                 br.close();
@@ -166,7 +175,7 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
                     sb.append("\"").append(epcs.get(i)).append("\"");
                 }
                 sb.append("]");
-                Log.d(TAG, "importRfidCsv: " + epcs.size() + " EPCs");
+                Log.d(TAG, "importRfidCsv: " + epcs.size() + " EPCs from " + latest.getName());
                 return sb.toString();
             } catch (Throwable t) {
                 Log.e(TAG, "importRfidCsv: " + t);
@@ -177,16 +186,21 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         @JavascriptInterface
         public void launchApp(String packageName) {
             try {
+                Log.d(TAG, "launchApp: " + packageName);
                 Intent intent = getPackageManager().getLaunchIntentForPackage(packageName);
                 if (intent != null) {
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     startActivity(intent);
+                    Log.d(TAG, "launchApp: started " + packageName);
                 } else {
+                    Log.w(TAG, "launchApp: package not found: " + packageName);
                     mainHandler.post(() -> Toast.makeText(MainActivity.this,
-                        "App ni nameščena: " + packageName, Toast.LENGTH_SHORT).show());
+                        "123RFID ni nameščena", Toast.LENGTH_SHORT).show());
                 }
             } catch (Throwable t) {
                 Log.e(TAG, "launchApp: " + t);
+                mainHandler.post(() -> Toast.makeText(MainActivity.this,
+                    "Napaka: " + t.getMessage(), Toast.LENGTH_SHORT).show());
             }
         }
     }
