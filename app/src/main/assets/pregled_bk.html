@@ -637,6 +637,7 @@ function saveDB(){
 
 // ===== UTILS =====
 function $i(id){return document.getElementById(id);}
+function showMo(id){$i(id).classList.add('open');}
 function closeMo(id){$i(id).classList.remove('open');}
 var nT;
 function notify(msg,t){var el=$i('notif');el.textContent=msg;el.className='notif show'+(t?' '+t:'');clearTimeout(nT);nT=setTimeout(function(){el.classList.remove('show');},3000);}
