@@ -874,6 +874,18 @@ function processRawScan(raw){
   if(!validGtin(p.gtin)){rejectScan(sess,raw,'Neveljavna GTIN: '+p.gtin);return;}
   var gr=DB.gtins.filter(function(g){return g.gtin===p.gtin;})[0];
   if(!gr){rejectScan(sess,raw,'GTIN '+p.gtin+' ni v bazi');return;}
+  // Serial-only scan (SGTIN label): merge into most recent item with same GTIN+lot but no serial
+  if(p.serial&&!p.lot){
+    for(var ki=sess.items.length-1;ki>=0;ki--){
+      var pi=sess.items[ki];
+      if(pi.valid&&pi.gtin===p.gtin&&pi.lot&&!pi.serial){
+        pi.serial=p.serial;
+        saveDB();renderRecent(sess);
+        showFb('Serijska dodana: '+gr.name+' #'+p.serial,'ok');flash('ok');
+        return;
+      }
+    }
+  }
   if(scanMode==='rfid'){
     var dup=sess.items.filter(function(i){
       if(!i.valid)return false;
@@ -989,7 +1001,8 @@ function renderRecent(sess){
       '<div style="-webkit-flex:1;flex:1">'+
       '<div style="font-size:12px;font-weight:600">'+(it.name||it.gtin)+'</div>'+
       '<div style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+
-      (it.lot?'L:'+it.lot+' ':'')+'<span style="color:'+ec+'">'+(it.expiry?fmtExp(it.expiry):'')+'</span></div></div>'+
+      (it.lot?'L:'+it.lot+' ':'')+(it.serial?'<span style="color:var(--accent)">#'+it.serial+'</span> ':'')+
+      '<span style="color:'+ec+'">'+(it.expiry?fmtExp(it.expiry):'')+'</span></div></div>'+
       expBadge(it.expiry)+'</div>';
   }).join('');
 }
