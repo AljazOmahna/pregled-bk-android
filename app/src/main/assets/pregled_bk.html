@@ -643,6 +643,8 @@ function rowCls(exp){var d=daysLeft(exp);if(d<0)return 'r-exp';if(d<=14)return '
 // ===== GS1 PARSER =====
 function parseGS1(raw){
   var s=raw.trim();
+  var dbg='';for(var ci=0;ci<Math.min(s.length,60);ci++)dbg+=s.charCodeAt(ci)+',';
+  console.log('GS1_RAW_CHARS:'+dbg);
   var r={raw:raw,gtin:null,lot:null,expiry:null,serial:null};
   
   // Try bracketed format (01)GTIN (21)serial (10)lot (17)expiry
