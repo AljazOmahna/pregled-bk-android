@@ -39,10 +39,12 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
 
     void init() {
         if (readers != null) return;
+        Log.d(TAG, "init v2 rfidapi3lib");
         new AsyncTask<Void, Void, Void>() {
             @Override
             protected Void doInBackground(Void... v) {
                 try {
+                    Log.d(TAG, "new Readers SERVICE_SERIAL");
                     readers = new Readers(context, ENUM_TRANSPORT.SERVICE_SERIAL);
                     readers.attach(RFIDHandler.this);
                     ArrayList<ReaderDevice> list = readers.GetAvailableRFIDReaderList();
