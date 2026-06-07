@@ -439,6 +439,16 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
     <div class="mb">
       <div style="text-align:center;font-size:12px;color:var(--text2);margin-bottom:14px">Kako bo&#353; skeniral?</div>
       <div style="display:-webkit-flex;display:flex;gap:10px;margin-bottom:16px">
+        <button onclick="quickStart('barcode')" style="
+          -webkit-flex:1;flex:1;display:-webkit-flex;display:flex;
+          -webkit-flex-direction:column;flex-direction:column;
+          -webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;
+          gap:8px;padding:20px 10px;border-radius:10px;cursor:pointer;
+          background:var(--gbg);border:2px solid var(--green);color:var(--green);
+          font-size:13px;font-weight:700;min-height:90px">
+          <span style="font-size:34px">&#9612;&#9612;</span>
+          Barcode
+        </button>
         <button onclick="quickStart('rfid')" style="
           -webkit-flex:1;flex:1;display:-webkit-flex;display:flex;
           -webkit-flex-direction:column;flex-direction:column;
@@ -447,7 +457,7 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
           background:var(--pbg);border:2px solid var(--purple);color:var(--purple);
           font-size:13px;font-weight:700;min-height:90px">
           <span style="font-size:34px">&#128225;</span>
-          Skeniraj RFID
+          RFID
         </button>
         <button onclick="quickStart('qr')" style="
           -webkit-flex:1;flex:1;display:-webkit-flex;display:flex;
@@ -457,7 +467,7 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
           background:rgba(56,189,248,.1);border:2px solid var(--accent);color:var(--accent);
           font-size:13px;font-weight:700;min-height:90px">
           <span style="font-size:34px">&#9638;</span>
-          Skeniraj QR kodo
+          QR koda
         </button>
       </div>
       <div class="fg"><label>Naziv seje (neobvezno)</label><input type="text" id="sessName" placeholder="npr. Inventura jun 2026"></div>
