@@ -1038,21 +1038,42 @@ function spOnBarcodeKey(e){
 }
 function spProcessBarcode(raw){
   var p=parseGS1(raw);
+  // Merge into existing item if same GTIN
+  if(sprejemData&&p&&p.gtin===sprejemData.gtin){
+    var changed=false;
+    if(p.serial&&!sprejemData.serial){sprejemData.serial=p.serial;changed=true;}
+    if(p.lot&&!sprejemData.lot){sprejemData.lot=p.lot;changed=true;}
+    if(p.expiry&&!sprejemData.expiry){sprejemData.expiry=p.expiry;changed=true;}
+    spUpdateItemInfo();
+    if(changed)notify('Podatki dodani'+(p.serial?' #'+p.serial:''),'ok');
+    else notify('Podatki že zajeti','warn');
+    setTimeout(function(){$i('spBarcodeInp').value='';$i('spBarcodeInp').focus();},100);
+    return;
+  }
+  // Different GTIN while data exists → warn
+  if(sprejemData&&p&&p.gtin&&p.gtin!==sprejemData.gtin){
+    notify('Drug artikel — prekličite in začnite znova','warn');return;
+  }
   if(!p||!p.gtin){notify('Ni GTIN v kodi','warn');return;}
   if(!validGtin(p.gtin)){notify('Neveljavna GTIN','warn');return;}
   var gr=(DB.gtins||[]).filter(function(g){return g.gtin===p.gtin;})[0];
   if(!gr){notify('GTIN '+p.gtin+' ni v bazi — dodajte v GTIN zavihek','warn');return;}
   sprejemData={gtin:p.gtin,name:gr.name,type:gr.type,lot:p.lot||'',expiry:p.expiry||'',serial:p.serial||''};
   sprejemStep=2;
-  $i('spItemName').textContent=gr.name;
-  var det='GTIN: '+p.gtin;
-  if(p.lot)det+=' | L: '+p.lot;
-  if(p.expiry)det+=' | Rok: '+fmtExp(p.expiry);
-  if(p.serial)det+=' | #'+p.serial;
-  $i('spItemDetails').textContent=det;
-  $i('spItemInfo').style.display='block';
+  spUpdateItemInfo();
   $i('spStep2').style.display='block';
   notify('Prepoznano: '+gr.name,'ok');
+  setTimeout(function(){$i('spBarcodeInp').value='';$i('spBarcodeInp').focus();},100);
+}
+function spUpdateItemInfo(){
+  if(!sprejemData)return;
+  $i('spItemName').textContent=sprejemData.name;
+  var det='GTIN: '+sprejemData.gtin;
+  if(sprejemData.lot)det+=' | L: '+sprejemData.lot;
+  if(sprejemData.expiry)det+=' | Rok: '+fmtExp(sprejemData.expiry);
+  if(sprejemData.serial)det+=' | #'+sprejemData.serial;
+  $i('spItemDetails').textContent=det;
+  $i('spItemInfo').style.display='block';
 }
 function spCaptureEpc(epc){
   if(!sprejemActive||!sprejemData) return;
@@ -1137,8 +1158,9 @@ function processRawScan(raw){
   // Sprejem mode: intercept scans for sprejem flow
   if(sprejemActive){
     var rawUp=raw.trim().toUpperCase();
-    if(sprejemStep===2&&/^[0-9A-F]{8,}$/.test(rawUp)){spCaptureEpc(rawUp);return;}
-    if(sprejemStep===1){$i('spBarcodeInp').value=raw;spProcessBarcode(raw.trim());return;}
+    if(/^[0-9A-F]{8,}$/.test(rawUp)){spCaptureEpc(rawUp);return;}
+    $i('spBarcodeInp').value=raw;
+    spProcessBarcode(raw.trim());
     return;
   }
   var sess=getActiveSess();
