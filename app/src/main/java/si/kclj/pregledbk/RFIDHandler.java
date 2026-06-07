@@ -48,7 +48,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
     private volatile boolean initializing = false;
 
     RFIDHandler(Context context, Callback callback) {
-        this.context = context;
+        this.context = context.getApplicationContext();
         this.callback = callback;
     }
 

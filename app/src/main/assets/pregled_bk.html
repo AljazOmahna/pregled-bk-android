@@ -795,6 +795,7 @@ document.addEventListener('keydown',function(e){
   var inMo=document.activeElement?!!document.activeElement.closest('.mo'):false;
   if(inMo&&(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'))return;
   if(tag==='SELECT')return;
+  if(document.activeElement&&document.activeElement.id==='scanInput')return;
   // Only process on scan page with active session
   if(!$i('page-scan')||!$i('page-scan').classList.contains('active'))return;
   if(!getActiveSess())return;
