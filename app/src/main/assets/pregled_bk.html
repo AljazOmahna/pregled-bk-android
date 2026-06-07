@@ -874,7 +874,21 @@ function processRawScan(raw){
   if(!validGtin(p.gtin)){rejectScan(sess,raw,'Neveljavna GTIN: '+p.gtin);return;}
   var gr=DB.gtins.filter(function(g){return g.gtin===p.gtin;})[0];
   if(!gr){rejectScan(sess,raw,'GTIN '+p.gtin+' ni v bazi');return;}
-  // Serial scan: merge into most recent item with same GTIN+lot but no serial
+  // Serial dedup: if same serial already in session, enrich missing data or warn duplicate
+  if(p.serial){
+    for(var ki=sess.items.length-1;ki>=0;ki--){
+      var pi=sess.items[ki];
+      if(pi.valid&&pi.gtin===p.gtin&&pi.serial===p.serial){
+        var enriched=false;
+        if(p.lot&&!pi.lot){pi.lot=p.lot;enriched=true;}
+        if(p.expiry&&!pi.expiry){pi.expiry=p.expiry;enriched=true;}
+        if(enriched){saveDB();renderRecent(sess);showFb('Podatki dodani: '+gr.name+' #'+p.serial,'ok');flash('ok');}
+        else{showFb('Ze skenirana v seji: '+gr.name+' #'+p.serial,'warn');flash('warn');}
+        return;
+      }
+    }
+  }
+  // Serial scan: merge serial into most recent item with same GTIN+lot but no serial
   if(p.serial){
     for(var ki=sess.items.length-1;ki>=0;ki--){
       var pi=sess.items[ki];
