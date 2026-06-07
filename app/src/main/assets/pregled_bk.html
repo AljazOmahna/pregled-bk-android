@@ -968,6 +968,7 @@ function updateInv(p,gr){
   }
   it.qty++;it.lastScan=new Date().toISOString();it.scanMode=scanMode;
   if(p.expiry)it.expiry=p.expiry;
+  if(!it.scans)it.scans=[];
   it.scans.push({dt:new Date().toISOString(),mode:scanMode,sessId:getActiveSess()?getActiveSess().id:''});
 }
 
@@ -1199,6 +1200,7 @@ function showDetail(gtin,lot){
     '<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase">GTIN</div><div style="font-family:var(--mono);font-size:11px">'+it.gtin+'</div></div>'+
     '<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase">Lot</div><div style="font-family:var(--mono);font-size:11px;color:var(--accent)">'+(it.lot||'-')+'</div></div>'+
     '<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase">Zaloga</div><div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--accent)">'+it.qty+'</div></div></div>'+
+    ((it.serials&&it.serials.length)?'<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase;margin-bottom:4px">Serijske številke ('+it.serials.length+')</div>'+it.serials.map(function(s){return '<div style="font-family:var(--mono);font-size:11px;color:var(--text2)">#'+s+'</div>';}).join('')+'</div>':'')+
     '<div style="text-align:center;padding:10px;background:var(--bg3);border-radius:8px">'+expBadge(it.expiry)+'<div style="font-size:11px;color:var(--text3);margin-top:4px">'+(d>=0?d+' dni do izteka':'Preteceno '+Math.abs(d)+' dni nazaj')+'</div></div>'+
     '<button class="btn btn-d" onclick="removeItem(\''+gtin+'\',\''+lot+'\');closeMo(\'moItem\')" style="width:100%;-webkit-justify-content:center;justify-content:center">&#10005; Odstrani iz zaloge</button>'+
     '</div>';
