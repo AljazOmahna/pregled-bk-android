@@ -255,6 +255,7 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
     <div style="font-size:13px;font-weight:600;margin-bottom:4px">Ni aktivne seje</div>
     <div style="font-size:11px;color:var(--text3);margin-bottom:14px">Za&#269;nite novo sejo inventure.</div>
     <button class="btn btn-a" onclick="openNewSession()" style="width:100%;-webkit-justify-content:center;justify-content:center">+ Za&#269;ni novo sejo</button>
+    <button class="btn" onclick="openSprejem()" style="width:100%;margin-top:8px;background:var(--bg3);border:1px solid var(--border);-webkit-justify-content:center;justify-content:center">&#128230; Sprejmi material</button>
   </div>
 
   <!-- Scan panel -->
@@ -331,6 +332,16 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
     <table>
       <thead><tr><th>Artikel</th><th>Lot</th><th>Rok</th><th>Kos</th><th>Status</th><th></th></tr></thead>
       <tbody id="invBody"></tbody>
+    </table>
+  </div>
+  <div class="sec-hdr" style="margin-top:16px">
+    <div class="sec-title">&#128230; Prejeto</div>
+    <button class="btn btn-a btn-sm" onclick="openSprejem()">+ Sprejmi</button>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Artikel</th><th>Lot</th><th>Rok</th><th>#Serial</th><th>RFID</th><th>Datum</th><th></th></tr></thead>
+      <tbody id="receivedBody"></tbody>
     </table>
   </div>
 </div>
@@ -573,6 +584,35 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
   </div>
 </div>
 
+<div class="mo" id="moSprejem">
+  <div class="modal">
+    <div class="mh"><h3>&#128230; Sprejem materiala</h3><button class="mc" onclick="closeSprejem()">&#10005;</button></div>
+    <div class="mb">
+      <div id="spStep1">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:8px">&#9312; Barcode (QR / DataMatrix)</div>
+        <input type="text" id="spBarcodeInp" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px" placeholder="Skenirajte ali vnesite kodo..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="spOnBarcodeInput()" onkeydown="spOnBarcodeKey(event)">
+        <div id="spItemInfo" style="display:none;margin-top:10px;padding:10px;background:var(--gbg);border:1px solid var(--green);border-radius:8px">
+          <div style="font-weight:700;font-size:13px;color:var(--text)" id="spItemName"></div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px" id="spItemDetails"></div>
+        </div>
+      </div>
+      <div id="spStep2" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:8px">&#9313; RFID (antenna 60 &#8776;5cm)</div>
+        <div id="spRfidWait" style="padding:10px;background:var(--bg3);border-radius:8px;font-size:13px;color:var(--text3);text-align:center">Pritisnite gumb na RFD2000 da skenirate RFID...</div>
+        <div id="spRfidOk" style="display:none;padding:10px;background:var(--gbg);border:1px solid var(--green);border-radius:8px">
+          <div style="font-size:11px;color:var(--green);font-weight:700">&#10003; RFID zajeto</div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px;word-break:break-all" id="spEpcVal"></div>
+        </div>
+        <button class="btn" onclick="spManualEpc()" style="margin-top:8px;width:100%;background:var(--bg3);border:1px solid var(--border);font-size:11px;-webkit-justify-content:center;justify-content:center">&#9998; Ro&#269;ni vnos EPC</button>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-a" id="spConfirmBtn" onclick="confirmSprejem()" disabled style="flex:1;-webkit-justify-content:center;justify-content:center">&#10003; Sprejmi</button>
+      <button class="btn btn-d" onclick="closeSprejem()">Prekli&#269;i</button>
+    </div>
+  </div>
+</div>
+
 <div class="notif" id="notif"></div>
 
 <script>
@@ -614,7 +654,7 @@ const BUILTIN_GTINS = [
 ];
 
 // ===== STATE =====
-var DB={gtins:[],inventory:[],sessions:[],activeSessionId:null,lastUsed:[]};
+var DB={gtins:[],inventory:[],sessions:[],activeSessionId:null,lastUsed:[],received:[]};
 function loadDB(){
   try{
     var s=localStorage.getItem('pbk_tc20');
@@ -858,7 +898,7 @@ function nav(page){
   });
   var pg=$i('page-'+page);if(pg)pg.classList.add('active');
   var bn=$i('bn-'+page);if(bn)bn.classList.add('active');
-  if(page==='inventory')renderInventory();
+  if(page==='inventory'){renderInventory();renderReceived();}
   if(page==='expiry')setExpTab('exp');
   if(page==='gtins')renderGtins();
   if(page==='overview')renderOverview();
@@ -957,10 +997,145 @@ function onScanKey(e){
   }
 }
 
+// ===== SPREJEM =====
+var sprejemActive=false;
+var sprejemStep=1; // 1=barcode, 2=rfid
+var sprejemData=null;
+var sprejemEpc=null;
+var spBarTmr=null;
+
+function openSprejem(){
+  sprejemActive=true; sprejemStep=1; sprejemData=null; sprejemEpc=null;
+  $i('spBarcodeInp').value='';
+  $i('spItemInfo').style.display='none';
+  $i('spStep2').style.display='none';
+  $i('spRfidWait').style.display='block';
+  $i('spRfidOk').style.display='none';
+  $i('spConfirmBtn').disabled=true;
+  showMo('moSprejem');
+  setTimeout(function(){$i('spBarcodeInp').focus();},300);
+}
+function closeSprejem(){
+  sprejemActive=false; sprejemData=null; sprejemEpc=null;
+  closeMo('moSprejem');
+}
+function spOnBarcodeInput(){
+  clearTimeout(spBarTmr);
+  var v=$i('spBarcodeInp').value.trim();
+  if(v.length>=4) spBarTmr=setTimeout(function(){spProcessBarcode(v);},300);
+}
+function spOnBarcodeKey(e){
+  if(e.keyCode===13||e.key==='Enter'){
+    clearTimeout(spBarTmr);
+    spProcessBarcode($i('spBarcodeInp').value.trim());
+    e.preventDefault();
+  }
+}
+function spProcessBarcode(raw){
+  var p=parseGS1(raw);
+  if(!p||!p.gtin){notify('Ni GTIN v kodi','warn');return;}
+  if(!validGtin(p.gtin)){notify('Neveljavna GTIN','warn');return;}
+  var gr=(DB.gtins||[]).filter(function(g){return g.gtin===p.gtin;})[0];
+  if(!gr){notify('GTIN '+p.gtin+' ni v bazi — dodajte v GTIN zavihek','warn');return;}
+  sprejemData={gtin:p.gtin,name:gr.name,type:gr.type,lot:p.lot||'',expiry:p.expiry||'',serial:p.serial||''};
+  sprejemStep=2;
+  $i('spItemName').textContent=gr.name;
+  var det='GTIN: '+p.gtin;
+  if(p.lot)det+=' | L: '+p.lot;
+  if(p.expiry)det+=' | Rok: '+fmtExp(p.expiry);
+  if(p.serial)det+=' | #'+p.serial;
+  $i('spItemDetails').textContent=det;
+  $i('spItemInfo').style.display='block';
+  $i('spStep2').style.display='block';
+  notify('Prepoznano: '+gr.name,'ok');
+}
+function spCaptureEpc(epc){
+  if(!sprejemActive||!sprejemData) return;
+  epc=epc.toUpperCase();
+  var dup=(DB.received||[]).filter(function(r){return r.rfidEpc===epc&&r.status==='active';})[0];
+  if(dup){notify('Ta EPC je že povezan z: '+dup.name,'warn');return;}
+  sprejemEpc=epc;
+  $i('spRfidWait').style.display='none';
+  $i('spRfidOk').style.display='block';
+  $i('spEpcVal').textContent=epc;
+  $i('spConfirmBtn').disabled=false;
+  notify('RFID zajeto','ok');
+}
+function spManualEpc(){
+  var epc=prompt('Vnesi EPC (hex):','');
+  if(!epc)return;
+  epc=epc.trim().toUpperCase();
+  if(!/^[0-9A-F]{8,}$/.test(epc)){notify('Neveljaven EPC format','warn');return;}
+  spCaptureEpc(epc);
+}
+function confirmSprejem(){
+  if(!sprejemData||!sprejemEpc){notify('Manjka barcode ali RFID','warn');return;}
+  if(sprejemData.serial){
+    var dupS=(DB.received||[]).filter(function(r){return r.serial===sprejemData.serial&&r.gtin===sprejemData.gtin&&r.status==='active';})[0];
+    if(dupS){notify('Serijska '+sprejemData.serial+' je že v zalogi','warn');return;}
+  }
+  if(!DB.received)DB.received=[];
+  DB.received.push({
+    id:Date.now().toString(),
+    gtin:sprejemData.gtin, name:sprejemData.name, type:sprejemData.type,
+    lot:sprejemData.lot, expiry:sprejemData.expiry, serial:sprejemData.serial,
+    rfidEpc:sprejemEpc, receivedAt:new Date().toISOString(), status:'active'
+  });
+  saveDB(); renderReceived(); updateStats();
+  notify('Sprejeto: '+sprejemData.name+(sprejemData.serial?' #'+sprejemData.serial:''),'ok');
+  closeSprejem();
+}
+function renderReceived(){
+  var tb=$i('receivedBody');
+  if(!tb)return;
+  var items=(DB.received||[]).filter(function(r){return r.status==='active';});
+  if(!items.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Ni prejetih artiklov.</td></tr>';return;}
+  items.sort(function(a,b){return (b.receivedAt||'').localeCompare(a.receivedAt||'');});
+  var h='';
+  items.forEach(function(r){
+    var d=daysLeft(r.expiry);
+    var dc=d<0?'var(--red)':d<=14?'var(--orange)':'var(--green)';
+    var rfidShort=r.rfidEpc?r.rfidEpc.slice(0,8)+'…':'-';
+    h+='<tr>';
+    h+='<td><div style="font-size:11px;font-weight:600">'+r.name+'</div><div class="gtin">'+r.gtin+'</div></td>';
+    h+='<td class="lot-n">'+(r.lot||'-')+'</td>';
+    h+='<td style="color:'+dc+'">'+fmtExp(r.expiry)+'</td>';
+    h+='<td class="lot-n">'+(r.serial||'-')+'</td>';
+    h+='<td style="font-size:9px;font-family:var(--mono);color:var(--text3)" title="'+(r.rfidEpc||'')+'">'+rfidShort+'</td>';
+    h+='<td style="font-size:10px;color:var(--text3)">'+(r.receivedAt?r.receivedAt.slice(0,10):'-')+'</td>';
+    h+='<td><button class="btn btn-d btn-sm" onclick="deleteReceived(\''+r.id+'\')">&#10005;</button></td>';
+    h+='</tr>';
+  });
+  tb.innerHTML=h;
+}
+function deleteReceived(id){
+  if(!confirm('Odstraniti artikel iz evidence?'))return;
+  var r=(DB.received||[]).filter(function(x){return x.id===id;})[0];
+  if(r){r.status='removed';saveDB();renderReceived();notify('Odstranjeno','ok');}
+}
+
 // ===== SCAN PROCESSING =====
 function processRawScan(raw){
+  // Sprejem mode: intercept scans for sprejem flow
+  if(sprejemActive){
+    var rawUp=raw.trim().toUpperCase();
+    if(sprejemStep===2&&/^[0-9A-F]{8,}$/.test(rawUp)){spCaptureEpc(rawUp);return;}
+    if(sprejemStep===1){$i('spBarcodeInp').value=raw;spProcessBarcode(raw.trim());return;}
+    return;
+  }
   var sess=getActiveSess();
   if(!sess){showFb('Ni aktivne seje! Zaknite novo sejo.','err');return;}
+  // Known RFID EPC: look up in DB.received before GTIN decode
+  var rawUp=raw.trim().toUpperCase();
+  if(/^[0-9A-Fa-f]{8,}$/.test(rawUp)&&/[A-Fa-f]/.test(rawUp)){
+    var recItem=(DB.received||[]).filter(function(r){return r.rfidEpc===rawUp&&r.status==='active';})[0];
+    if(recItem){
+      var grRec={name:recItem.name,type:recItem.type};
+      var pRec={gtin:recItem.gtin,lot:recItem.lot,expiry:recItem.expiry,serial:recItem.serial};
+      acceptScan(sess,raw,pRec,grRec,true);
+      return;
+    }
+  }
   // Try EPC first, then GS1 barcode
   var p=parseEPC(raw);
   var fromRfid=!!(p&&p.gtin);
