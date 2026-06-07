@@ -34,8 +34,8 @@ class RFIDHandler {
     void init() {
         if (rfidMgr != null) return;
         try {
-            Intent intent = new Intent("com.zebra.rfid.rfidmanager.RFIDService");
-            intent.setPackage("com.zebra.rfid.rfidmanager");
+            Intent intent = new Intent();
+            intent.setClassName("com.zebra.rfid.rfidmanager", "com.zebra.rfid.rfidmanager.RFIDService");
             serviceConnection = new ServiceConnection() {
                 @Override
                 public void onServiceConnected(ComponentName name, IBinder service) {
