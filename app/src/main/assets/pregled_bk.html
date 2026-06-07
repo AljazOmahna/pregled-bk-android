@@ -665,7 +665,7 @@ function parseGS1(raw){
     var i = 0;
     while(i < rest.length){
       var ai = rest.slice(i,i+2);
-      if(rest.charCodeAt(i)===29){i++;continue;}  // skip GS separator
+      if(rest.charCodeAt(i)<32){i++;continue;}  // skip any control char (GS/FNC1/etc.)
       if(ai==='17' && rest.length >= i+8){
         r.expiry = rest.slice(i+2,i+8);
         i += 8;
@@ -673,27 +673,27 @@ function parseGS1(raw){
         r.expiry = rest.slice(i+2,i+6)+'01';
         i += 6;
       } else if(ai==='21'){
-        // Serial: variable, read until GS or next known AI
+        // Serial: variable, read until control char or next known AI
         var j = i+2;
         while(j < rest.length){
-          if(rest.charCodeAt(j)===29) break;
+          if(rest.charCodeAt(j)<32) break;
           var nai = rest.slice(j,j+2);
           if((nai==='10'||nai==='17'||nai==='11'||nai==='15') && j>i+2) break;
           j++;
         }
         r.serial = rest.slice(i+2,j).replace(/[^\x20-\x7E]/g,'');
-        i = rest.charCodeAt(j)===29 ? j+1 : j;
+        i = rest.charCodeAt(j)<32 ? j+1 : j;
       } else if(ai==='10'){
-        // Lot: variable, read until GS or next known AI
+        // Lot: variable, read until control char or next known AI
         var j = i+2;
         while(j < rest.length){
-          if(rest.charCodeAt(j)===29) break;
+          if(rest.charCodeAt(j)<32) break;
           var nai = rest.slice(j,j+2);
           if((nai==='17'||nai==='21'||nai==='11'||nai==='15') && j>i+2) break;
           j++;
         }
         r.lot = rest.slice(i+2,j).replace(/[^\x20-\x7E]/g,'');
-        i = rest.charCodeAt(j)===29 ? j+1 : j;
+        i = rest.charCodeAt(j)<32 ? j+1 : j;
       } else if(ai==='11'){
         i += 8; // production date fixed 6
       } else {
