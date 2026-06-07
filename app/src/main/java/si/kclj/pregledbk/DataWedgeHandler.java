@@ -85,6 +85,7 @@ class DataWedgeHandler {
     }
 
     private void registerReceiver() {
+        if (receiver != null) return;
         receiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context ctx, Intent intent) {
