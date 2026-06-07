@@ -55,8 +55,8 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
     // Called from RFIDHandler (RFID EPC) or DataWedgeHandler (barcode)
     @Override
     public void onTagRead(String epc) {
-        // Allow alphanum + common barcode chars; strip anything that could break JS string
-        final String safe = epc.replaceAll("[^0-9a-zA-Z\\-_\\.:]", "");
+        // Strip only JS-unsafe chars ('  \  newlines) and non-printable; allow all printable ASCII
+        final String safe = epc.replaceAll("['\\\\\r\n]", "").replaceAll("[^\\x20-\\x7E]", "");
         if (safe.isEmpty()) return;
         Log.d(TAG, "EPC: " + safe);
         mainHandler.post(() ->
