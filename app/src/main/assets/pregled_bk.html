@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="sl">
 <head>
 <meta charset="UTF-8">
@@ -573,6 +573,8 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
     </div>
     <div class="mf">
       <button class="btn btn-g" id="rfidScanBtn" onclick="rfidScanToggle()">&#9654; Skeniraj</button>
+      <button class="btn btn-b" onclick="importFrom123RFID()" title="Uvozi zadnji CSV iz /sdcard/inventory/">&#8659; CSV</button>
+      <button class="btn btn-b" onclick="launch123RFID()" title="Odpri 123RFID app za skeniranje">&#128225; 123RFID</button>
       <button class="btn btn-d" onclick="closeMo('moRfid')">Zapri</button>
     </div>
   </div>
@@ -827,6 +829,22 @@ function importRfidScan(){
   showMo('moRfid');
 }
 
+function importFrom123RFID(){
+  if(typeof AndroidBridge==='undefined'){notify('Samo na napravi','warn');return;}
+  var json=AndroidBridge.importRfidCsv();
+  try{
+    var epcs=JSON.parse(json);
+    if(!epcs||epcs.length===0){notify('Ni CSV v /sdcard/inventory/ — skenirajte v 123RFID najprej','warn');return;}
+    var imp=0;
+    for(var i=0;i<epcs.length;i++){processRawScan(epcs[i]);imp++;}
+    notify('Uvozeno '+imp+' EPC iz 123RFID CSV','ok');
+    closeMo('moRfid');
+  }catch(e){notify('Napaka CSV: '+e,'err');}
+}
+function launch123RFID(){
+  if(typeof AndroidBridge==='undefined'){notify('Samo na napravi','warn');return;}
+  AndroidBridge.launchApp('com.zebra.rfidreaderAPI.demo');
+}
 // ===== NAVIGATION =====
 var pages=['scan','overview','inventory','expiry','gtins','more'];
 function nav(page){
