@@ -266,6 +266,11 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
       <button class="mbt" id="mbt-qr" onclick="setMode('qr')">&#9638; QR / DataMatrix</button>
     </div>
 
+    <div id="rfidBar" style="display:-webkit-flex;display:flex;gap:8px;margin-bottom:8px">
+      <button class="btn btn-a" style="flex:1;-webkit-justify-content:center;justify-content:center" onclick="launch123RFID()">&#128225; Odpri 123RFID</button>
+      <button class="btn btn-g" style="flex:1;-webkit-justify-content:center;justify-content:center" onclick="importFrom123RFID()">&#8659; Uvozi CSV</button>
+    </div>
+
     <div class="scan-zone rfid-a" id="scanZone" onclick="focusScan()">
       <div class="scan-icon" id="szIcon">&#128225;</div>
       <div class="scan-title" id="szTitle">RFID mod</div>
@@ -924,6 +929,9 @@ function setMode(m){
     var mk=x==='bar'?'barcode':x;
     b.className='mbt'+(mk===m?' '+modeCfg[mk].cls:'');
   });
+  var bar=$i('rfidBar');
+  if(bar)bar.style.display=(m==='rfid'?'-webkit-flex':'none');
+  if(bar)bar.style.display=(m==='rfid'?'flex':'none');
   focusScan();
 }
 function focusScan(){
