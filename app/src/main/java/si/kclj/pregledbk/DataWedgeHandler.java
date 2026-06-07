@@ -30,7 +30,7 @@ class DataWedgeHandler {
         registerReceiver();
     }
 
-    private void setupProfile() {
+    void setupProfile() {
         Intent create = new Intent(ACTION_DW_API);
         create.putExtra("com.symbol.datawedge.api.CREATE_PROFILE", PROFILE_NAME);
         context.sendBroadcast(create);
@@ -43,6 +43,13 @@ class DataWedgeHandler {
         barcodeParams.putString("scanner_input_enabled", "true");
         barcodePlugin.putBundle("PARAM_LIST", barcodeParams);
 
+        Bundle keystrokePlugin = new Bundle();
+        keystrokePlugin.putString("PLUGIN_NAME", "KEYSTROKE");
+        keystrokePlugin.putString("RESET_CONFIG", "true");
+        Bundle keystrokeParams = new Bundle();
+        keystrokeParams.putString("keystroke_output_enabled", "false");
+        keystrokePlugin.putBundle("PARAM_LIST", keystrokeParams);
+
         Bundle intentPlugin = new Bundle();
         intentPlugin.putString("PLUGIN_NAME", "INTENT");
         intentPlugin.putString("RESET_CONFIG", "true");
@@ -54,6 +61,7 @@ class DataWedgeHandler {
 
         ArrayList<Bundle> plugins = new ArrayList<>();
         plugins.add(barcodePlugin);
+        plugins.add(keystrokePlugin);
         plugins.add(intentPlugin);
 
         Bundle appEntry = new Bundle();

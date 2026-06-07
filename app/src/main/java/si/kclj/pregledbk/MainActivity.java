@@ -83,6 +83,7 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         } catch (Throwable t) {
             Log.e(TAG, "RFID resume failed: " + t);
         }
+        if (dwHandler != null) dwHandler.setupProfile();
     }
 
     @Override
