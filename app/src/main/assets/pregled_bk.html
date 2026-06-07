@@ -888,11 +888,11 @@ function processRawScan(raw){
       }
     }
   }
-  // Serial scan: merge serial into most recent item with same GTIN+lot but no serial
-  if(p.serial){
+  // Serial scan: merge serial into existing item with same GTIN+lot (lot must match to avoid cross-box contamination)
+  if(p.serial&&p.lot){
     for(var ki=sess.items.length-1;ki>=0;ki--){
       var pi=sess.items[ki];
-      if(pi.valid&&pi.gtin===p.gtin&&pi.lot&&!pi.serial&&(!p.lot||pi.lot===p.lot)){
+      if(pi.valid&&pi.gtin===p.gtin&&pi.lot===p.lot&&!pi.serial){
         pi.serial=p.serial;
         if(!pi.expiry&&p.expiry)pi.expiry=p.expiry;
         saveDB();renderRecent(sess);
