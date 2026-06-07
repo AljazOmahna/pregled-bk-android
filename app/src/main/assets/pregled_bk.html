@@ -887,14 +887,15 @@ function processRawScan(raw){
       }
     }
   }
-  // Expiry scan: merge into most recent item with same GTIN+lot that has serial but no expiry
-  if(p.expiry&&p.lot&&!p.serial){
+  // Expiry/lot scan: merge into most recent item with same GTIN that has serial but missing lot or expiry
+  if((p.expiry||p.lot)&&!p.serial){
     for(var ki=sess.items.length-1;ki>=0;ki--){
       var pi=sess.items[ki];
-      if(pi.valid&&pi.gtin===p.gtin&&pi.lot===p.lot&&pi.serial&&!pi.expiry){
-        pi.expiry=p.expiry;
+      if(pi.valid&&pi.gtin===p.gtin&&pi.serial&&(!pi.lot||!pi.expiry)&&(!pi.lot||!p.lot||pi.lot===p.lot)){
+        if(p.lot&&!pi.lot)pi.lot=p.lot;
+        if(p.expiry&&!pi.expiry)pi.expiry=p.expiry;
         saveDB();renderRecent(sess);
-        showFb('Datum dodan: '+gr.name+' #'+pi.serial+' do '+fmtExp(p.expiry),'ok');flash('ok');
+        showFb('Podatki dodani: '+gr.name+' #'+pi.serial,'ok');flash('ok');
         return;
       }
     }
