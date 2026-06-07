@@ -47,13 +47,17 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                     Log.d(TAG, "new Readers SERVICE_SERIAL");
                     readers = new Readers(context, ENUM_TRANSPORT.SERVICE_SERIAL);
                     readers.attach(RFIDHandler.this);
-                    ArrayList<ReaderDevice> list = readers.GetAvailableRFIDReaderList();
-                    Log.d(TAG, "GetAvailableRFIDReaderList: " + (list != null ? list.size() : "null"));
-                    if (list != null && !list.isEmpty()) {
-                        connectReader(list.get(0));
-                    } else {
-                        callback.onStatus("RFID: čakam na bralnik...");
+                    // Probe takes ~3s; retry until reader appears (RFIDReaderAppeared may not fire for non-Zebra packages)
+                    for (int i = 0; i < 12; i++) {
+                        ArrayList<ReaderDevice> list = readers.GetAvailableRFIDReaderList();
+                        Log.d(TAG, "try " + i + " list: " + (list != null ? list.size() : "null"));
+                        if (list != null && !list.isEmpty()) {
+                            connectReader(list.get(0));
+                            return null;
+                        }
+                        Thread.sleep(1000);
                     }
+                    callback.onStatus("RFID: ni bralnika");
                 } catch (Throwable e) {
                     Log.e(TAG, "init: " + e.getMessage(), e);
                     callback.onStatus(null);
