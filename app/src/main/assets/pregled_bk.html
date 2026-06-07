@@ -590,20 +590,25 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
     <div class="mb">
       <div id="spStep1">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:8px">&#9312; Barcode (QR / DataMatrix)</div>
-        <input type="text" id="spBarcodeInp" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px" placeholder="Skenirajte ali vnesite kodo..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="spOnBarcodeInput()" onkeydown="spOnBarcodeKey(event)">
+        <input type="text" id="spBarcodeInp" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px" placeholder="Skenirajte QR/DataMatrix..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="none" oninput="spOnBarcodeInput()" onkeydown="spOnBarcodeKey(event)">
         <div id="spItemInfo" style="display:none;margin-top:10px;padding:10px;background:var(--gbg);border:1px solid var(--green);border-radius:8px">
           <div style="font-weight:700;font-size:13px;color:var(--text)" id="spItemName"></div>
           <div style="font-size:11px;color:var(--text3);margin-top:4px" id="spItemDetails"></div>
         </div>
       </div>
       <div id="spStep2" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:8px">&#9313; RFID (antenna 60 &#8776;5cm)</div>
-        <div id="spRfidWait" style="padding:10px;background:var(--bg3);border-radius:8px;font-size:13px;color:var(--text3);text-align:center">Pritisnite gumb na RFD2000 da skenirate RFID...</div>
-        <div id="spRfidOk" style="display:none;padding:10px;background:var(--gbg);border:1px solid var(--green);border-radius:8px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:8px">&#9313; RFID — prek 123RFID (antenna 60, &#8776;5cm)</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">1. Odprite 123RFID &#8594; nastavite antenna 60 &#8594; skenirajte &#8594; ustavite &#8594; vrnite se</div>
+        <div style="display:-webkit-flex;display:flex;gap:8px;margin-bottom:8px">
+          <button class="btn btn-a" style="flex:1;-webkit-justify-content:center;justify-content:center" onclick="launch123RFID()">&#128225; Odpri 123RFID</button>
+          <button class="btn btn-g" style="flex:1;-webkit-justify-content:center;justify-content:center" onclick="spImportEpc()">&#8659; Uvozi EPC</button>
+        </div>
+        <div id="spRfidWait" style="padding:8px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--text3);text-align:center">Ni zajetega RFID</div>
+        <div id="spRfidOk" style="display:none;padding:8px;background:var(--gbg);border:1px solid var(--green);border-radius:8px">
           <div style="font-size:11px;color:var(--green);font-weight:700">&#10003; RFID zajeto</div>
           <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px;word-break:break-all" id="spEpcVal"></div>
         </div>
-        <button class="btn" onclick="spManualEpc()" style="margin-top:8px;width:100%;background:var(--bg3);border:1px solid var(--border);font-size:11px;-webkit-justify-content:center;justify-content:center">&#9998; Ro&#269;ni vnos EPC</button>
+        <button class="btn" onclick="spManualEpc()" style="margin-top:6px;width:100%;background:var(--bg3);border:1px solid var(--border);font-size:11px;-webkit-justify-content:center;justify-content:center">&#9998; Ro&#269;ni vnos EPC</button>
       </div>
     </div>
     <div class="mf">
@@ -1067,6 +1072,19 @@ function spManualEpc(){
   epc=epc.trim().toUpperCase();
   if(!/^[0-9A-F]{8,}$/.test(epc)){notify('Neveljaven EPC format','warn');return;}
   spCaptureEpc(epc);
+}
+function spImportEpc(){
+  if(typeof AndroidBridge==='undefined'){notify('Samo na napravi','warn');return;}
+  var json;
+  try{json=AndroidBridge.importRfidCsv();}
+  catch(e){notify('Napaka bridge: '+e,'err');return;}
+  if(!json||json==='NOPERM'){notify('Ni dovoljenja — dovolite dostop do shranjevanja','warn');return;}
+  try{
+    var epcs=JSON.parse(json);
+    if(!epcs||epcs.length===0){notify('Ni EPC v CSV — najprej skenirajte v 123RFID','warn');return;}
+    if(epcs.length>1){notify('Zajetih '+epcs.length+' EPC — vzamem prvega (nastavite antenna 60 za en EPC)','warn');}
+    spCaptureEpc(epcs[0]);
+  }catch(e){notify('Napaka CSV: '+e,'err');}
 }
 function confirmSprejem(){
   if(!sprejemData||!sprejemEpc){notify('Manjka barcode ali RFID','warn');return;}
