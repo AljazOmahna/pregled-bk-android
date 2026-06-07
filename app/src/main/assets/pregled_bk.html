@@ -230,6 +230,7 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
     <div style="display:-webkit-flex;display:flex;gap:6px">
       <button class="btn btn-g btn-sm" onclick="openNewSession()">+ Seja</button>
       <button class="btn btn-g btn-sm" onclick="importRfidScan()" title="Uvozi RFID scan TXT iz RFID Bridge app">&#128225; RFID</button>
+      <button class="btn btn-d btn-sm" onclick="cancelSession()">&#10007; Prekli&#269;i</button>
       <button class="btn btn-a btn-sm" onclick="closeSession()">&#10003; Zaklju&#269;i</button>
     </div>
   </div>
@@ -551,6 +552,17 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
   </div>
 </div>
 
+<div class="mo" id="moSessClose">
+  <div class="modal">
+    <div class="mh"><h3>&#10003; Seja zaklju&#269;ena</h3><button class="mc" onclick="closeMo('moSessClose')">&#10005;</button></div>
+    <div class="mb" id="moSessCloseBody"></div>
+    <div class="mf">
+      <button class="btn btn-g btn-sm" id="moSessCloseExport" onclick="exportUsedCSV()" style="display:none">&#128196; Izvozi porabljene</button>
+      <button class="btn btn-a" onclick="closeMo('moSessClose')">Zapri</button>
+    </div>
+  </div>
+</div>
+
 <div class="notif" id="notif"></div>
 
 <script>
@@ -592,7 +604,7 @@ const BUILTIN_GTINS = [
 ];
 
 // ===== STATE =====
-var DB={gtins:[],inventory:[],sessions:[],activeSessionId:null};
+var DB={gtins:[],inventory:[],sessions:[],activeSessionId:null,lastUsed:[]};
 function loadDB(){
   try{
     var s=localStorage.getItem('pbk_tc20');
@@ -994,11 +1006,103 @@ function startSession(){
 function closeSession(){
   var sess=getActiveSess();
   if(!sess){notify('Ni aktivne seje','warn');return;}
-  if(!confirm('Zakljuciti sejo "'+sess.name+'"?'))return;
-  sess.closed=new Date().toISOString();DB.activeSessionId=null;
-  saveDB();updateBanner();
+  if(!confirm('Zaključiti sejo "'+sess.name+'"?'))return;
+  var sessItems=sess.items.filter(function(i){return i.valid;});
+  var prevInv=DB.inventory.slice();
+  var prevUsed=DB.lastUsed||[];
+  // Compute used items: in prev inventory but not in new session
+  var used=[];
+  prevInv.forEach(function(pi){
+    if(pi.serials&&pi.serials.length){
+      pi.serials.forEach(function(sr){
+        if(!sessItems.some(function(si){return si.serial===sr;}))
+          used.push({gtin:pi.gtin,lot:pi.lot,serial:sr,expiry:pi.expiry,name:pi.name,type:pi.type});
+      });
+    } else {
+      var newQty=sessItems.filter(function(si){return si.gtin===pi.gtin&&si.lot===pi.lot;}).length;
+      var diff=(pi.qty||0)-newQty;
+      for(var d=0;d<diff;d++) used.push({gtin:pi.gtin,lot:pi.lot,serial:'',expiry:pi.expiry,name:pi.name,type:pi.type});
+    }
+  });
+  // Check reappearances: serials marked as used in previous transition
+  var reappeared=sessItems.filter(function(si){
+    return si.serial&&prevUsed.some(function(pu){return pu.serial===si.serial;});
+  });
+  // Build new inventory from session items
+  var invMap={};
+  sessItems.forEach(function(si){
+    var k=si.gtin+'|'+(si.lot||'');
+    if(!invMap[k])invMap[k]={gtin:si.gtin,lot:si.lot||'',expiry:si.expiry||'',qty:0,
+      name:si.name,type:si.type,serials:[],lastScan:si.dt};
+    invMap[k].qty++;
+    if(si.serial&&invMap[k].serials.indexOf(si.serial)<0)invMap[k].serials.push(si.serial);
+    if(si.expiry)invMap[k].expiry=si.expiry;
+    if(si.dt>invMap[k].lastScan)invMap[k].lastScan=si.dt;
+  });
+  sess.closed=new Date().toISOString();
+  sess.usedCount=used.length;
+  sess.reappearedCount=reappeared.length;
+  DB.activeSessionId=null;
+  DB.inventory=Object.keys(invMap).map(function(k){return invMap[k];});
+  DB.lastUsed=used;
+  saveDB();updateBanner();updateStats();
   $i('scanPanel').style.display='none';$i('noSess').style.display='block';
-  notify('Seja zakljucena','ok');
+  showSessCloseSummary(sessItems.length,used,reappeared);
+}
+function showSessCloseSummary(total,used,reappeared){
+  var h='<div style="display:-webkit-flex;display:flex;gap:10px;margin-bottom:14px">';
+  h+='<div style="-webkit-flex:1;flex:1;text-align:center;background:var(--gbg);border:1px solid var(--green);border-radius:8px;padding:12px">';
+  h+='<div style="font-size:26px;font-weight:700;color:var(--green)">'+total+'</div>';
+  h+='<div style="font-size:9px;color:var(--text3);text-transform:uppercase">Nova zaloga</div></div>';
+  h+='<div style="-webkit-flex:1;flex:1;text-align:center;background:var(--rbg);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:12px">';
+  h+='<div style="font-size:26px;font-weight:700;color:var(--red)">'+used.length+'</div>';
+  h+='<div style="font-size:9px;color:var(--text3);text-transform:uppercase">Porabljenih</div></div></div>';
+  if(reappeared.length){
+    h+='<div style="background:var(--ybg);border:1px solid var(--yellow);border-radius:8px;padding:10px;margin-bottom:12px">';
+    h+='<div style="font-size:11px;font-weight:700;color:var(--yellow);margin-bottom:6px">&#9888; OPOZORILO: '+reappeared.length+' škatl(ic) je bila v prejšnji seji označena kot porabljene!</div>';
+    h+='<div style="font-size:10px;color:var(--text2);margin-bottom:4px">Morda pozabljene pri skeniranju vmesne seje:</div>';
+    reappeared.forEach(function(r){
+      h+='<div style="font-size:10px;font-family:var(--mono);color:var(--yellow)">'+(r.name||r.gtin)+(r.serial?' #'+r.serial:'')+'</div>';
+    });
+    h+='</div>';
+  }
+  if(used.length){
+    h+='<div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px">Porabljene škatlic ('+used.length+'):</div>';
+    h+='<div style="max-height:180px;overflow-y:auto;-webkit-overflow-scrolling:touch">';
+    used.forEach(function(u){
+      h+='<div style="padding:5px 0;border-bottom:1px solid var(--border);font-size:11px">';
+      h+=(u.name||u.gtin);
+      if(u.lot) h+=' <span style="font-family:var(--mono);color:var(--accent2)">L:'+u.lot+'</span>';
+      if(u.serial) h+=' <span style="font-family:var(--mono);color:var(--text3)">#'+u.serial+'</span>';
+      if(u.expiry) h+=' <span style="color:var(--text3)">'+fmtExp(u.expiry)+'</span>';
+      h+='</div>';
+    });
+    h+='</div>';
+  } else {
+    h+='<div style="color:var(--green);font-size:12px;text-align:center;padding:10px">Ni porabljenih — vse škatlic je še v zalogi.</div>';
+  }
+  $i('moSessCloseBody').innerHTML=h;
+  $i('moSessCloseExport').style.display=used.length?'':'none';
+  $i('moSessCloseExport').dataset.used=JSON.stringify(used);
+  $i('moSessClose').classList.add('open');
+}
+function exportUsedCSV(){
+  var used;try{used=JSON.parse($i('moSessCloseExport').dataset.used||'[]');}catch(e){used=[];}
+  if(!used.length){notify('Ni porabljenih','warn');return;}
+  var rows=[['Naziv','GTIN','Lot','Serial','Rok izteka']];
+  used.forEach(function(u){rows.push([u.name||'',u.gtin||'',u.lot||'',u.serial||'',fmtExp(u.expiry)]);});
+  dlCSV(csvB(rows),'Porabljeni_'+new Date().toISOString().slice(0,10)+'.csv');
+  notify('CSV izvozen','ok');
+}
+function cancelSession(){
+  var sess=getActiveSess();
+  if(!sess){notify('Ni aktivne seje','warn');return;}
+  if(!confirm('Preklicati sejo "'+sess.name+'"? Vsi skeni bodo izgubljeni.'))return;
+  DB.sessions=DB.sessions.filter(function(s){return s.id!==sess.id;});
+  DB.activeSessionId=null;
+  saveDB();updateBanner();updateStats();
+  $i('scanPanel').style.display='none';$i('noSess').style.display='block';
+  notify('Seja preklicana','warn');
 }
 function updateBanner(){
   var sess=getActiveSess();
