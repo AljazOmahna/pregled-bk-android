@@ -18,6 +18,7 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
     private static final String TAG = "PregledBK";
     private WebView webView;
     private RFIDHandler rfidHandler;
+    private DataWedgeHandler dwHandler;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
@@ -45,15 +46,17 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
             rfidHandler.init();
         } catch (Throwable t) {
             Log.e(TAG, "RFID init failed: " + t);
-            Toast.makeText(this, "RFID ni podprt: " + t.getMessage(), Toast.LENGTH_LONG).show();
         }
+
+        dwHandler = new DataWedgeHandler(this, this);
+        dwHandler.init();
     }
 
-    // Called from RFIDHandler when a tag EPC is read
+    // Called from RFIDHandler (RFID EPC) or DataWedgeHandler (barcode)
     @Override
     public void onTagRead(String epc) {
-        // Sanitize EPC — only hex chars allowed
-        final String safe = epc.replaceAll("[^0-9a-fA-F]", "").toUpperCase();
+        // Allow alphanum + common barcode chars; strip anything that could break JS string
+        final String safe = epc.replaceAll("[^0-9a-zA-Z\\-_\\.:]", "");
         if (safe.isEmpty()) return;
         Log.d(TAG, "EPC: " + safe);
         mainHandler.post(() ->
@@ -92,6 +95,7 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
     protected void onDestroy() {
         super.onDestroy();
         if (rfidHandler != null) rfidHandler.dispose();
+        if (dwHandler != null) dwHandler.dispose();
     }
 
     // JavaScript interface — allows HTML to call Android
