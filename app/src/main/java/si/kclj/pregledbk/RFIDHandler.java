@@ -72,19 +72,24 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
 
                 ArrayList<ReaderDevice> list = null;
                 for (ENUM_TRANSPORT t : transports) {
-                    if (readers == null)
-                        readers = new Readers(context, t);
-                    else
-                        readers.setTransport(t);
-                    list = readers.GetAvailableRFIDReaderList();
-                    if (list != null && !list.isEmpty()) {
-                        Log.d(TAG, "Found reader via " + t.name());
-                        break;
+                    try {
+                        if (readers == null)
+                            readers = new Readers(context, t);
+                        else
+                            readers.setTransport(t);
+                        list = readers.GetAvailableRFIDReaderList();
+                        if (list != null && !list.isEmpty()) {
+                            Log.d(TAG, "Found reader via " + t.name());
+                            break;
+                        }
+                    } catch (Throwable e) {
+                        Log.w(TAG, "Transport " + t.name() + " failed: " + e.getMessage());
+                        readers = null;
                     }
                 }
 
                 if (list == null || list.isEmpty())
-                    return "RFID bralnik ni najden";
+                    return null; // no reader — silent, not an error
 
                 readers.attach(RFIDHandler.this);
                 readerDevice = list.get(0);

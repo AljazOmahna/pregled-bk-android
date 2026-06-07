@@ -64,10 +64,12 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
     // Called from RFIDHandler for status updates
     @Override
     public void onStatus(String msg) {
+        if (msg == null) return; // no reader found — silent
         Log.d(TAG, "Status: " + msg);
-        mainHandler.post(() ->
-            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-        );
+        mainHandler.post(() -> {
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+            webView.evaluateJavascript("onRfidStatus(" + (msg.startsWith("Povezan") ? "true" : "false") + ",'" + msg.replace("'", "\\'") + "')", null);
+        });
     }
 
     @Override
@@ -102,6 +104,21 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         @JavascriptInterface
         public String getVersion() {
             return "1.0";
+        }
+
+        @JavascriptInterface
+        public void startRfidScan() {
+            if (rfidHandler != null) rfidHandler.performInventory();
+        }
+
+        @JavascriptInterface
+        public void stopRfidScan() {
+            if (rfidHandler != null) rfidHandler.stopInventory();
+        }
+
+        @JavascriptInterface
+        public boolean isRfidConnected() {
+            return rfidHandler != null;
         }
     }
 }
