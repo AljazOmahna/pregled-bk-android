@@ -1153,7 +1153,11 @@ function deleteReceived(id){
 }
 
 // ===== SCAN PROCESSING =====
+var _lastScanRaw='';var _lastScanTs=0;
 function processRawScan(raw){
+  var now=Date.now();
+  if(raw===_lastScanRaw&&now-_lastScanTs<500)return;
+  _lastScanRaw=raw;_lastScanTs=now;
   // Sprejem mode: intercept scans for sprejem flow
   if(sprejemActive){
     var rawUp=raw.trim().toUpperCase();
