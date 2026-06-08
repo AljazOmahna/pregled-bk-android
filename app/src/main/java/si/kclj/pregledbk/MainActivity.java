@@ -64,13 +64,6 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         }
     }
 
-    @Override
-    public void onTriggerEvent(boolean pressed) {
-        mainHandler.post(() ->
-            webView.evaluateJavascript("onRfidTriggerEvent(" + pressed + ")", null)
-        );
-    }
-
     // Called from RFIDHandler (RFID EPC) or DataWedgeHandler (barcode)
     @Override
     public void onTagRead(String epc) {

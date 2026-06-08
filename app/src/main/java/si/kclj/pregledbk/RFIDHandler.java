@@ -7,7 +7,6 @@ import android.util.Log;
 
 import com.zebra.rfid.api3.ENUM_TRANSPORT;
 import com.zebra.rfid.api3.ENUM_TRIGGER_MODE;
-import com.zebra.rfid.api3.HANDHELD_TRIGGER_EVENT_TYPE;
 import com.zebra.rfid.api3.InvalidUsageException;
 import com.zebra.rfid.api3.OperationFailureException;
 import com.zebra.rfid.api3.RFIDReader;
@@ -16,7 +15,6 @@ import com.zebra.rfid.api3.Readers;
 import com.zebra.rfid.api3.RfidEventsListener;
 import com.zebra.rfid.api3.RfidReadEvents;
 import com.zebra.rfid.api3.RfidStatusEvents;
-import com.zebra.rfid.api3.STATUS_EVENT_TYPE;
 import com.zebra.rfid.api3.TagData;
 
 import java.util.ArrayList;
@@ -28,7 +26,6 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
     interface Callback {
         void onTagRead(String epc);
         void onStatus(String msg);
-        void onTriggerEvent(boolean pressed);
     }
 
     private final Context context;
@@ -104,17 +101,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
 
                     @Override
                     public void eventStatusNotify(RfidStatusEvents rfidStatusEvents) {
-                        try {
-                            STATUS_EVENT_TYPE type = rfidStatusEvents.StatusEventData.getStatusEventType();
-                            Log.d(TAG, "Status: " + type);
-                            if (type == STATUS_EVENT_TYPE.HANDHELD_TRIGGER_EVENT) {
-                                HANDHELD_TRIGGER_EVENT_TYPE tType =
-                                    rfidStatusEvents.StatusEventData.HandheldTriggerEventData.getHandheldTriggerEvent();
-                                callback.onTriggerEvent(tType == HANDHELD_TRIGGER_EVENT_TYPE.HANDHELD_TRIGGER_PRESSED);
-                            }
-                        } catch (Exception e) {
-                            Log.e(TAG, "eventStatusNotify: " + e.getMessage());
-                        }
+                        Log.d(TAG, "Status: " + rfidStatusEvents.StatusEventData.getStatusEventType());
                     }
                 });
 
