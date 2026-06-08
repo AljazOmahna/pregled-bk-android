@@ -7,6 +7,7 @@ import android.util.Log;
 
 import com.zebra.rfid.api3.ENUM_TRANSPORT;
 import com.zebra.rfid.api3.ENUM_TRIGGER_MODE;
+import com.zebra.rfid.api3.HANDHELD_TRIGGER_EVENT_TYPE;
 import com.zebra.rfid.api3.InvalidUsageException;
 import com.zebra.rfid.api3.OperationFailureException;
 import com.zebra.rfid.api3.RFIDReader;
@@ -15,6 +16,7 @@ import com.zebra.rfid.api3.Readers;
 import com.zebra.rfid.api3.RfidEventsListener;
 import com.zebra.rfid.api3.RfidReadEvents;
 import com.zebra.rfid.api3.RfidStatusEvents;
+import com.zebra.rfid.api3.STATUS_EVENT_TYPE;
 import com.zebra.rfid.api3.TagData;
 
 import java.util.ArrayList;
@@ -26,12 +28,14 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
     interface Callback {
         void onTagRead(String epc);
         void onStatus(String msg);
+        void onTriggerEvent(boolean pressed);
     }
 
     private final Context context;
     private final Callback callback;
     private Readers readers;
     private RFIDReader reader;
+    private volatile boolean scanArmed = false;
 
     RFIDHandler(Context context, Callback callback) {
         this.context = context.getApplicationContext();
@@ -116,7 +120,26 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
 
                     @Override
                     public void eventStatusNotify(RfidStatusEvents rfidStatusEvents) {
-                        Log.d(TAG, "Status: " + rfidStatusEvents.StatusEventData.getStatusEventType());
+                        STATUS_EVENT_TYPE evType = rfidStatusEvents.StatusEventData.getStatusEventType();
+                        Log.d(TAG, "Status: " + evType);
+                        if (evType == STATUS_EVENT_TYPE.HANDHELD_TRIGGER_EVENT) {
+                            HANDHELD_TRIGGER_EVENT_TYPE triggerEvent =
+                                rfidStatusEvents.StatusEventData.HandheldTriggerEventData.getHandheldEvent();
+                            Log.d(TAG, "Trigger: " + triggerEvent);
+                            boolean pressed = (triggerEvent == HANDHELD_TRIGGER_EVENT_TYPE.HANDHELD_TRIGGER_PRESSED);
+                            if (pressed && scanArmed) {
+                                new Thread(() -> {
+                                    try { if (reader != null) reader.Actions.Inventory.perform(); }
+                                    catch (Exception e) { Log.e(TAG, "trigger perform: " + e.getMessage()); }
+                                }).start();
+                            } else if (!pressed && scanArmed) {
+                                new Thread(() -> {
+                                    try { if (reader != null) reader.Actions.Inventory.stop(); }
+                                    catch (Exception e) { Log.e(TAG, "trigger stop: " + e.getMessage()); }
+                                }).start();
+                            }
+                            callback.onTriggerEvent(pressed);
+                        }
                     }
                 });
 
@@ -159,8 +182,8 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                     reader.Config.Antennas.setAntennaRfConfig(1, cfg);
                     Log.d(TAG, "Sprejem power: " + levels[bestIdx] + " cBm idx=" + bestIdx);
                 }
-                reader.Actions.Inventory.perform();
-                Log.d(TAG, "Sprejem inventory started, čakam trigger");
+                scanArmed = true;
+                Log.d(TAG, "Sprejem armed — čakam trigger");
             } catch (Exception e) {
                 Log.e(TAG, "startSprejemInventory: " + e.getMessage());
             }
@@ -168,6 +191,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
     }
 
     void stopSprejemInventory() {
+        scanArmed = false;
         new Thread(() -> {
             try {
                 if (reader != null) reader.Actions.Inventory.stop();

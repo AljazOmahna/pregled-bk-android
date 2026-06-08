@@ -1083,13 +1083,11 @@ function spCaptureEpc(epc){
   var dup=(DB.received||[]).filter(function(r){return r.rfidEpc===epc&&r.status==='active';})[0];
   if(dup){notify('Ta EPC je že povezan z: '+dup.name,'warn');spStopRfid();return;}
   sprejemEpc=epc;
-  spStopRfid();
   $i('spRfidWait').style.display='none';
   $i('spRfidOk').style.display='block';
   $i('spEpcVal').textContent=epc;
   $i('spConfirmBtn').disabled=false;
-  notify('RFID zajeto — shranjujem...','ok');
-  _spAutoConfirmTimer=setTimeout(function(){confirmSprejem();},1500);
+  notify('RFID zajeto — spusti trigger za shranjevanje','ok');
 }
 function spStartRfid(){
   if(typeof AndroidBridge==='undefined'){notify('Samo na napravi','warn');return;}
@@ -1111,16 +1109,21 @@ function spStopRfid(){
   if(st)st.textContent='Kliknite gumb nato pritisnite trigger na RFD2000';
 }
 function onRfidTriggerEvent(pressed){
-  if(!sprejemActive||!sprejemData)return;
   var btn=$i('spRfidScanBtn');
   var st=$i('spRfidStatus');
   if(pressed){
-    if(btn){btn.disabled=true;btn.textContent='📡 Skeniram...';}
-    if(st)st.textContent='Skeniram RFID — držite blizu oznake...';
+    if(sprejemActive&&sprejemData){
+      if(btn){btn.disabled=true;btn.textContent='📡 Skeniram...';}
+      if(st)st.textContent='Skeniram RFID — držite blizu oznake...';
+    }
   } else {
-    if(!sprejemEpc){
+    if(sprejemActive&&sprejemEpc){
+      if(_spAutoConfirmTimer){clearTimeout(_spAutoConfirmTimer);_spAutoConfirmTimer=null;}
+      confirmSprejem();
+    } else if(sprejemActive&&!sprejemEpc){
       if(btn){btn.disabled=false;btn.textContent='📡 Skeniraj RFID';}
-      if(st)st.textContent='Pritisnite trigger na RFD2000 za skeniranje';
+      if(st)st.textContent='Ni kode — pritisnite trigger znova';
+      notify('RFID: ni kode — poskusite znova','warn');
     }
   }
 }

@@ -76,6 +76,13 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         );
     }
 
+    @Override
+    public void onTriggerEvent(boolean pressed) {
+        mainHandler.post(() ->
+            webView.evaluateJavascript("onRfidTriggerEvent(" + pressed + ")", null)
+        );
+    }
+
     // Called from RFIDHandler for status updates
     @Override
     public void onStatus(String msg) {
