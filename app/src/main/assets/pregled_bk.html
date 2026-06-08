@@ -1220,7 +1220,7 @@ function processRawScan(raw){
   }
   var sess=getActiveSess();
   if(!sess){showFb('Ni aktivne seje! Zaknite novo sejo.','err');return;}
-  // Known RFID EPC: look up in DB.received before GTIN decode
+  // RFID EPC: look up by EPC only (received → inventory), never fall through to GTIN decode
   var rawUp=raw.trim().toUpperCase();
   if(/^[0-9A-Fa-f]{8,}$/.test(rawUp)&&/[A-Fa-f]/.test(rawUp)){
     var recItem=(DB.received||[]).filter(function(r){return r.rfidEpc===rawUp&&r.status==='active';})[0];
@@ -1230,6 +1230,16 @@ function processRawScan(raw){
       acceptScan(sess,raw,pRec,grRec,true);
       return;
     }
+    var invItem=(DB.inventory||[]).filter(function(i){return i.rfidEpcs&&i.rfidEpcs.indexOf(rawUp)>=0;})[0];
+    if(invItem){
+      var grInv=DB.gtins.filter(function(g){return g.gtin===invItem.gtin;})[0];
+      var grInvData=grInv?{name:grInv.name,type:grInv.type}:{name:invItem.name,type:invItem.type};
+      var pInv={gtin:invItem.gtin,lot:invItem.lot,expiry:invItem.expiry};
+      acceptScan(sess,raw,pInv,grInvData,true);
+      return;
+    }
+    rejectScan(sess,raw,'EPC ni prepoznan: '+rawUp.slice(0,12)+'…');
+    return;
   }
   // Try EPC first, then GS1 barcode
   var p=parseEPC(raw);
