@@ -1150,7 +1150,9 @@ function onRfidTriggerEvent(pressed){
       if(st)st.textContent='Ni kode — pritisnite trigger znova';
       notify('RFID: ni kode — poskusite znova','warn');
     } else if(rfidMultiActive){
-      stopMultiRfid();
+      if(mBtn){mBtn.innerHTML='&#9632; Ustavi skeniranje';mBtn.className='btn btn-d';}
+      $i('szHint').textContent='Pritisni trigger znova ali klikni Ustavi';
+      renderStagingList();
     }
   }
 }
