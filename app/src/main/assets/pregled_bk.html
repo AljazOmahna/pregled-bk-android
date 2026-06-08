@@ -319,6 +319,9 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
       <option value="">Vsi</option>
       <option value="control">Kontrole</option>
       <option value="calibrator">Kalibratorji</option>
+      <option value="reagent-bio">Reagenti Bio</option>
+      <option value="reagent-imuno">Reagenti IMUNO</option>
+      <option value="consumable">Potrošni material</option>
     </select>
   </div>
   <div id="overviewBody"></div>
@@ -337,6 +340,9 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
       <option value="">Vsi tipi</option>
       <option value="control">Kontrole</option>
       <option value="calibrator">Kalibratorji</option>
+      <option value="reagent-bio">Reagenti Bio</option>
+      <option value="reagent-imuno">Reagenti IMUNO</option>
+      <option value="consumable">Potrošni material</option>
     </select>
     <select id="invExp" onchange="renderInventory()">
       <option value="">Vsi roki</option>
@@ -400,6 +406,9 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
       <option value="">Vsi</option>
       <option value="control">Kontrole</option>
       <option value="calibrator">Kalibratorji</option>
+      <option value="reagent-bio">Reagenti Bio</option>
+      <option value="reagent-imuno">Reagenti IMUNO</option>
+      <option value="consumable">Potrošni material</option>
     </select>
   </div>
   <div class="tbl-wrap">
@@ -419,6 +428,32 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
   Chrome <strong style="color:#f1f5f9">&#8942; &#8594; Add to Home screen &#8594; &ldquo;Pregled BK&rdquo;</strong><br>
   <span style="color:#64748b;font-size:10px">Naslednji&#269; odprete direktno brez vtipkavanja poti.</span>
 </div>
+  <div class="card">
+    <div class="card-title">&#9881;&#65039; Nastavitve</div>
+    <label style="display:-webkit-flex;display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 0;margin-bottom:12px">
+      <input type="checkbox" id="settSerialSprejem" onchange="onSettChange()" style="width:18px;height:18px;flex-shrink:0">
+      <div>
+        <div style="font-size:13px;font-weight:600">Serijski sprejem</div>
+        <div style="font-size:11px;color:var(--text3)">Okno ostane odprto — sprejmite več artiklov zaporedno</div>
+      </div>
+    </label>
+    <div style="margin-bottom:10px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:2px">Mo&#269; RFID — Sprejem materiala (dBm)</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Priporo&#269;eno: 0,0 – 10,0 dBm</div>
+      <input type="number" id="settSprejemPower" min="0" max="30" step="0.5"
+        style="width:100px;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px"
+        oninput="onSettPowerChange('sprejem')" value="6">
+      <div id="settSprejemPowerWarn" style="font-size:11px;margin-top:4px;display:none"></div>
+    </div>
+    <div>
+      <div style="font-size:12px;font-weight:600;margin-bottom:2px">Mo&#269; RFID — MultiRFID (dBm)</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Priporo&#269;eno: 15,0 – 30,0 dBm</div>
+      <input type="number" id="settMultiRfidPower" min="0" max="30" step="0.5"
+        style="width:100px;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px"
+        oninput="onSettPowerChange('multi')" value="30">
+      <div id="settMultiRfidPowerWarn" style="font-size:11px;margin-top:4px;display:none"></div>
+    </div>
+  </div>
   <div class="card">
     <div class="card-title">&#128203; Seje inventure</div>
     <div class="tbl-wrap">
@@ -502,7 +537,7 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
     <div class="mb">
       <div class="frow">
         <div class="fg"><label>GTIN (14 mest)</label><input type="text" id="gtinCode" maxlength="14" style="font-family:var(--mono)" inputmode="numeric"></div>
-        <div class="fg"><label>Tip</label><select id="gtinTypeVal"><option value="control">Kontrola</option><option value="calibrator">Kalibrator</option></select></div>
+        <div class="fg"><label>Tip</label><select id="gtinTypeVal"><option value="control">Kontrola</option><option value="calibrator">Kalibrator</option><option value="reagent-bio">Reagenti Bio</option><option value="reagent-imuno">Reagenti IMUNO</option><option value="consumable">Potrošni material</option></select></div>
       </div>
       <div class="fg"><label>Naziv</label><input type="text" id="gtinName"></div>
       <div class="frow">
@@ -608,7 +643,7 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
     </div>
     <div class="mf">
       <button class="btn btn-a" id="spConfirmBtn" onclick="confirmSprejem()" disabled style="flex:1;-webkit-justify-content:center;justify-content:center">&#10003; Sprejmi</button>
-      <button class="btn btn-d" onclick="closeSprejem()">Prekli&#269;i</button>
+      <button class="btn btn-d" id="spCloseBtn" onclick="closeSprejem()">Prekli&#269;i</button>
     </div>
   </div>
 </div>
@@ -736,27 +771,17 @@ function parseGS1(raw){
         r.expiry = rest.slice(i+2,i+6)+'01';
         i += 6;
       } else if(ai==='21'){
-        // Serial: variable, read until control char or next known AI
-        var j = i+2;
-        while(j < rest.length){
-          if(rest.charCodeAt(j)<32) break;
-          var nai = rest.slice(j,j+2);
-          if((nai==='10'||nai==='17'||nai==='11'||nai==='15'||nai==='24'||nai==='91'||nai==='92'||nai==='93'||nai==='30'||nai==='37') && j>i+4) break;
-          j++;
-        }
-        r.serial = rest.slice(i+2,j).replace(/[^\x20-\x7E]/g,'');
-        i = rest.charCodeAt(j)<32 ? j+1 : j;
+        // Serial: read until FNC1 (char<32) or max 20 chars
+        var j=i+2;
+        while(j<rest.length&&(j-i-2)<20){if(rest.charCodeAt(j)<32)break;j++;}
+        r.serial=rest.slice(i+2,j).replace(/[^\x20-\x7E]/g,'');
+        i=rest.charCodeAt(j)<32?j+1:j;
       } else if(ai==='10'){
-        // Lot: variable, read until control char or next known AI
-        var j = i+2;
-        while(j < rest.length){
-          if(rest.charCodeAt(j)<32) break;
-          var nai = rest.slice(j,j+2);
-          if((nai==='17'||nai==='21'||nai==='11'||nai==='15'||nai==='24'||nai==='91'||nai==='30'||nai==='37') && j>i+6) break;
-          j++;
-        }
-        r.lot = rest.slice(i+2,j).replace(/[^\x20-\x7E]/g,'');
-        i = rest.charCodeAt(j)<32 ? j+1 : j;
+        // Lot: read until FNC1 (char<32) or max 20 chars
+        var j=i+2;
+        while(j<rest.length&&(j-i-2)<20){if(rest.charCodeAt(j)<32)break;j++;}
+        r.lot=rest.slice(i+2,j).replace(/[^\x20-\x7E]/g,'');
+        i=rest.charCodeAt(j)<32?j+1:j;
       } else if(ai==='11'){
         i += 8; // production date fixed 6
       } else {
@@ -856,6 +881,7 @@ function startMultiRfid(){
   renderStagingList();
 }
 function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function typeName(t){return {control:'Kontrola',calibrator:'Kalibrator','reagent-bio':'Reagenti Bio','reagent-imuno':'Reagenti IMUNO',consumable:'Potrošni material'}[t]||t;}
 function stopMultiRfid(){
   rfidMultiActive=false;
   if(typeof AndroidBridge!=='undefined'){try{AndroidBridge.stopRfidScan();}catch(e){}}
@@ -1029,6 +1055,36 @@ function onScanKey(e){
   }
 }
 
+// ===== NASTAVITVE =====
+var APP_SETTINGS={serialSprejem:false,sprejemPower:6.0,multiRfidPower:30.0};
+function loadSettings(){
+  try{var s=localStorage.getItem('pregledBK_sett');if(s)APP_SETTINGS=JSON.parse(s);}catch(e){}
+  var cb=$i('settSerialSprejem');if(cb)cb.checked=!!APP_SETTINGS.serialSprejem;
+  var sp=$i('settSprejemPower');if(sp)sp.value=APP_SETTINGS.sprejemPower||6.0;
+  var mp=$i('settMultiRfidPower');if(mp)mp.value=APP_SETTINGS.multiRfidPower||30.0;
+}
+function onSettChange(){
+  APP_SETTINGS.serialSprejem=!!$i('settSerialSprejem').checked;
+  localStorage.setItem('pregledBK_sett',JSON.stringify(APP_SETTINGS));
+}
+function onSettPowerChange(type){
+  var inpId=type==='sprejem'?'settSprejemPower':'settMultiRfidPower';
+  var warnId=type==='sprejem'?'settSprejemPowerWarn':'settMultiRfidPowerWarn';
+  var v=parseFloat($i(inpId).value);
+  var wEl=$i(warnId);
+  if(isNaN(v)||v<0||v>30){
+    wEl.style.display='block';wEl.style.color='var(--red)';
+    wEl.textContent='Napaka: vnesi vrednost med 0,0 in 30,0 dBm';
+    return;
+  }
+  var msg='',warn=false;
+  if(type==='sprejem'&&v>10){msg='Opozorilo: previsoka moč — možnost zajema tujih RFID kod';warn=true;}
+  if(type==='multi'&&v<15){msg='Opomba: prenizka moč — možnost slabšega branja RFID';warn=true;}
+  wEl.style.display=warn?'block':'none';wEl.style.color='var(--orange)';wEl.textContent=msg;
+  if(type==='sprejem')APP_SETTINGS.sprejemPower=v;else APP_SETTINGS.multiRfidPower=v;
+  localStorage.setItem('pregledBK_sett',JSON.stringify(APP_SETTINGS));
+}
+
 // ===== SPREJEM =====
 var sprejemActive=false;
 var sprejemStep=1; // 1=barcode, 2=rfid
@@ -1044,7 +1100,21 @@ function openSprejem(){
   $i('spRfidWait').style.display='block';
   $i('spRfidOk').style.display='none';
   $i('spConfirmBtn').disabled=true;
+  var cb=$i('spCloseBtn');if(cb)cb.textContent=APP_SETTINGS.serialSprejem?'Zaključi sprejem':'Prekliči';
   showMo('moSprejem');
+  setTimeout(function(){$i('spBarcodeInp').focus();},300);
+}
+function spReset(){
+  if(_spAutoConfirmTimer){clearTimeout(_spAutoConfirmTimer);_spAutoConfirmTimer=null;}
+  spStopRfid();
+  sprejemStep=1;sprejemData=null;sprejemEpc=null;
+  $i('spBarcodeInp').value='';
+  $i('spItemInfo').style.display='none';
+  $i('spStep2').style.display='none';
+  $i('spRfidWait').style.display='block';
+  $i('spRfidOk').style.display='none';
+  $i('spConfirmBtn').disabled=true;
+  var cb=$i('spCloseBtn');if(cb)cb.textContent='Zaključi sprejem';
   setTimeout(function(){$i('spBarcodeInp').focus();},300);
 }
 function closeSprejem(){
@@ -1067,6 +1137,10 @@ function spOnBarcodeKey(e){
 }
 function spProcessBarcode(raw){
   var p=parseGS1(raw);
+  if(p&&p.serial&&p.serial.length<5){
+    notify('Serijska nepopolna ('+p.serial+', '+p.serial.length+' zn.) — skenirajte znova','err');
+    $i('spBarcodeInp').value='';return;
+  }
   // Merge into existing item if same GTIN
   if(sprejemData&&p&&p.gtin===sprejemData.gtin){
     var changed=false;
@@ -1093,6 +1167,7 @@ function spProcessBarcode(raw){
   $i('spStep2').style.display='block';
   notify('Prepoznano: '+gr.name,'ok');
   setTimeout(function(){$i('spBarcodeInp').value='';$i('spBarcodeInp').focus();},100);
+  if(APP_SETTINGS.serialSprejem){setTimeout(function(){spStartRfid();},200);}
 }
 function spUpdateItemInfo(){
   if(!sprejemData)return;
@@ -1200,7 +1275,7 @@ function confirmSprejem(){
   }
   saveDB(); renderReceived(); renderInventory(); updateStats();
   notify('Sprejeto: '+sprejemData.name+(sprejemData.serial?' #'+sprejemData.serial:''),'ok');
-  closeSprejem();
+  if(APP_SETTINGS.serialSprejem){spReset();}else{closeSprejem();}
 }
 function renderReceived(){
   var tb=$i('receivedBody');
@@ -1248,7 +1323,7 @@ function processRawScan(raw){
   var rawUp=raw.trim().toUpperCase();
   // MultiRFID staging: collect EPCs into staging buffer — no active session required
   if(rfidMultiActive&&/^[0-9A-Fa-f]{8,}$/.test(rawUp)&&/[A-Fa-f]/.test(rawUp)){
-    notify('MultiRFID: '+rawUp.slice(0,12),'ok');
+
     if(rfidStaging.recognized.some(function(x){return x.raw===rawUp;})||rfidStaging.unknown.indexOf(rawUp)>=0)return;
     var mRec=(DB.received||[]).filter(function(r){return r.rfidEpc===rawUp&&r.status==='active';})[0];
     if(mRec){
@@ -1368,7 +1443,7 @@ function acceptScan(sess,raw,p,gr,fromRfid){
   var item={raw:raw,gtin:p.gtin,lot:p.lot||'',expiry:p.expiry||'',serial:p.serial||'',
     valid:true,dt:new Date().toISOString(),mode:scanMode,name:gr.name,type:gr.type,fromRfid:!!fromRfid};
   sess.items.push(item);sess.scanned=(sess.scanned||0)+1;
-  updateInv(p,gr);saveDB();updateBanner();updateStats();renderRecent(sess);
+  saveDB();updateBanner();renderRecent(sess);
   var d=daysLeft(p.expiry);
   if(p.serial)showFb('OK: '+gr.name+(p.lot?' L:'+p.lot:'')+(p.serial?' #'+p.serial:''),'ok');
   else if(d<0)showFb('OK: '+gr.name+' - POZOR: ROK POTEKEL!','ok');
@@ -1590,21 +1665,22 @@ function renderInventory(){
   else if(ef==='ok')items=items.filter(function(i){return daysLeft(i.expiry)>28;});
   items.sort(function(a,b){return daysLeft(a.expiry)-daysLeft(b.expiry);});
   var totalQ=DB.inventory.reduce(function(s,i){return s+i.qty;},0);
-  var ctrQ=DB.inventory.filter(function(i){return i.type==='control';}).reduce(function(s,i){return s+i.qty;},0);
-  var calQ=DB.inventory.filter(function(i){return i.type==='calibrator';}).reduce(function(s,i){return s+i.qty;},0);
-  var warnN=DB.inventory.filter(function(i){return daysLeft(i.expiry)<=28;}).length;
+  var expN=DB.inventory.filter(function(i){return daysLeft(i.expiry)<0;}).length;
+  var warnN=DB.inventory.filter(function(i){var d=daysLeft(i.expiry);return d>=0&&d<=28;}).length;
+  var typeSet={};DB.inventory.forEach(function(i){typeSet[i.type]=true;});
+  var typeCount=Object.keys(typeSet).length;
   $i('invStats').innerHTML=
     '<div class="stat-card"><div class="stat-num" style="color:var(--accent)">'+totalQ+'</div><div class="stat-lbl">Skupaj kosov</div></div>'+
-    '<div class="stat-card"><div class="stat-num" style="color:var(--purple)">'+ctrQ+'</div><div class="stat-lbl">QC kontrole</div></div>'+
-    '<div class="stat-card"><div class="stat-num" style="color:var(--green)">'+calQ+'</div><div class="stat-lbl">Kalibratorji</div></div>'+
-    '<div class="stat-card"><div class="stat-num" style="color:var(--orange)">'+warnN+'</div><div class="stat-lbl">Opozorila</div></div>';
+    '<div class="stat-card"><div class="stat-num" style="color:var(--red)">'+expN+'</div><div class="stat-lbl">Potekli</div></div>'+
+    '<div class="stat-card"><div class="stat-num" style="color:var(--orange)">'+warnN+'</div><div class="stat-lbl">Opozorila</div></div>'+
+    '<div class="stat-card"><div class="stat-num" style="color:var(--green)">'+typeCount+'</div><div class="stat-lbl">Tipov</div></div>';
   var tbody=$i('invBody');
   if(!items.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Ni artiklov.</td></tr>';return;}
   tbody.innerHTML=items.map(function(it){
     var rc=rowCls(it.expiry);
     return '<tr class="'+rc+'">'+
       '<td><div style="font-weight:600;font-size:11px">'+(it.name||'Neznan')+'</div>'+
-      '<div style="font-size:9px;color:var(--text3)">'+(it.type==='control'?'Kontrola':'Kalibrator')+'</div></td>'+
+      '<div style="font-size:9px;color:var(--text3)">'+typeName(it.type)+'</div></td>'+
       '<td class="lot-n">'+(it.lot||'-')+'</td>'+
       '<td style="font-size:10px;white-space:nowrap">'+fmtExp(it.expiry)+'</td>'+
       '<td style="font-family:var(--mono);font-weight:700">'+it.qty+'</td>'+
@@ -1678,7 +1754,7 @@ function renderOverview(){
     return '<div class="ov-card" style="border-color:'+bc+'">'+
       '<div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:space-between;justify-content:space-between;margin-bottom:8px">'+
       '<div><div style="font-weight:700;font-size:13px">'+g.name+'</div>'+
-      '<span class="badge '+(g.type==='control'?'b-ctrl':'b-cal')+'" style="margin-top:3px">'+(g.type==='control'?'Kontrola':'Kalibrator')+'</span></div>'+
+      '<span class="badge b-gray" style="margin-top:3px">'+typeName(g.type)+'</span></div>'+
       '<div style="text-align:right"><div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--accent)">'+g.totalQty+'</div>'+
       '<div style="font-size:9px;color:var(--text3);text-transform:uppercase">kos skupaj</div></div></div>'+
       lots+'</div>';
@@ -1773,7 +1849,7 @@ function renderGtins(){
     return '<tr><td class="gtin" style="white-space:nowrap">'+g.gtin+'</td>'+
       '<td><div style="font-size:11px;font-weight:600">'+g.name+'</div>'+
       (g.note?'<div style="font-size:9px;color:var(--text3)">'+g.note+'</div>':'')+'</td>'+
-      '<td><span class="badge '+(g.type==='control'?'b-ctrl':'b-cal')+'">'+(g.type==='control'?'Kontr.':'Kalib.')+'</span></td>'+
+      '<td><span class="badge b-gray">'+typeName(g.type)+'</span></td>'+
       '<td style="font-size:10px;color:var(--text2)">'+(g.analyser||'-')+'</td>'+
       '<td style="white-space:nowrap">'+
       '<button class="btn btn-g btn-sm" onclick="openGtinMo('+ri+')" style="padding:4px 7px;min-height:30px">&#9998;</button> '+
@@ -1894,6 +1970,7 @@ for(var mi=0;mi<mos.length;mi++){
 
 // ===== BOOT =====
 loadDB();
+try { loadSettings(); } catch(e){}
 // Auto-load built-in GTIN database on first run
 try {
   if(DB.gtins.length===0){
