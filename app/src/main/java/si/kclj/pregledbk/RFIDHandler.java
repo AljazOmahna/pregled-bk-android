@@ -82,10 +82,25 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
 
     private void connectReader(final ReaderDevice readerDevice) {
         new Thread(() -> {
+            for (int attempt = 1; attempt <= 5; attempt++) {
+                try {
+                    reader = readerDevice.getRFIDReader();
+                    reader.connect();
+                    Log.d(TAG, "Connected: " + readerDevice.getName() + " (attempt " + attempt + ")");
+                    break; // uspešno — nadaljuj z nastavitvami
+                } catch (Throwable e) {
+                    Log.w(TAG, "connect attempt " + attempt + " failed: " + e.getMessage());
+                    reader = null;
+                    if (attempt < 5) {
+                        try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+                        continue;
+                    }
+                    Log.e(TAG, "connectReader failed after 5 attempts");
+                    callback.onStatus(null);
+                    return;
+                }
+            }
             try {
-                reader = readerDevice.getRFIDReader();
-                reader.connect();
-                Log.d(TAG, "Connected: " + readerDevice.getName());
 
                 reader.Events.addEventsListener(new RfidEventsListener() {
                     @Override
@@ -118,11 +133,19 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
         }).start();
     }
 
-    // Sprejem: nastavi max moč, onemogoči DataWedge — trigger sam začne skeniranje
+    // Sprejem: nastavi max moč, onemogoči DataWedge, začni inventory
     void startSprejemInventory() {
         new Thread(() -> {
             try {
-                if (reader == null) return;
+                if (reader == null) {
+                    Log.w(TAG, "startSprejemInventory: reader null, poskušam reconnect");
+                    if (readers != null) {
+                        ArrayList<ReaderDevice> list = readers.GetAvailableRFIDReaderList();
+                        if (list != null && !list.isEmpty()) connectReader(list.get(0));
+                    }
+                    Thread.sleep(3000);
+                    if (reader == null) { Log.e(TAG, "startSprejemInventory: še vedno ni bralnika"); return; }
+                }
                 disableDataWedgeScanner();
                 int[] levels = reader.ReaderCapabilities.getTransmitPowerLevelValues();
                 if (levels != null && levels.length > 0) {
