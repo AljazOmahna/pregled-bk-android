@@ -855,6 +855,7 @@ function startMultiRfid(){
   $i('szHint').textContent='Vzpostavljam povezavo z RFD2000...';
   renderStagingList();
 }
+function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function stopMultiRfid(){
   rfidMultiActive=false;
   if(typeof AndroidBridge!=='undefined'){try{AndroidBridge.stopRfidScan();}catch(e){}}
