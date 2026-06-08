@@ -264,9 +264,23 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
       <button class="mbt" id="mbt-qr" onclick="setMode('qr')">&#9638; QR / DataMatrix</button>
     </div>
 
-    <div id="rfidBar" style="display:-webkit-flex;display:flex;gap:8px;margin-bottom:8px">
-      <button class="btn btn-a" style="flex:1;-webkit-justify-content:center;justify-content:center" onclick="launch123RFID()">&#128225; Odpri 123RFID</button>
-      <button class="btn btn-g" style="flex:1;-webkit-justify-content:center;justify-content:center" onclick="importFrom123RFID()">&#8659; Uvozi CSV</button>
+    <div id="rfidBar" style="display:none;margin-bottom:8px">
+      <button class="btn btn-a" id="multiRfidBtn" style="width:100%;-webkit-justify-content:center;justify-content:center" onclick="toggleMultiRfid()">&#128225; Skeniraj MultiRFID</button>
+    </div>
+
+    <div id="rfidStagingArea" style="display:none;margin-bottom:8px">
+      <div style="background:var(--gbg);border:1px solid var(--green);border-radius:8px;padding:8px;margin-bottom:6px">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--green);margin-bottom:4px">&#10003; Prepoznane (<span id="stagingRecCount">0</span>)</div>
+        <div id="stagingRecList"><div style="color:var(--text3);font-size:10px;padding:2px">Ni prepoznanih EPC.</div></div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:6px">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:4px">? Neprepoznane (<span id="stagingUnkCount">0</span>)</div>
+        <div id="stagingUnkList"></div>
+      </div>
+      <div style="display:-webkit-flex;display:flex;gap:8px">
+        <button class="btn btn-a" id="rfidAcceptBtn" onclick="acceptAllStaged()" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center" disabled>&#10003; Sprejmi prepoznane (0)</button>
+        <button class="btn btn-d" onclick="clearStaging()" style="-webkit-justify-content:center;justify-content:center">&#10005; Po&#269;isti</button>
+      </div>
     </div>
 
     <div class="scan-zone rfid-a" id="scanZone" onclick="focusScan()">
@@ -282,7 +296,7 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
     </div>
 
     <div class="card">
-      <div class="card-title">&#128336; Zadnja skeniranja</div>
+      <div class="card-title">&#128203; Teko&#269;a seja</div>
       <div id="recentScans" style="max-height:260px;overflow-y:auto;-webkit-overflow-scrolling:touch">
         <div style="color:var(--text3);text-align:center;padding:16px;font-size:11px">Ni skeniranih artiklov.</div>
       </div>
@@ -566,22 +580,6 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
   </div>
 </div>
 
-<div class="mo" id="moRfid">
-  <div class="modal">
-    <div class="mh"><h3>&#128225; RFID Skeniranje</h3><button class="mc" onclick="closeMo('moRfid')">&#10005;</button></div>
-    <div class="mb">
-      <div style="font-size:12px;color:var(--text3);margin-bottom:12px">1. Odprite 123RFID &#8594; skenirajte &#8594; ustavite &#8594; vrnite se &#8594; 2. Uvozi CSV</div>
-      <div style="display:-webkit-flex;display:flex;gap:8px;margin-bottom:12px">
-        <button class="btn btn-a" style="flex:1;-webkit-justify-content:center;justify-content:center" onclick="launch123RFID()">&#128225; Odpri 123RFID</button>
-        <button class="btn btn-g" style="flex:1;-webkit-justify-content:center;justify-content:center" onclick="importFrom123RFID()">&#8659; Uvozi CSV</button>
-      </div>
-      <div id="rfidCount" style="font-size:13px;font-weight:600;color:var(--text)"></div>
-    </div>
-    <div class="mf">
-      <button class="btn btn-d" onclick="closeMo('moRfid')">Zapri</button>
-    </div>
-  </div>
-</div>
 
 <div class="mo" id="moSprejem">
   <div class="modal">
@@ -606,7 +604,6 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
           <div style="font-size:11px;color:var(--green);font-weight:700">&#10003; RFID zajeto</div>
           <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px;word-break:break-all" id="spEpcVal"></div>
         </div>
-        <button class="btn btn-g" onclick="spImportEpc()" style="margin-top:6px;width:100%;font-size:11px;-webkit-justify-content:center;justify-content:center">&#8659; Rezerva: uvozi iz 123RFID CSV</button>
       </div>
     </div>
     <div class="mf">
@@ -832,62 +829,85 @@ function onRfidStatus(connected,msg){
     el.style.background=connected?'var(--gbg)':'var(--rbg)';
     el.style.color=connected?'var(--green)':'var(--red)';
   }
-  var btn=document.querySelector('[onclick="importRfidScan()"]');
-  if(btn)btn.style.opacity=connected?'1':'0.6';
 }
-function updateRfidCount(){
-  var el=$i('rfidCount');
-  if(!el)return;
-  var sess=getActiveSess();
-  if(!sess){el.textContent='';return;}
-  var n=sess.items.filter(function(i){return i.valid&&i.fromRfid;}).length;
-  el.textContent=n?('RFID skenirano v seji: '+n+' škatlic'):'';
-}
-function rfidScanToggle(){
-  if(typeof AndroidBridge==='undefined'){notify('RFID samo na napravi','warn');return;}
-  if(!rfidReady){notify('RFID bralnik ni povezan','warn');return;}
-  if(!rfidScanning){
-    AndroidBridge.startRfidScan();
-    rfidScanning=true;
-    var btn=$i('rfidScanBtn');
-    if(btn){btn.textContent='&#9646;&#9646; Ustavi';btn.className='btn btn-a';}
-  } else {
-    AndroidBridge.stopRfidScan();
-    rfidScanning=false;
-    var btn=$i('rfidScanBtn');
-    if(btn){btn.textContent='&#9654; Skeniraj';btn.className='btn btn-g';}
-  }
-}
-function importRfidScan(){
-  updateRfidCount();
-  showMo('moRfid');
-}
+// MultiRFID staging
+var rfidMultiActive=false;
+var rfidStaging={recognized:[],unknown:[]};
 
-function importFrom123RFID(){
-  if(typeof AndroidBridge==='undefined'){notify('Samo na napravi','warn');return;}
-  var json;
-  try{ json=AndroidBridge.importRfidCsv(); }
-  catch(e){notify('Napaka bridge: '+e,'err');return;}
-  if(!json||json==='null'){notify('Napaka pri branju shranjevanja','err');return;}
-  if(json==='NOPERM'){notify('Dovolite dostop do shranjevanja: Nastavitve → Aplikacije → PregledBK → Dovoljenja','err');return;}
-  try{
-    var epcs=JSON.parse(json);
-    if(!epcs||epcs.length===0){
-      notify('Ni EPC v CSV — najprej skenirajte v 123RFID (Inventory) in ustavite skeniranje','warn');
-      return;
-    }
-    var imp=0;
-    for(var i=0;i<epcs.length;i++){processRawScan(epcs[i]);imp++;}
-    notify('Uvozeno '+imp+' EPC iz 123RFID','ok');
-    closeMo('moRfid');
-  }catch(e){notify('Napaka CSV parse: '+e,'err');}
+function toggleMultiRfid(){
+  if(!rfidMultiActive)startMultiRfid();else stopMultiRfid();
 }
-function launch123RFID(){
-  if(typeof AndroidBridge==='undefined'){notify('Samo na napravi','warn');return;}
-  try{
-    AndroidBridge.launchApp('com.zebra.rfidreaderAPI.demo');
-    notify('Odpiranje 123RFID...','ok');
-  }catch(e){notify('Napaka: '+e,'err');}
+function startMultiRfid(){
+  if(typeof AndroidBridge==='undefined'){notify('RFID samo na napravi','warn');return;}
+  rfidMultiActive=true;
+  rfidStaging={recognized:[],unknown:[]};
+  try{AndroidBridge.startMultiRfidScan();}
+  catch(e){notify('Napaka RFID: '+e,'err');rfidMultiActive=false;return;}
+  var btn=$i('multiRfidBtn');
+  if(btn){btn.innerHTML='&#9632; Ustavi skeniranje';btn.className='btn btn-d';}
+  $i('szHint').textContent='Pritisni trigger → skeniraj → izpusti za zajetje';
+  renderStagingList();
+}
+function stopMultiRfid(){
+  rfidMultiActive=false;
+  if(typeof AndroidBridge!=='undefined'){try{AndroidBridge.stopRfidScan();}catch(e){}}
+  var btn=$i('multiRfidBtn');
+  if(btn){btn.innerHTML='&#128225; Skeniraj MultiRFID';btn.className='btn btn-a';}
+  renderStagingList();
+}
+function renderStagingList(){
+  var area=$i('rfidStagingArea');
+  if(!area)return;
+  var rec=rfidStaging.recognized;
+  var unk=rfidStaging.unknown;
+  if(!rec.length&&!unk.length){area.style.display='none';return;}
+  area.style.display='block';
+  var recDiv=$i('stagingRecList');
+  if(recDiv){
+    recDiv.innerHTML=rec.length?rec.map(function(it){
+      var d=daysLeft(it.p.expiry);
+      var ec=d<0?'var(--red)':d<=14?'var(--orange)':'var(--green)';
+      return '<div class="scan-item"><span style="font-size:14px;color:var(--green)">&#10003;</span>'+
+        '<div style="-webkit-flex:1;flex:1">'+
+        '<div style="font-size:11px;font-weight:600">'+escHtml(it.gr.name)+'</div>'+
+        '<div style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+
+        (it.p.lot?'L:'+escHtml(it.p.lot)+' ':'')+
+        (it.p.serial?'<span style="color:var(--accent)">#'+escHtml(it.p.serial)+'</span> ':'')+
+        '<span style="color:'+ec+'">'+(it.p.expiry?fmtExp(it.p.expiry):'')+'</span>'+
+        '</div></div></div>';
+    }).join(''):'<div style="color:var(--text3);font-size:10px;padding:2px">Ni prepoznanih EPC.</div>';
+  }
+  var unkDiv=$i('stagingUnkList');
+  if(unkDiv){
+    unkDiv.innerHTML=unk.length?unk.map(function(epc){
+      return '<div style="font-family:var(--mono);font-size:9px;color:var(--text3);padding:3px 4px">'+escHtml(epc)+'</div>';
+    }).join(''):'';
+  }
+  var recCnt=$i('stagingRecCount');if(recCnt)recCnt.textContent=rec.length;
+  var unkCnt=$i('stagingUnkCount');if(unkCnt)unkCnt.textContent=unk.length;
+  var ab=$i('rfidAcceptBtn');
+  if(ab){ab.innerHTML='&#10003; Sprejmi prepoznane ('+rec.length+')';ab.disabled=(rec.length===0);}
+}
+function clearStaging(){
+  rfidStaging={recognized:[],unknown:[]};
+  renderStagingList();
+}
+function acceptAllStaged(){
+  var sess=getActiveSess();
+  if(!sess){notify('Ni aktivne seje','warn');return;}
+  var accepted=0;
+  rfidStaging.recognized.forEach(function(item){
+    var dup=sess.items.some(function(si){
+      if(!si.valid)return false;
+      if(item.p.serial)return si.serial===item.p.serial&&si.gtin===item.p.gtin;
+      return si.gtin===item.p.gtin&&(si.lot||'')===(item.p.lot||'');
+    });
+    if(!dup){acceptScan(sess,item.raw,item.p,item.gr,true);accepted++;}
+  });
+  rfidStaging={recognized:[],unknown:[]};
+  renderStagingList();
+  if(accepted>0)notify('Sprejeto '+accepted+' artiklov','ok');
+  else notify('Vsi artikli so že v seji','warn');
 }
 // ===== NAVIGATION =====
 var pages=['scan','overview','inventory','expiry','gtins','more'];
@@ -927,8 +947,9 @@ function setMode(m){
     b.className='mbt'+(mk===m?' '+modeCfg[mk].cls:'');
   });
   var bar=$i('rfidBar');
-  if(bar)bar.style.display=(m==='rfid'?'-webkit-flex':'none');
-  if(bar)bar.style.display=(m==='rfid'?'flex':'none');
+  if(bar)bar.style.display=(m==='rfid'?'block':'none');
+  var sta=$i('rfidStagingArea');
+  if(sta&&m!=='rfid')sta.style.display='none';
   focusScan();
 }
 function focusScan(){
@@ -1111,10 +1132,14 @@ function spStopRfid(){
 function onRfidTriggerEvent(pressed){
   var btn=$i('spRfidScanBtn');
   var st=$i('spRfidStatus');
+  var mBtn=$i('multiRfidBtn');
   if(pressed){
     if(sprejemActive&&sprejemData){
       if(btn){btn.disabled=true;btn.textContent='📡 Skeniram...';}
       if(st)st.textContent='Skeniram RFID — držite blizu oznake...';
+    } else if(rfidMultiActive){
+      if(mBtn){mBtn.innerHTML='&#128225; Skeniram...';mBtn.className='btn btn-a';}
+      $i('szHint').textContent='Skeniram — držite RFD2000 blizu oznak...';
     }
   } else {
     if(sprejemActive&&sprejemEpc){
@@ -1124,6 +1149,8 @@ function onRfidTriggerEvent(pressed){
       if(btn){btn.disabled=false;btn.textContent='📡 Skeniraj RFID';}
       if(st)st.textContent='Ni kode — pritisnite trigger znova';
       notify('RFID: ni kode — poskusite znova','warn');
+    } else if(rfidMultiActive){
+      stopMultiRfid();
     }
   }
 }
@@ -1133,19 +1160,6 @@ function spManualEpc(){
   epc=epc.trim().toUpperCase();
   if(!/^[0-9A-F]{8,}$/.test(epc)){notify('Neveljaven EPC format','warn');return;}
   spCaptureEpc(epc);
-}
-function spImportEpc(){
-  if(typeof AndroidBridge==='undefined'){notify('Samo na napravi','warn');return;}
-  var json;
-  try{json=AndroidBridge.importRfidCsv();}
-  catch(e){notify('Napaka bridge: '+e,'err');return;}
-  if(!json||json==='NOPERM'){notify('Ni dovoljenja — dovolite dostop do shranjevanja','warn');return;}
-  try{
-    var epcs=JSON.parse(json);
-    if(!epcs||epcs.length===0){notify('Ni EPC v CSV — najprej skenirajte v 123RFID','warn');return;}
-    if(epcs.length>1){notify('Zajetih '+epcs.length+' EPC — vzamem prvega (nastavite antenna 60 za en EPC)','warn');}
-    spCaptureEpc(epcs[0]);
-  }catch(e){notify('Napaka CSV: '+e,'err');}
 }
 function confirmSprejem(){
   if(!sprejemData||!sprejemEpc){notify('Manjka barcode ali RFID','warn');return;}
@@ -1223,8 +1237,26 @@ function processRawScan(raw){
   }
   var sess=getActiveSess();
   if(!sess){showFb('Ni aktivne seje! Zaknite novo sejo.','err');return;}
-  // RFID EPC: look up by EPC only (received → inventory), never fall through to GTIN decode
   var rawUp=raw.trim().toUpperCase();
+  // MultiRFID staging: collect EPCs into staging buffer, don't accept directly
+  if(rfidMultiActive&&/^[0-9A-Fa-f]{8,}$/.test(rawUp)&&/[A-Fa-f]/.test(rawUp)){
+    if(rfidStaging.recognized.some(function(x){return x.raw===rawUp;})||rfidStaging.unknown.indexOf(rawUp)>=0)return;
+    var mRec=(DB.received||[]).filter(function(r){return r.rfidEpc===rawUp&&r.status==='active';})[0];
+    if(mRec){
+      rfidStaging.recognized.push({raw:rawUp,p:{gtin:mRec.gtin,lot:mRec.lot,expiry:mRec.expiry,serial:mRec.serial},gr:{name:mRec.name,type:mRec.type}});
+    } else {
+      var mInv=(DB.inventory||[]).filter(function(i){return i.rfidEpcs&&i.rfidEpcs.indexOf(rawUp)>=0;})[0];
+      if(mInv){
+        var mGt=DB.gtins.filter(function(g){return g.gtin===mInv.gtin;})[0];
+        rfidStaging.recognized.push({raw:rawUp,p:{gtin:mInv.gtin,lot:mInv.lot,expiry:mInv.expiry,serial:''},gr:mGt?{name:mGt.name,type:mGt.type}:{name:mInv.name,type:mInv.type}});
+      } else {
+        rfidStaging.unknown.push(rawUp);
+      }
+    }
+    renderStagingList();
+    return;
+  }
+  // RFID EPC: look up by EPC only (received → inventory), never fall through to GTIN decode
   if(/^[0-9A-Fa-f]{8,}$/.test(rawUp)&&/[A-Fa-f]/.test(rawUp)){
     var recItem=(DB.received||[]).filter(function(r){return r.rfidEpc===rawUp&&r.status==='active';})[0];
     if(recItem){
@@ -1331,9 +1363,8 @@ function acceptScan(sess,raw,p,gr,fromRfid){
   flash('ok');
 }
 function rejectScan(sess,raw,reason){
-  sess.items.push({raw:raw,valid:false,reason:reason,dt:new Date().toISOString(),mode:scanMode});
   sess.rejected=(sess.rejected||0)+1;
-  saveDB();updateBanner();renderRecent(sess);
+  saveDB();updateBanner();
   showFb('Zavrnjeno: '+reason,'err');flash('err');
 }
 function showFb(msg,t){var el=$i('scanFb');el.textContent=msg;el.className='scan-fb'+(t?' '+t:'');}
@@ -1507,16 +1538,10 @@ function updateBanner(){
   $i('scanRej').textContent=sess.rejected||0;
 }
 function renderRecent(sess){
-  var items=sess.items.slice().reverse().slice(0,15);
+  var items=sess.items.filter(function(i){return i.valid;}).slice().reverse();
   var div=$i('recentScans');
   if(!items.length){div.innerHTML='<div style="color:var(--text3);text-align:center;padding:14px;font-size:11px">Ni skeniranih artiklov.</div>';return;}
   div.innerHTML=items.map(function(it){
-    if(!it.valid){
-      return '<div class="scan-item"><span style="font-size:16px">&#10060;</span>'+
-        '<div style="-webkit-flex:1;flex:1">'+
-        '<div style="font-family:var(--mono);font-size:10px;color:var(--red)">'+it.raw.slice(0,40)+'</div>'+
-        '<div style="font-size:10px;color:var(--text3)">'+(it.reason||'Zavrnjeno')+'</div></div></div>';
-    }
     var d=daysLeft(it.expiry);
     var ec=d<0?'var(--red)':d<=14?'var(--orange)':d<=28?'var(--yellow)':'var(--green)';
     return '<div class="scan-item"><span style="font-size:16px">&#10003;</span>'+

@@ -155,37 +155,37 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
         }).start();
     }
 
-    // Sprejem: nastavi max moč, onemogoči DataWedge, začni inventory
-    void startSprejemInventory() {
+    // 600 cBm = 6 dBm (sprejem), 3000 cBm = 30 dBm (MultiRFID seja)
+    void startRfidInventory(int targetCBm) {
         new Thread(() -> {
             try {
                 if (reader == null) {
-                    Log.w(TAG, "startSprejemInventory: reader null, poskušam reconnect");
+                    Log.w(TAG, "startRfidInventory: reader null, poskušam reconnect");
                     if (readers != null) {
                         ArrayList<ReaderDevice> list = readers.GetAvailableRFIDReaderList();
                         if (list != null && !list.isEmpty()) connectReader(list.get(0));
                     }
                     Thread.sleep(3000);
-                    if (reader == null) { Log.e(TAG, "startSprejemInventory: še vedno ni bralnika"); return; }
+                    if (reader == null) { Log.e(TAG, "startRfidInventory: še vedno ni bralnika"); return; }
                 }
                 reader.Config.setTriggerMode(ENUM_TRIGGER_MODE.RFID_MODE, true);
                 disableDataWedgeScanner();
                 int[] levels = reader.ReaderCapabilities.getTransmitPowerLevelValues();
                 if (levels != null && levels.length > 0) {
-                    int bestIdx = 0, bestDiff = Math.abs(levels[0] - 600);
+                    int bestIdx = 0, bestDiff = Math.abs(levels[0] - targetCBm);
                     for (int i = 1; i < levels.length; i++) {
-                        int diff = Math.abs(levels[i] - 600);
+                        int diff = Math.abs(levels[i] - targetCBm);
                         if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
                     }
                     var cfg = reader.Config.Antennas.getAntennaRfConfig(1);
                     cfg.setTransmitPowerIndex(bestIdx);
                     reader.Config.Antennas.setAntennaRfConfig(1, cfg);
-                    Log.d(TAG, "Sprejem power: " + levels[bestIdx] + " cBm idx=" + bestIdx);
+                    Log.d(TAG, "RFID power: " + levels[bestIdx] + " cBm idx=" + bestIdx + " target=" + targetCBm);
                 }
                 scanArmed = true;
-                Log.d(TAG, "Sprejem armed — čakam trigger");
+                Log.d(TAG, "RFID armed — čakam trigger");
             } catch (Exception e) {
-                Log.e(TAG, "startSprejemInventory: " + e.getMessage());
+                Log.e(TAG, "startRfidInventory: " + e.getMessage());
             }
         }).start();
     }

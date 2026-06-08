@@ -136,13 +136,13 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         }
 
         @JavascriptInterface
-        public void startRfidScan() {
-            if (rfidHandler != null) rfidHandler.startSprejemInventory();
+        public void startRfidSprejemScan() {
+            if (rfidHandler != null) rfidHandler.startRfidInventory(600);
         }
 
         @JavascriptInterface
-        public void startRfidSprejemScan() {
-            if (rfidHandler != null) rfidHandler.startSprejemInventory();
+        public void startMultiRfidScan() {
+            if (rfidHandler != null) rfidHandler.startRfidInventory(3000);
         }
 
         @JavascriptInterface
