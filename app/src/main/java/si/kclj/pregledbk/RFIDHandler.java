@@ -4,7 +4,6 @@ import android.content.Context;
 import android.os.AsyncTask;
 import android.util.Log;
 
-import com.zebra.rfid.api3.AntennaRfConfig;
 import com.zebra.rfid.api3.ENUM_TRANSPORT;
 import com.zebra.rfid.api3.ENUM_TRIGGER_MODE;
 import com.zebra.rfid.api3.InvalidUsageException;
@@ -131,7 +130,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                     int diff = Math.abs(levels[i] - targetCbm);
                     if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
                 }
-                AntennaRfConfig cfg = reader.Config.Antennas.getAntennaRfConfig(1);
+                var cfg = reader.Config.Antennas.getAntennaRfConfig(1);
                 cfg.setTransmitPowerIndex(bestIdx);
                 reader.Config.Antennas.setAntennaRfConfig(1, cfg);
                 Log.d(TAG, "Antenna power: idx=" + bestIdx + " (" + levels[bestIdx] + " cBm, target=" + targetCbm + ")");
@@ -147,7 +146,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                 if (reader == null) return;
                 int[] levels = reader.ReaderCapabilities.getTransmitPowerLevelValues();
                 if (levels == null || levels.length == 0) return;
-                AntennaRfConfig cfg = reader.Config.Antennas.getAntennaRfConfig(1);
+                var cfg = reader.Config.Antennas.getAntennaRfConfig(1);
                 cfg.setTransmitPowerIndex(levels.length - 1);
                 reader.Config.Antennas.setAntennaRfConfig(1, cfg);
                 Log.d(TAG, "Antenna power restored to max idx=" + (levels.length - 1));
