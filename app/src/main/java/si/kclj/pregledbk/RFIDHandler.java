@@ -136,8 +136,8 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                     reader.Config.Antennas.setAntennaRfConfig(1, cfg);
                     Log.d(TAG, "Sprejem power: " + levels[bestIdx] + " cBm idx=" + bestIdx);
                 }
-                // Ne kličemo perform() — trigger začne inventory
-                Log.d(TAG, "Sprejem ready, čakam trigger");
+                reader.Actions.Inventory.perform();
+                Log.d(TAG, "Sprejem inventory started, čakam trigger");
             } catch (Exception e) {
                 Log.e(TAG, "startSprejemInventory: " + e.getMessage());
             }

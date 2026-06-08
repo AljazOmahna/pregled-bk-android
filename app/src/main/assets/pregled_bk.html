@@ -1020,6 +1020,7 @@ function openSprejem(){
   setTimeout(function(){$i('spBarcodeInp').focus();},300);
 }
 function closeSprejem(){
+  if(_spAutoConfirmTimer){clearTimeout(_spAutoConfirmTimer);_spAutoConfirmTimer=null;}
   spStopRfid();
   sprejemActive=false; sprejemData=null; sprejemEpc=null;
   closeMo('moSprejem');
@@ -1075,19 +1076,21 @@ function spUpdateItemInfo(){
   $i('spItemDetails').textContent=det;
   $i('spItemInfo').style.display='block';
 }
+var _spAutoConfirmTimer=null;
 function spCaptureEpc(epc){
   if(!sprejemActive||!sprejemData) return;
-  if(sprejemEpc) return; // dovoli samo 1 EPC
+  if(sprejemEpc) return;
   epc=epc.toUpperCase();
   var dup=(DB.received||[]).filter(function(r){return r.rfidEpc===epc&&r.status==='active';})[0];
   if(dup){notify('Ta EPC je že povezan z: '+dup.name,'warn');spStopRfid();return;}
   sprejemEpc=epc;
-  spStopRfid(); // auto-stop + obnovi moč
+  spStopRfid();
   $i('spRfidWait').style.display='none';
   $i('spRfidOk').style.display='block';
   $i('spEpcVal').textContent=epc;
   $i('spConfirmBtn').disabled=false;
-  notify('RFID zajeto','ok');
+  notify('RFID zajeto — shranjujem...','ok');
+  _spAutoConfirmTimer=setTimeout(function(){confirmSprejem();},1500);
 }
 function spStartRfid(){
   if(typeof AndroidBridge==='undefined'){notify('Samo na napravi','warn');return;}
@@ -1095,10 +1098,10 @@ function spStartRfid(){
   try{
     AndroidBridge.startRfidSprejemScan();
     var btn=$i('spRfidScanBtn');
-    if(btn){btn.disabled=true;btn.textContent='⏳ Pripravljen...';}
+    if(btn){btn.disabled=true;btn.textContent='📡 Skeniram...';}
     var st=$i('spRfidStatus');
-    if(st)st.textContent='Pritisnite trigger na RFD2000 za skeniranje';
-    notify('Pritisnite trigger na RFD2000','ok');
+    if(st)st.textContent='Prinesi RFD2000 k RFID oznaki in pritisni trigger';
+    notify('RFID aktiven — pritisni trigger blizu oznake','ok');
   }catch(e){notify('Napaka RFID: '+e,'err');}
 }
 function spStopRfid(){
