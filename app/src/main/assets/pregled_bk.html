@@ -1361,6 +1361,9 @@ function processRawScan(raw){
   acceptScan(sess,raw,p,gr,fromRfid);
 }
 function acceptScan(sess,raw,p,gr,fromRfid){
+  if(p.serial&&sess.items.some(function(si){return si.valid&&si.serial===p.serial&&si.gtin===p.gtin;})){
+    showFb('Že v seji: '+gr.name+' #'+p.serial,'warn');flash('warn');return;
+  }
   var item={raw:raw,gtin:p.gtin,lot:p.lot||'',expiry:p.expiry||'',serial:p.serial||'',
     valid:true,dt:new Date().toISOString(),mode:scanMode,name:gr.name,type:gr.type,fromRfid:!!fromRfid};
   sess.items.push(item);sess.scanned=(sess.scanned||0)+1;

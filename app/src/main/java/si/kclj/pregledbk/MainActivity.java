@@ -77,9 +77,10 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         // Strip only JS-unsafe chars ('  \  newlines) and non-printable; allow all printable ASCII
         final String safe = epc.replaceAll("['\\\\\r\n]", "").replaceAll("[^\\x20-\\x7E]", "");
         if (safe.isEmpty()) return;
-        Log.d(TAG, "EPC: " + safe);
+        final String limited = safe.length() > 60 ? safe.substring(0, 60) : safe;
+        Log.d(TAG, "EPC: " + limited);
         mainHandler.post(() ->
-            webView.evaluateJavascript("processRawScan('" + safe + "')", null)
+            webView.evaluateJavascript("processRawScan('" + limited + "')", null)
         );
     }
 
