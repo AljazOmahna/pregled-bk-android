@@ -1,6 +1,7 @@
 package si.kclj.pregledbk;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.AsyncTask;
 import android.util.Log;
 
@@ -117,41 +118,39 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
         }).start();
     }
 
-    // Set antenna power by target cBm (1/100 dBm). Finds closest supported level.
-    void setAntennapower(int targetCbm) {
+    // Sprejem: nastavi max moč (3000 cBm = 30 dBm), onemogoči DataWedge, začni inventory - vse v enem threadu
+    void startSprejemInventory() {
         new Thread(() -> {
             try {
                 if (reader == null) return;
+                disableDataWedgeScanner();
                 int[] levels = reader.ReaderCapabilities.getTransmitPowerLevelValues();
-                if (levels == null || levels.length == 0) return;
-                int bestIdx = 0;
-                int bestDiff = Math.abs(levels[0] - targetCbm);
-                for (int i = 1; i < levels.length; i++) {
-                    int diff = Math.abs(levels[i] - targetCbm);
-                    if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+                if (levels != null && levels.length > 0) {
+                    int bestIdx = 0, bestDiff = Math.abs(levels[0] - 3000);
+                    for (int i = 1; i < levels.length; i++) {
+                        int diff = Math.abs(levels[i] - 3000);
+                        if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+                    }
+                    var cfg = reader.Config.Antennas.getAntennaRfConfig(1);
+                    cfg.setTransmitPowerIndex(bestIdx);
+                    reader.Config.Antennas.setAntennaRfConfig(1, cfg);
+                    Log.d(TAG, "Sprejem power: " + levels[bestIdx] + " cBm idx=" + bestIdx);
                 }
-                var cfg = reader.Config.Antennas.getAntennaRfConfig(1);
-                cfg.setTransmitPowerIndex(bestIdx);
-                reader.Config.Antennas.setAntennaRfConfig(1, cfg);
-                Log.d(TAG, "Antenna power: idx=" + bestIdx + " (" + levels[bestIdx] + " cBm, target=" + targetCbm + ")");
+                reader.Actions.Inventory.perform();
             } catch (Exception e) {
-                Log.e(TAG, "setAntennapower: " + e.getMessage());
+                Log.e(TAG, "startSprejemInventory: " + e.getMessage());
             }
         }).start();
     }
 
-    void restoreMaxPower() {
+    void stopSprejemInventory() {
         new Thread(() -> {
             try {
-                if (reader == null) return;
-                int[] levels = reader.ReaderCapabilities.getTransmitPowerLevelValues();
-                if (levels == null || levels.length == 0) return;
-                var cfg = reader.Config.Antennas.getAntennaRfConfig(1);
-                cfg.setTransmitPowerIndex(levels.length - 1);
-                reader.Config.Antennas.setAntennaRfConfig(1, cfg);
-                Log.d(TAG, "Antenna power restored to max idx=" + (levels.length - 1));
+                if (reader != null) reader.Actions.Inventory.stop();
             } catch (Exception e) {
-                Log.e(TAG, "restoreMaxPower: " + e.getMessage());
+                Log.e(TAG, "stopSprejemInventory: " + e.getMessage());
+            } finally {
+                enableDataWedgeScanner();
             }
         }).start();
     }
@@ -174,6 +173,28 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                 Log.e(TAG, "stopInventory: " + e.getMessage());
             }
         }).start();
+    }
+
+    private void disableDataWedgeScanner() {
+        try {
+            Intent i = new Intent("com.symbol.datawedge.api.ACTION");
+            i.putExtra("com.symbol.datawedge.api.SCANNER_INPUT_PLUGIN", "DISABLE_PLUGIN");
+            context.sendBroadcast(i);
+            Log.d(TAG, "DataWedge scanner disabled");
+        } catch (Exception e) {
+            Log.e(TAG, "disableDataWedge: " + e.getMessage());
+        }
+    }
+
+    private void enableDataWedgeScanner() {
+        try {
+            Intent i = new Intent("com.symbol.datawedge.api.ACTION");
+            i.putExtra("com.symbol.datawedge.api.SCANNER_INPUT_PLUGIN", "ENABLE_PLUGIN");
+            context.sendBroadcast(i);
+            Log.d(TAG, "DataWedge scanner enabled");
+        } catch (Exception e) {
+            Log.e(TAG, "enableDataWedge: " + e.getMessage());
+        }
     }
 
     void disconnect() {

@@ -128,18 +128,12 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
 
         @JavascriptInterface
         public void startRfidSprejemScan() {
-            if (rfidHandler != null) {
-                rfidHandler.setAntennapower(3000); // 30 dBm = max range
-                rfidHandler.performInventory();
-            }
+            if (rfidHandler != null) rfidHandler.startSprejemInventory();
         }
 
         @JavascriptInterface
         public void stopRfidScan() {
-            if (rfidHandler != null) {
-                rfidHandler.stopInventory();
-                rfidHandler.restoreMaxPower();
-            }
+            if (rfidHandler != null) rfidHandler.stopSprejemInventory();
         }
 
         @JavascriptInterface
