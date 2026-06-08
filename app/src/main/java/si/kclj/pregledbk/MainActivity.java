@@ -2,10 +2,7 @@ package si.kclj.pregledbk;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -29,12 +26,9 @@ import java.util.Arrays;
 public class MainActivity extends Activity implements RFIDHandler.Callback {
 
     private static final String TAG = "PregledBK";
-    private static final String DW_ACTION = "com.symbol.datawedge.api.ACTION";
-    private static final String DW_SCAN_ACTION = "si.kclj.pregledbk.SCAN";
     private WebView webView;
     private RFIDHandler rfidHandler;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private BroadcastReceiver dwReceiver;
 
     @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
     @Override
@@ -69,69 +63,6 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
             Log.e(TAG, "RFID init failed: " + t);
         }
 
-        setupDataWedge();
-    }
-
-    private void setupDataWedge() {
-        // Receive scan data from DataWedge via broadcast
-        dwReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                String data = intent.getStringExtra("com.symbol.datawedge.data_string");
-                if (data != null && !data.isEmpty()) {
-                    Log.d(TAG, "DW scan: " + data);
-                    onTagRead(data.trim());
-                }
-            }
-        };
-        registerReceiver(dwReceiver, new IntentFilter(DW_SCAN_ACTION));
-
-        // Configure DataWedge profile for our app
-        mainHandler.postDelayed(this::configureDataWedgeProfile, 2000);
-    }
-
-    private void configureDataWedgeProfile() {
-        try {
-            Bundle profileConfig = new Bundle();
-            profileConfig.putString("PROFILE_NAME", "PregledBK");
-            profileConfig.putString("PROFILE_ENABLED", "true");
-            profileConfig.putString("CONFIG_MODE", "OVERWRITE");
-
-            // Associate with our package
-            Bundle appConfig = new Bundle();
-            appConfig.putString("PACKAGE_NAME", getPackageName());
-            appConfig.putStringArray("ACTIVITY_LIST", new String[]{"*"});
-            profileConfig.putParcelableArray("APP_LIST", new Bundle[]{appConfig});
-
-            // Enable barcode scanner
-            Bundle barcode = new Bundle();
-            barcode.putString("PLUGIN_NAME", "BARCODE");
-            barcode.putString("RESET_CONFIG", "true");
-            Bundle bParams = new Bundle();
-            bParams.putString("scanner_input_enabled", "true");
-            bParams.putString("scanner_selection", "auto");
-            barcode.putBundle("PARAM_LIST", bParams);
-
-            // Enable keystroke output with Enter terminator
-            Bundle keystroke = new Bundle();
-            keystroke.putString("PLUGIN_NAME", "KEYSTROKE");
-            keystroke.putString("RESET_CONFIG", "true");
-            Bundle kParams = new Bundle();
-            kParams.putString("keystroke_output_enabled", "true");
-            kParams.putString("keystroke_action_char", "LF");
-            keystroke.putBundle("PARAM_LIST", kParams);
-
-            profileConfig.putParcelableArray("PLUGIN_CONFIG", new Bundle[]{barcode, keystroke});
-
-            Intent setConfig = new Intent(DW_ACTION);
-            setConfig.putExtra("com.symbol.datawedge.api.SET_CONFIG", profileConfig);
-            sendBroadcast(setConfig);
-
-            Log.d(TAG, "DataWedge profile configured (OVERWRITE, keystroke+LF)");
-        } catch (Throwable t) {
-            Log.e(TAG, "DataWedge config: " + t);
-        }
-    }
 
     // Called from RFIDHandler (RFID EPC) or DataWedgeHandler (barcode)
     @Override
@@ -176,7 +107,6 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
     protected void onDestroy() {
         super.onDestroy();
         if (rfidHandler != null) rfidHandler.dispose();
-        try { if (dwReceiver != null) unregisterReceiver(dwReceiver); } catch (Throwable ignored) {}
     }
 
     // JavaScript interface — allows HTML to call Android
