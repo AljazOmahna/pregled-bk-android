@@ -133,31 +133,18 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
         }).start();
     }
 
-    // Sprejem / seja: nastavi max moč, onemogoči DataWedge, začni inventory (lazy init)
+    // Sprejem: nastavi max moč, onemogoči DataWedge, začni inventory
     void startSprejemInventory() {
         new Thread(() -> {
             try {
                 if (reader == null) {
-                    Log.w(TAG, "startSprejemInventory: reader null, lazy init");
-                    if (readers == null) {
-                        readers = new Readers(context, ENUM_TRANSPORT.SERVICE_SERIAL);
-                        readers.attach(RFIDHandler.this);
-                    }
-                    for (int i = 0; i < 10; i++) {
-                        if (reader != null) break;
+                    Log.w(TAG, "startSprejemInventory: reader null, poskušam reconnect");
+                    if (readers != null) {
                         ArrayList<ReaderDevice> list = readers.GetAvailableRFIDReaderList();
-                        if (list != null && !list.isEmpty()) {
-                            connectReader(list.get(0));
-                            break;
-                        }
-                        Thread.sleep(1000);
+                        if (list != null && !list.isEmpty()) connectReader(list.get(0));
                     }
-                    for (int i = 0; i < 6 && reader == null; i++) Thread.sleep(500);
-                    if (reader == null) {
-                        Log.e(TAG, "startSprejemInventory: ni bralnika");
-                        callback.onStatus("RFID: ni bralnika");
-                        return;
-                    }
+                    Thread.sleep(3000);
+                    if (reader == null) { Log.e(TAG, "startSprejemInventory: še vedno ni bralnika"); return; }
                 }
                 disableDataWedgeScanner();
                 int[] levels = reader.ReaderCapabilities.getTransmitPowerLevelValues();
