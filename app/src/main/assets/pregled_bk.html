@@ -829,6 +829,13 @@ function onRfidStatus(connected,msg){
     el.style.background=connected?'var(--gbg)':'var(--rbg)';
     el.style.color=connected?'var(--green)':'var(--red)';
   }
+  if(connected&&rfidMultiActive){
+    var btn=$i('multiRfidBtn');
+    if(btn&&btn.disabled){
+      btn.innerHTML='&#9632; Ustavi skeniranje';btn.className='btn btn-d';btn.disabled=false;
+      $i('szHint').textContent='Pritisni trigger → skeniraj → izpusti za zajetje';
+    }
+  }
 }
 // MultiRFID staging
 var rfidMultiActive=false;
@@ -844,8 +851,8 @@ function startMultiRfid(){
   try{AndroidBridge.startMultiRfidScan();}
   catch(e){notify('Napaka RFID: '+e,'err');rfidMultiActive=false;return;}
   var btn=$i('multiRfidBtn');
-  if(btn){btn.innerHTML='&#9632; Ustavi skeniranje';btn.className='btn btn-d';}
-  $i('szHint').textContent='Pritisni trigger → skeniraj → izpusti za zajetje';
+  if(btn){btn.innerHTML='&#9203; Pripravljam...';btn.className='btn btn-g';btn.disabled=true;}
+  $i('szHint').textContent='Vzpostavljam povezavo z RFD2000...';
   renderStagingList();
 }
 function stopMultiRfid(){
@@ -1237,11 +1244,10 @@ function processRawScan(raw){
     spProcessBarcode(raw.trim());
     return;
   }
-  var sess=getActiveSess();
-  if(!sess){showFb('Ni aktivne seje! Zaknite novo sejo.','err');return;}
   var rawUp=raw.trim().toUpperCase();
-  // MultiRFID staging: collect EPCs into staging buffer, don't accept directly
+  // MultiRFID staging: collect EPCs into staging buffer — no active session required
   if(rfidMultiActive&&/^[0-9A-Fa-f]{8,}$/.test(rawUp)&&/[A-Fa-f]/.test(rawUp)){
+    notify('MultiRFID: '+rawUp.slice(0,12),'ok');
     if(rfidStaging.recognized.some(function(x){return x.raw===rawUp;})||rfidStaging.unknown.indexOf(rawUp)>=0)return;
     var mRec=(DB.received||[]).filter(function(r){return r.rfidEpc===rawUp&&r.status==='active';})[0];
     if(mRec){
@@ -1258,6 +1264,8 @@ function processRawScan(raw){
     renderStagingList();
     return;
   }
+  var sess=getActiveSess();
+  if(!sess){showFb('Ni aktivne seje! Zaknite novo sejo.','err');return;}
   // RFID EPC: look up by EPC only (received → inventory), never fall through to GTIN decode
   if(/^[0-9A-Fa-f]{8,}$/.test(rawUp)&&/[A-Fa-f]/.test(rawUp)){
     var recItem=(DB.received||[]).filter(function(r){return r.rfidEpc===rawUp&&r.status==='active';})[0];
