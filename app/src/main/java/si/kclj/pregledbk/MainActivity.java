@@ -62,7 +62,7 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         } catch (Throwable t) {
             Log.e(TAG, "RFID init failed: " + t);
         }
-
+    }
 
     // Called from RFIDHandler (RFID EPC) or DataWedgeHandler (barcode)
     @Override
