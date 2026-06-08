@@ -92,15 +92,10 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
 
     private void configureDataWedgeProfile() {
         try {
-            // Create profile first
-            Intent create = new Intent(DW_ACTION);
-            create.putExtra("com.symbol.datawedge.api.CREATE_PROFILE", "PregledBK");
-            sendBroadcast(create);
-
             Bundle profileConfig = new Bundle();
             profileConfig.putString("PROFILE_NAME", "PregledBK");
             profileConfig.putString("PROFILE_ENABLED", "true");
-            profileConfig.putString("CONFIG_MODE", "CREATE_IF_NOT_EXIST");
+            profileConfig.putString("CONFIG_MODE", "OVERWRITE");
 
             // Associate with our package
             Bundle appConfig = new Bundle();
@@ -117,32 +112,22 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
             bParams.putString("scanner_selection", "auto");
             barcode.putBundle("PARAM_LIST", bParams);
 
-            // Enable keystroke output (reliable fallback)
+            // Enable keystroke output with Enter terminator
             Bundle keystroke = new Bundle();
             keystroke.putString("PLUGIN_NAME", "KEYSTROKE");
             keystroke.putString("RESET_CONFIG", "true");
             Bundle kParams = new Bundle();
             kParams.putString("keystroke_output_enabled", "true");
-            kParams.putString("keystroke_action_char", "NONE");
+            kParams.putString("keystroke_action_char", "LF");
             keystroke.putBundle("PARAM_LIST", kParams);
 
-            // Enable Intent output as additional channel
-            Bundle intentPlugin = new Bundle();
-            intentPlugin.putString("PLUGIN_NAME", "INTENT");
-            intentPlugin.putString("RESET_CONFIG", "true");
-            Bundle iParams = new Bundle();
-            iParams.putString("intent_output_enabled", "true");
-            iParams.putString("intent_action", DW_SCAN_ACTION);
-            iParams.putString("intent_delivery", "2");
-            intentPlugin.putBundle("PARAM_LIST", iParams);
-
-            profileConfig.putParcelableArray("PLUGIN_CONFIG", new Bundle[]{barcode, keystroke, intentPlugin});
+            profileConfig.putParcelableArray("PLUGIN_CONFIG", new Bundle[]{barcode, keystroke});
 
             Intent setConfig = new Intent(DW_ACTION);
             setConfig.putExtra("com.symbol.datawedge.api.SET_CONFIG", profileConfig);
             sendBroadcast(setConfig);
 
-            Log.d(TAG, "DataWedge profile configured");
+            Log.d(TAG, "DataWedge profile configured (OVERWRITE, keystroke+LF)");
         } catch (Throwable t) {
             Log.e(TAG, "DataWedge config: " + t);
         }
