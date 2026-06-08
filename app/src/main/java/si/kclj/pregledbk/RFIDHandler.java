@@ -7,6 +7,7 @@ import android.util.Log;
 
 import com.zebra.rfid.api3.ENUM_TRANSPORT;
 import com.zebra.rfid.api3.ENUM_TRIGGER_MODE;
+import com.zebra.rfid.api3.HANDHELD_TRIGGER_EVENT_TYPE;
 import com.zebra.rfid.api3.InvalidUsageException;
 import com.zebra.rfid.api3.OperationFailureException;
 import com.zebra.rfid.api3.RFIDReader;
@@ -15,7 +16,11 @@ import com.zebra.rfid.api3.Readers;
 import com.zebra.rfid.api3.RfidEventsListener;
 import com.zebra.rfid.api3.RfidReadEvents;
 import com.zebra.rfid.api3.RfidStatusEvents;
+import com.zebra.rfid.api3.START_TRIGGER_TYPE;
+import com.zebra.rfid.api3.STATUS_EVENT_TYPE;
+import com.zebra.rfid.api3.STOP_TRIGGER_TYPE;
 import com.zebra.rfid.api3.TagData;
+import com.zebra.rfid.api3.TriggerInfo;
 
 import java.util.ArrayList;
 
@@ -26,6 +31,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
     interface Callback {
         void onTagRead(String epc);
         void onStatus(String msg);
+        void onTriggerEvent(boolean pressed);
     }
 
     private final Context context;
@@ -48,7 +54,6 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                     Log.d(TAG, "new Readers SERVICE_SERIAL");
                     readers = new Readers(context, ENUM_TRANSPORT.SERVICE_SERIAL);
                     readers.attach(RFIDHandler.this);
-                    // Probe takes ~3s; retry until reader appears (RFIDReaderAppeared may not fire for non-Zebra packages)
                     for (int i = 0; i < 12; i++) {
                         ArrayList<ReaderDevice> list = readers.GetAvailableRFIDReaderList();
                         Log.d(TAG, "try " + i + " list: " + (list != null ? list.size() : "null"));
@@ -102,13 +107,37 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
 
                     @Override
                     public void eventStatusNotify(RfidStatusEvents rfidStatusEvents) {
-                        Log.d(TAG, "Status: " + rfidStatusEvents.StatusEventData.getStatusEventType());
+                        try {
+                            STATUS_EVENT_TYPE type = rfidStatusEvents.StatusEventData.getStatusEventType();
+                            Log.d(TAG, "Status: " + type);
+                            if (type == STATUS_EVENT_TYPE.HANDHELD_TRIGGER_EVENT) {
+                                HANDHELD_TRIGGER_EVENT_TYPE tType =
+                                    rfidStatusEvents.StatusEventData.HandheldTriggerEventData.getHandheldTriggerEventType();
+                                callback.onTriggerEvent(tType == HANDHELD_TRIGGER_EVENT_TYPE.HANDHELD_TRIGGER_PRESSED);
+                            }
+                        } catch (Exception e) {
+                            Log.e(TAG, "eventStatusNotify: " + e.getMessage());
+                        }
                     }
                 });
+
                 reader.Events.setTagReadEvent(true);
                 reader.Events.setHandheldEvent(true);
                 reader.Events.setReaderDisconnectEvent(true);
                 reader.Config.setTriggerMode(ENUM_TRIGGER_MODE.RFID_MODE, true);
+
+                // Fizični trigger = začni inventory ob pritisku
+                try {
+                    TriggerInfo triggerInfo = new TriggerInfo();
+                    triggerInfo.StartTrigger.setTriggerType(START_TRIGGER_TYPE.START_TRIGGER_TYPE_HANDHELD);
+                    triggerInfo.StartTrigger.Handheld.setHandheldTriggerType(HANDHELD_TRIGGER_EVENT_TYPE.HANDHELD_TRIGGER_PRESSED);
+                    triggerInfo.StopTrigger.setTriggerType(STOP_TRIGGER_TYPE.STOP_TRIGGER_TYPE_IMMEDIATE);
+                    reader.Actions.setStartTriggerSettings(triggerInfo.StartTrigger);
+                    reader.Actions.setStopTriggerSettings(triggerInfo.StopTrigger);
+                    Log.d(TAG, "Trigger configured: HANDHELD start, IMMEDIATE stop");
+                } catch (Exception e) {
+                    Log.e(TAG, "Trigger config: " + e.getMessage());
+                }
 
                 callback.onStatus("Povezan: " + readerDevice.getName());
             } catch (Throwable e) {
@@ -118,7 +147,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
         }).start();
     }
 
-    // Sprejem: nastavi max moč (3000 cBm = 30 dBm), onemogoči DataWedge, začni inventory - vse v enem threadu
+    // Sprejem: nastavi max moč, onemogoči DataWedge — trigger sam začne skeniranje
     void startSprejemInventory() {
         new Thread(() -> {
             try {
@@ -136,7 +165,8 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                     reader.Config.Antennas.setAntennaRfConfig(1, cfg);
                     Log.d(TAG, "Sprejem power: " + levels[bestIdx] + " cBm idx=" + bestIdx);
                 }
-                reader.Actions.Inventory.perform();
+                // Ne kličemo perform() — trigger začne inventory
+                Log.d(TAG, "Sprejem ready, čakam trigger");
             } catch (Exception e) {
                 Log.e(TAG, "startSprejemInventory: " + e.getMessage());
             }

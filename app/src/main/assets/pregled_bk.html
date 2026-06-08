@@ -600,9 +600,8 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:8px">&#9313; RFID (pribl. 5cm od oznake)</div>
         <div style="display:-webkit-flex;display:flex;gap:8px;margin-bottom:6px">
           <button class="btn btn-a" id="spRfidScanBtn" style="flex:1;-webkit-justify-content:center;justify-content:center" onclick="spStartRfid()">&#128225; Skeniraj RFID</button>
-          <button class="btn btn-d" id="spRfidStopBtn" style="flex:1;-webkit-justify-content:center;justify-content:center;display:none" onclick="spStopRfid()">&#9632; Ustavi</button>
         </div>
-        <div style="font-size:10px;color:var(--text3);margin-bottom:8px;text-align:center">Ali pritisnite fizi&#269;ni trigger gumb na RFD2000</div>
+        <div id="spRfidStatus" style="font-size:10px;color:var(--text3);margin-bottom:8px;text-align:center">Kliknite gumb nato pritisnite trigger na RFD2000</div>
         <div id="spRfidWait" style="padding:8px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--text3);text-align:center">Ni zajetega RFID</div>
         <div id="spRfidOk" style="display:none;padding:8px;background:var(--gbg);border:1px solid var(--green);border-radius:8px">
           <div style="font-size:11px;color:var(--green);font-weight:700">&#10003; RFID zajeto</div>
@@ -1094,35 +1093,34 @@ function spStartRfid(){
   if(typeof AndroidBridge==='undefined'){notify('Samo na napravi','warn');return;}
   if(sprejemEpc){notify('RFID že zajeto — potrdite ali prekličite','warn');return;}
   try{
-    AndroidBridge.startRfidScan();
-    $i('spRfidScanBtn').style.display='none';
-    $i('spRfidStopBtn').style.display='-webkit-flex';
-    $i('spRfidStopBtn').style.display='flex';
-    notify('Skeniram RFID — prinesite oznako blizu...','ok');
-  }catch(e){notify('Napaka RFID: '+e,'err');}
-}
-function spStopRfid(){
-  if(typeof AndroidBridge!=='undefined'){try{AndroidBridge.stopRfidScan();}catch(e){}}
-  var s=$i('spRfidScanBtn');var p=$i('spRfidStopBtn');
-  if(s){s.style.display='-webkit-flex';s.style.display='flex';}
-  if(p)p.style.display='none';
-}
-function spStartRfid(){
-  if(typeof AndroidBridge==='undefined'){notify('Samo na napravi','warn');return;}
-  if(sprejemEpc){notify('RFID že zajeto — potrdite ali prekličite','warn');return;}
-  try{
     AndroidBridge.startRfidSprejemScan();
-    $i('spRfidScanBtn').style.display='none';
-    $i('spRfidStopBtn').style.display='-webkit-flex';
-    $i('spRfidStopBtn').style.display='flex';
-    notify('Skeniram RFID — prinesite oznako blizu...','ok');
+    var btn=$i('spRfidScanBtn');
+    if(btn){btn.disabled=true;btn.textContent='⏳ Pripravljen...';}
+    var st=$i('spRfidStatus');
+    if(st)st.textContent='Pritisnite trigger na RFD2000 za skeniranje';
+    notify('Pritisnite trigger na RFD2000','ok');
   }catch(e){notify('Napaka RFID: '+e,'err');}
 }
 function spStopRfid(){
   if(typeof AndroidBridge!=='undefined'){try{AndroidBridge.stopRfidScan();}catch(e){}}
-  var s=$i('spRfidScanBtn');var p=$i('spRfidStopBtn');
-  if(s){s.style.display='-webkit-flex';s.style.display='flex';}
-  if(p)p.style.display='none';
+  var btn=$i('spRfidScanBtn');
+  if(btn){btn.disabled=false;btn.textContent='📡 Skeniraj RFID';}
+  var st=$i('spRfidStatus');
+  if(st)st.textContent='Kliknite gumb nato pritisnite trigger na RFD2000';
+}
+function onRfidTriggerEvent(pressed){
+  if(!sprejemActive||!sprejemData)return;
+  var btn=$i('spRfidScanBtn');
+  var st=$i('spRfidStatus');
+  if(pressed){
+    if(btn){btn.disabled=true;btn.textContent='📡 Skeniram...';}
+    if(st)st.textContent='Skeniram RFID — držite blizu oznake...';
+  } else {
+    if(!sprejemEpc){
+      if(btn){btn.disabled=false;btn.textContent='📡 Skeniraj RFID';}
+      if(st)st.textContent='Pritisnite trigger na RFD2000 za skeniranje';
+    }
+  }
 }
 function spManualEpc(){
   var epc=prompt('Vnesi EPC (hex):','');
