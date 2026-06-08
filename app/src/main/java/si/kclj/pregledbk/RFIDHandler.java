@@ -146,7 +146,6 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                 reader.Events.setTagReadEvent(true);
                 reader.Events.setHandheldEvent(true);
                 reader.Events.setReaderDisconnectEvent(true);
-                reader.Config.setTriggerMode(ENUM_TRIGGER_MODE.RFID_MODE, true);
 
                 callback.onStatus("Povezan: " + readerDevice.getName());
             } catch (Throwable e) {
@@ -169,6 +168,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                     Thread.sleep(3000);
                     if (reader == null) { Log.e(TAG, "startSprejemInventory: še vedno ni bralnika"); return; }
                 }
+                reader.Config.setTriggerMode(ENUM_TRIGGER_MODE.RFID_MODE, true);
                 disableDataWedgeScanner();
                 int[] levels = reader.ReaderCapabilities.getTransmitPowerLevelValues();
                 if (levels != null && levels.length > 0) {
@@ -194,7 +194,10 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
         scanArmed = false;
         new Thread(() -> {
             try {
-                if (reader != null) reader.Actions.Inventory.stop();
+                if (reader != null) {
+                    reader.Actions.Inventory.stop();
+                    reader.Config.setTriggerMode(ENUM_TRIGGER_MODE.RFID_MODE, false);
+                }
             } catch (Exception e) {
                 Log.e(TAG, "stopSprejemInventory: " + e.getMessage());
             } finally {
