@@ -149,9 +149,9 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                 disableDataWedgeScanner();
                 int[] levels = reader.ReaderCapabilities.getTransmitPowerLevelValues();
                 if (levels != null && levels.length > 0) {
-                    int bestIdx = 0, bestDiff = Math.abs(levels[0] - 3000);
+                    int bestIdx = 0, bestDiff = Math.abs(levels[0] - 600);
                     for (int i = 1; i < levels.length; i++) {
-                        int diff = Math.abs(levels[i] - 3000);
+                        int diff = Math.abs(levels[i] - 600);
                         if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
                     }
                     var cfg = reader.Config.Antennas.getAntennaRfConfig(1);
