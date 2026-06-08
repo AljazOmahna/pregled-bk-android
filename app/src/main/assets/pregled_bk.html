@@ -1158,7 +1158,21 @@ function confirmSprejem(){
     lot:sprejemData.lot, expiry:sprejemData.expiry, serial:sprejemData.serial,
     rfidEpc:sprejemEpc, receivedAt:new Date().toISOString(), status:'active'
   });
-  saveDB(); renderReceived(); updateStats();
+  // Posodobi zaloga (DB.inventory)
+  var existing=(DB.inventory||[]).filter(function(i){return i.gtin===sprejemData.gtin&&i.lot===sprejemData.lot;})[0];
+  if(existing){
+    existing.qty=(existing.qty||0)+1;
+    if(sprejemData.serial){if(!existing.serials)existing.serials=[];existing.serials.push(sprejemData.serial);}
+    if(sprejemEpc){if(!existing.rfidEpcs)existing.rfidEpcs=[];existing.rfidEpcs.push(sprejemEpc);}
+  } else {
+    if(!DB.inventory)DB.inventory=[];
+    var newItem={gtin:sprejemData.gtin,name:sprejemData.name,type:sprejemData.type,
+      lot:sprejemData.lot,expiry:sprejemData.expiry,qty:1};
+    if(sprejemData.serial)newItem.serials=[sprejemData.serial];
+    if(sprejemEpc)newItem.rfidEpcs=[sprejemEpc];
+    DB.inventory.push(newItem);
+  }
+  saveDB(); renderReceived(); renderInventory(); updateStats();
   notify('Sprejeto: '+sprejemData.name+(sprejemData.serial?' #'+sprejemData.serial:''),'ok');
   closeSprejem();
 }
