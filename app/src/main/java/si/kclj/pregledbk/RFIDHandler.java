@@ -16,11 +16,8 @@ import com.zebra.rfid.api3.Readers;
 import com.zebra.rfid.api3.RfidEventsListener;
 import com.zebra.rfid.api3.RfidReadEvents;
 import com.zebra.rfid.api3.RfidStatusEvents;
-import com.zebra.rfid.api3.START_TRIGGER_TYPE;
 import com.zebra.rfid.api3.STATUS_EVENT_TYPE;
-import com.zebra.rfid.api3.STOP_TRIGGER_TYPE;
 import com.zebra.rfid.api3.TagData;
-import com.zebra.rfid.api3.TriggerInfo;
 
 import java.util.ArrayList;
 
@@ -112,7 +109,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                             Log.d(TAG, "Status: " + type);
                             if (type == STATUS_EVENT_TYPE.HANDHELD_TRIGGER_EVENT) {
                                 HANDHELD_TRIGGER_EVENT_TYPE tType =
-                                    rfidStatusEvents.StatusEventData.HandheldTriggerEventData.getHandheldTriggerEventType();
+                                    rfidStatusEvents.StatusEventData.HandheldTriggerEventData.getHandheldTriggerEvent();
                                 callback.onTriggerEvent(tType == HANDHELD_TRIGGER_EVENT_TYPE.HANDHELD_TRIGGER_PRESSED);
                             }
                         } catch (Exception e) {
@@ -125,19 +122,6 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                 reader.Events.setHandheldEvent(true);
                 reader.Events.setReaderDisconnectEvent(true);
                 reader.Config.setTriggerMode(ENUM_TRIGGER_MODE.RFID_MODE, true);
-
-                // Fizični trigger = začni inventory ob pritisku
-                try {
-                    TriggerInfo triggerInfo = new TriggerInfo();
-                    triggerInfo.StartTrigger.setTriggerType(START_TRIGGER_TYPE.START_TRIGGER_TYPE_HANDHELD);
-                    triggerInfo.StartTrigger.Handheld.setHandheldTriggerType(HANDHELD_TRIGGER_EVENT_TYPE.HANDHELD_TRIGGER_PRESSED);
-                    triggerInfo.StopTrigger.setTriggerType(STOP_TRIGGER_TYPE.STOP_TRIGGER_TYPE_IMMEDIATE);
-                    reader.Actions.setStartTriggerSettings(triggerInfo.StartTrigger);
-                    reader.Actions.setStopTriggerSettings(triggerInfo.StopTrigger);
-                    Log.d(TAG, "Trigger configured: HANDHELD start, IMMEDIATE stop");
-                } catch (Exception e) {
-                    Log.e(TAG, "Trigger config: " + e.getMessage());
-                }
 
                 callback.onStatus("Povezan: " + readerDevice.getName());
             } catch (Throwable e) {
