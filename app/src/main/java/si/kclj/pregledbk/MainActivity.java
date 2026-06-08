@@ -56,12 +56,7 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
             }
         }
 
-        try {
-            rfidHandler = new RFIDHandler(this, this);
-            rfidHandler.init();
-        } catch (Throwable t) {
-            Log.e(TAG, "RFID init failed: " + t);
-        }
+        rfidHandler = new RFIDHandler(this, this);
     }
 
     // Called from RFIDHandler (RFID EPC) or DataWedgeHandler (barcode)
@@ -90,11 +85,6 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
     @Override
     protected void onResume() {
         super.onResume();
-        try {
-            if (rfidHandler != null) rfidHandler.init();
-        } catch (Throwable t) {
-            Log.e(TAG, "RFID resume failed: " + t);
-        }
     }
 
     @Override
@@ -123,7 +113,7 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
 
         @JavascriptInterface
         public void startRfidScan() {
-            if (rfidHandler != null) rfidHandler.performInventory();
+            if (rfidHandler != null) rfidHandler.startSprejemInventory();
         }
 
         @JavascriptInterface
