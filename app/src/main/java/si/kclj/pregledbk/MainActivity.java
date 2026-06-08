@@ -59,6 +59,10 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         try {
             rfidHandler = new RFIDHandler(this, this);
             rfidHandler.init();
+            // Odklopi po 5s — DataWedge mora biti aktiven za barcode skeniranje
+            mainHandler.postDelayed(() -> {
+                if (rfidHandler != null) rfidHandler.disconnect();
+            }, 5000);
         } catch (Throwable t) {
             Log.e(TAG, "RFID init failed: " + t);
         }
