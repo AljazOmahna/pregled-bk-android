@@ -777,10 +777,21 @@ function parseGS1(raw){
         r.serial=rest.slice(i+2,j).replace(/[^\x20-\x7E]/g,'');
         i=rest.charCodeAt(j)<32?j+1:j;
       } else if(ai==='10'){
-        // Lot: read until FNC1 (char<32) or max 20 chars
+        // Lot: read until FNC1, AI 240 (Abbott catalog), or max 20 chars
         var j=i+2;
-        while(j<rest.length&&(j-i-2)<20){if(rest.charCodeAt(j)<32)break;j++;}
+        while(j<rest.length&&(j-i-2)<20){
+          if(rest.charCodeAt(j)<32)break;
+          if(j-i-2>=4&&rest.slice(j,j+3)==='240')break;
+          var bn=rest.slice(j,j+2);
+          if(j-i-2>=4&&(bn==='21'||bn==='17'||bn==='11'||bn==='15'))break;
+          j++;
+        }
         r.lot=rest.slice(i+2,j).replace(/[^\x20-\x7E]/g,'');
+        i=rest.charCodeAt(j)<32?j+1:j;
+      } else if(rest.slice(i,i+3)==='240'){
+        // AI 240: Abbott catalog number — skip variable-length field
+        var j=i+3;
+        while(j<rest.length&&(j-i-3)<30){if(rest.charCodeAt(j)<32)break;j++;}
         i=rest.charCodeAt(j)<32?j+1:j;
       } else if(ai==='11'){
         i += 8; // production date fixed 6
@@ -1151,6 +1162,7 @@ function spProcessBarcode(raw){
     if(changed)notify('Podatki dodani'+(p.serial?' #'+p.serial:''),'ok');
     else notify('Podatki že zajeti','warn');
     setTimeout(function(){$i('spBarcodeInp').value='';$i('spBarcodeInp').focus();},100);
+    if(APP_SETTINGS.serialSprejem&&sprejemData.serial&&!sprejemEpc){setTimeout(function(){spStartRfid();},200);}
     return;
   }
   // Different GTIN while data exists → warn
@@ -1167,7 +1179,7 @@ function spProcessBarcode(raw){
   $i('spStep2').style.display='block';
   notify('Prepoznano: '+gr.name,'ok');
   setTimeout(function(){$i('spBarcodeInp').value='';$i('spBarcodeInp').focus();},100);
-  if(APP_SETTINGS.serialSprejem){setTimeout(function(){spStartRfid();},200);}
+  if(APP_SETTINGS.serialSprejem&&sprejemData.serial){setTimeout(function(){spStartRfid();},200);}
 }
 function spUpdateItemInfo(){
   if(!sprejemData)return;
