@@ -722,11 +722,24 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
           <span style="font-size:11px;font-weight:700;color:var(--text3)">Zadnja posodobitev</span>
           <span style="font-size:11px;color:var(--text)" id="infoDate"></span>
         </div>
-        <div style="display:-webkit-flex;display:flex;-webkit-justify-content:space-between;justify-content:space-between">
+        <div style="display:-webkit-flex;display:flex;-webkit-justify-content:space-between;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:11px;font-weight:700;color:var(--text3)">Identifikator</span>
+          <span style="font-size:11px;font-family:var(--mono);color:var(--text)">si.kclj.pregledbk</span>
+        </div>
+        <div style="display:-webkit-flex;display:flex;-webkit-justify-content:space-between;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:11px;font-weight:700;color:var(--text3)">Min. Android</span>
+          <span style="font-size:11px;color:var(--text)">8.0 (API 26)</span>
+        </div>
+        <div style="display:-webkit-flex;display:flex;-webkit-justify-content:space-between;justify-content:space-between;margin-bottom:6px">
           <span style="font-size:11px;font-weight:700;color:var(--text3)">Avtor</span>
-          <span style="font-size:11px;color:var(--text)">&#169; Aljaž Omahna</span>
+          <span style="font-size:11px;color:var(--text)">&#169; 2026 Aljaž Omahna</span>
+        </div>
+        <div style="display:-webkit-flex;display:flex;-webkit-justify-content:space-between;justify-content:space-between">
+          <span style="font-size:11px;font-weight:700;color:var(--text3)">Podpora</span>
+          <span style="font-size:11px;color:var(--text)">aljaz.omahna@kclj.si</span>
         </div>
       </div>
+      <div style="font-size:10px;color:var(--text3);text-align:center;margin:-4px 0 12px">&#169; 2026 Aljaž Omahna. Vse pravice pridržane.</div>
       <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:12px">
         <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:6px">Shranjevanje podatkov</div>
         <div style="font-size:11px;color:var(--text2)">Podatki so shranjeni izključno lokalno na napravi. Aplikacija ne pošilja podatkov na zunanje strežnike.</div>
@@ -734,6 +747,14 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
       <div style="background:rgba(192,32,32,.08);border:1px solid rgba(192,32,32,.2);border-radius:10px;padding:12px;margin-bottom:12px">
         <div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:4px">&#9888; Izjava o omejitvi odgovornosti</div>
         <div style="font-size:10px;color:var(--text3)">Aplikacija je evidenčno orodje za upravljanje zalog. Ni certificirana medicinska naprava. Za klinične odločitve upoštevajte veljavne laboratorijske protokole.</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:6px">Licence in knjižnice</div>
+        <div style="font-size:10px;color:var(--text2);line-height:1.5">
+          &bull; AndroidX (AppCompat, LocalBroadcastManager) — Apache License 2.0<br>
+          &bull; Zebra RFID SDK (RFIDAPI3) — &#169; Zebra Technologies, uporaba pod licenco proizvajalca<br>
+          &bull; Zebra DataWedge — &#169; Zebra Technologies
+        </div>
       </div>
       <div style="margin-bottom:4px">
         <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px">Zgodovina posodobitev</div>
@@ -1369,9 +1390,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:71,
+  build:72,
   date:'2026-06-09',
   history:[
+    {build:72,date:'2026-06-09',notes:'Razširjen Info: letnica copyrighta, kontakt podpore, identifikator, min. Android, licence knjižnic; sinhronizacija versionCode'},
     {build:71,date:'2026-06-09',notes:'Info okno, copyright, izjava o omejitvi odgovornosti'},
     {build:70,date:'2026-06-09',notes:'Sprejem modal animacija od vrha, slovnične popravke, MultiRFID reset ob zaključku seje'},
     {build:69,date:'2026-06-09',notes:'Odstranitev nepotrebnega okna lokacije datoteke'},
