@@ -1157,9 +1157,16 @@ function renderPowerTestList(type){
   if(!el)return;
   if(!rfidTestActive&&rfidTestEpcs.length===0){el.style.display='none';return;}
   el.style.display='block';
+  var rows=rfidTestEpcs.slice().sort(function(a,b){return b.rssi-a.rssi;});
   el.innerHTML='<div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:4px">'+
-    (rfidTestActive?'&#128225; Skeniram — v &#382;ivo:':'Zajetih: ')+rfidTestEpcs.length+'</div>'+
-    rfidTestEpcs.map(function(e){return '<div style="font-size:10px;font-family:var(--mono);color:var(--text2)">'+e+'</div>';}).join('');
+    (rfidTestActive?'&#128225; Skeniram — v &#382;ivo:':'Zajetih: ')+rfidTestEpcs.length+' &#183; razvr&#353;&#269;eno po jakosti</div>'+
+    rows.map(function(o){
+      var r=(o.rssi!==0)?(o.rssi+' dBm'):'?';
+      var col=(o.rssi===0)?'var(--text3)':(o.rssi>=-45?'var(--green)':(o.rssi>=-60?'var(--yellow)':'var(--text3)'));
+      return '<div style="display:-webkit-flex;display:flex;-webkit-justify-content:space-between;justify-content:space-between;gap:8px;font-size:10px;font-family:var(--mono);padding:1px 0">'+
+        '<span style="color:var(--text2)">'+o.epc.slice(0,16)+'&#8230;</span>'+
+        '<span style="color:'+col+';font-weight:700;white-space:nowrap">'+r+'</span></div>';
+    }).join('');
 }
 function toggleMultiRfid(){
   if(!rfidMultiActive)startMultiRfid();else stopMultiRfid();
@@ -1482,9 +1489,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:79,
+  build:80,
   date:'2026-06-10',
   history:[
+    {build:80,date:'2026-06-10',notes:'Test moči RFID zdaj prikazuje RSSI jakost vsake oznake (barvno, razvrščeno po jakosti) — orodje za kalibracijo razdalje/praga. Žive posodobitve med testom.'},
     {build:79,date:'2026-06-10',notes:'Sprejem RFID — samokalibrirajoča izbira: primarno meri dominanco (razliko do druge oznake), ne le absolutni prag. Prisloni oznako ob čitalec → zajame se samodejno; ob več oznakah preblizu skupaj pokaže njihove RSSI vrednosti in opozori. Dodan nastavljiv razmik dominance (gap).'},
     {build:78,date:'2026-06-10',notes:'Sprejem RFID: zajem najbližje oznake po RSSI jakosti (ne več prve naključne). Ob več oznakah podobne jakosti zavrne in opozori; nastavljiv prag jakosti (RSSI) — prepreči zajem tujega EPC sosednjega artikla'},
     {build:77,date:'2026-06-10',notes:'OneDrive sinhronizacija (Microsoft Graph): prijava @kclj.si, nalaganje/prenos s pametnim združevanjem — deljenje podatkov med skenerji'},
@@ -1903,15 +1911,17 @@ var _lastScanRaw='';var _lastScanTs=0;
 function processRawScan(raw,rssi){
   if(typeof rssi!=='number'||isNaN(rssi))rssi=0;
   var now=Date.now();
-  // Med sprejemom (zbiranje RFID kandidatov) NE dedupiramo — rabimo vse oznake v dosegu
-  if(!(sprejemActive&&!sprejemEpc)&&raw===_lastScanRaw&&now-_lastScanTs<500)return;
+  // Med sprejemom (zbiranje kandidatov) in testom moči NE dedupiramo — rabimo žive RSSI
+  if(!(sprejemActive&&!sprejemEpc)&&!rfidTestActive&&raw===_lastScanRaw&&now-_lastScanTs<500)return;
   _lastScanRaw=raw;_lastScanTs=now;
   var _dbg='';for(var _ci=0;_ci<Math.min(raw.length,80);_ci++)_dbg+=raw.charCodeAt(_ci)+',';
   if(typeof AndroidBridge!=='undefined')try{AndroidBridge.log('SCAN_CHARS:'+_dbg);}catch(_e){}
   if(rfidTestActive){
     var rawUp=raw.trim().toUpperCase();
     if(/^[0-9A-Fa-f]{8,}$/.test(rawUp)&&/[A-Fa-f]/.test(rawUp)){
-      if(rfidTestEpcs.indexOf(rawUp)<0)rfidTestEpcs.push(rawUp);
+      var ex=null;for(var ti=0;ti<rfidTestEpcs.length;ti++){if(rfidTestEpcs[ti].epc===rawUp){ex=rfidTestEpcs[ti];break;}}
+      if(ex){if(rssi!==0&&(ex.rssi===0||rssi>ex.rssi))ex.rssi=rssi;}
+      else rfidTestEpcs.push({epc:rawUp,rssi:rssi});
       renderPowerTestList(rfidTestType);
       return;
     }
