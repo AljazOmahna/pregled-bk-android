@@ -106,7 +106,10 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
     protected void onResume() {
         super.onResume();
         try {
-            if (rfidHandler != null) rfidHandler.init();
+            if (rfidHandler != null) {
+                rfidHandler.enableDataWedgeScanner();  // vedno zagotovi aktiven barcode ob vrnitvi v app
+                rfidHandler.init();
+            }
         } catch (Throwable t) {
             Log.e(TAG, "RFID resume failed: " + t);
         }
@@ -154,6 +157,16 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         @JavascriptInterface
         public void stopAndDisconnectRfid() {
             if (rfidHandler != null) rfidHandler.stopAndDisconnectRfid();
+        }
+
+        @JavascriptInterface
+        public void enableDataWedge() {
+            if (rfidHandler != null) rfidHandler.enableDataWedgeScanner();
+        }
+
+        @JavascriptInterface
+        public void disableDataWedge() {
+            if (rfidHandler != null) rfidHandler.disableDataWedgeScanner();
         }
 
         @JavascriptInterface

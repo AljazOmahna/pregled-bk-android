@@ -218,6 +218,10 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
     <div class="hdr-stat"><div class="hdr-stat-num" style="color:var(--red)" id="hs-exp">0</div><div class="hdr-stat-lbl">Exp</div></div>
     <div class="hdr-stat"><div class="hdr-stat-num" style="color:var(--orange)" id="hs-14">0</div><div class="hdr-stat-lbl">14d</div></div>
   </div>
+  <div style="display:-webkit-flex;display:flex;gap:4px;align-items:center;margin-left:6px">
+    <div id="chipRfid" onclick="toggleRfidChip()" style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;cursor:pointer;background:#1e293b;color:#475569;border:1px solid #334155">RFID</div>
+    <div id="chipBc" onclick="toggleBcChip()" style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;cursor:pointer;background:var(--gbg);color:var(--green);border:1px solid var(--green)">BC</div>
+  </div>
 </header>
 
 <div class="app-body">
@@ -422,12 +426,6 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
 <!-- MORE (sessions + export) -->
 <div class="page" id="page-more">
   <div class="sec-title" style="margin-bottom:12px">Ve&#269; mo&#382;nosti</div>
-<div style="background:#1e293b;border:1px solid rgba(56,189,248,.2);border-radius:8px;
-  padding:10px 14px;margin-bottom:12px;font-size:11px;color:#94a3b8;line-height:1.6">
-  <strong style="color:#38bdf8">&#128241; Bli&#382;njica na za&#269;etni zaslon:</strong><br>
-  Chrome <strong style="color:#f1f5f9">&#8942; &#8594; Add to Home screen &#8594; &ldquo;Pregled BK&rdquo;</strong><br>
-  <span style="color:#64748b;font-size:10px">Naslednji&#269; odprete direktno brez vtipkavanja poti.</span>
-</div>
   <div class="card">
     <div class="card-title">&#9881;&#65039; Nastavitve</div>
     <label style="display:-webkit-flex;display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 0;margin-bottom:12px">
@@ -871,6 +869,7 @@ function onRfidStatus(connected,msg){
     el.style.background=connected?'var(--gbg)':'var(--rbg)';
     el.style.color=connected?'var(--green)':'var(--red)';
   }
+  setStatusRfid(connected);
   if(connected&&rfidMultiActive){
     var btn=$i('multiRfidBtn');
     if(btn&&btn.disabled){
@@ -882,7 +881,28 @@ function onRfidStatus(connected,msg){
 // MultiRFID staging
 var rfidMultiActive=false;
 var rfidStaging={recognized:[],unknown:[]};
-
+var statusRfidOn=false,statusBcOn=true;
+function setStatusRfid(on){
+  statusRfidOn=on;
+  var c=$i('chipRfid');if(!c)return;
+  if(on){c.style.background='var(--gbg)';c.style.color='var(--green)';c.style.borderColor='var(--green)';}
+  else{c.style.background='#1e293b';c.style.color='#475569';c.style.borderColor='#334155';}
+}
+function setStatusBc(on){
+  statusBcOn=on;
+  var c=$i('chipBc');if(!c)return;
+  if(on){c.style.background='var(--gbg)';c.style.color='var(--green)';c.style.borderColor='var(--green)';}
+  else{c.style.background='#1e293b';c.style.color='#475569';c.style.borderColor='#334155';}
+}
+function toggleRfidChip(){
+  if(rfidMultiActive||sprejemActive)return;
+  if(statusRfidOn){if(typeof AndroidBridge!=='undefined')try{AndroidBridge.stopAndDisconnectRfid();}catch(e){}; setStatusRfid(false);setStatusBc(true);}
+  else{if(typeof AndroidBridge!=='undefined')try{AndroidBridge.startMultiRfidScan();}catch(e){};}
+}
+function toggleBcChip(){
+  if(statusBcOn){if(typeof AndroidBridge!=='undefined')try{AndroidBridge.disableDataWedge();}catch(e){}; setStatusBc(false);}
+  else{if(typeof AndroidBridge!=='undefined')try{AndroidBridge.enableDataWedge();}catch(e){}; setStatusBc(true);}
+}
 function toggleMultiRfid(){
   if(!rfidMultiActive)startMultiRfid();else stopMultiRfid();
 }
@@ -892,6 +912,7 @@ function startMultiRfid(){
   rfidStaging={recognized:[],unknown:[]};
   try{AndroidBridge.startMultiRfidScan();}
   catch(e){notify('Napaka RFID: '+e,'err');rfidMultiActive=false;return;}
+  setStatusRfid(true);setStatusBc(false);
   var btn=$i('multiRfidBtn');
   if(btn){btn.innerHTML='&#9203; Pripravljam...';btn.className='btn btn-g';btn.disabled=true;}
   $i('szHint').textContent='Vzpostavljam povezavo z RFD2000...';
@@ -902,6 +923,7 @@ function typeName(t){return {control:'Kontrola',calibrator:'Kalibrator','reagent
 function stopMultiRfid(){
   rfidMultiActive=false;
   if(typeof AndroidBridge!=='undefined'){try{AndroidBridge.stopAndDisconnectRfid();}catch(e){}}
+  setStatusRfid(false);setStatusBc(true);
   var btn=$i('multiRfidBtn');
   if(btn){btn.innerHTML='&#128225; Skeniraj MultiRFID';btn.className='btn btn-a';}
   renderStagingList();
@@ -1219,6 +1241,7 @@ function spStartRfid(){
   if(sprejemEpc){notify('RFID že zajeto — potrdite ali prekličite','warn');return;}
   try{
     AndroidBridge.startRfidSprejemScan();
+    setStatusRfid(true);setStatusBc(false);
     var btn=$i('spRfidScanBtn');
     if(btn){btn.disabled=true;btn.textContent='📡 Skeniram...';}
     var st=$i('spRfidStatus');
@@ -1228,6 +1251,7 @@ function spStartRfid(){
 }
 function spStopRfid(){
   if(typeof AndroidBridge!=='undefined'){try{AndroidBridge.stopRfidScan();}catch(e){}}
+  setStatusRfid(false);setStatusBc(true);
   var btn=$i('spRfidScanBtn');
   if(btn){btn.disabled=false;btn.textContent='📡 Skeniraj RFID';}
   var st=$i('spRfidStatus');
@@ -1250,9 +1274,9 @@ function onRfidTriggerEvent(pressed){
       if(_spAutoConfirmTimer){clearTimeout(_spAutoConfirmTimer);_spAutoConfirmTimer=null;}
       confirmSprejem();
     } else if(sprejemActive&&!sprejemEpc){
-      if(btn){btn.disabled=false;btn.textContent='📡 Skeniraj RFID';}
-      if(st)st.textContent='Ni kode — pritisnite trigger znova';
-      notify('RFID: ni kode — poskusite znova','warn');
+      spStopRfid();
+      if(st)st.textContent='Ni kode — kliknite Skeniraj RFID za ponovitev';
+      notify('RFID: ni kode — kliknite Skeniraj RFID znova','warn');
     } else if(rfidMultiActive){
       if(mBtn){mBtn.innerHTML='&#9632; Ustavi skeniranje';mBtn.className='btn btn-d';}
       $i('szHint').textContent='Pritisni trigger znova ali klikni Ustavi';

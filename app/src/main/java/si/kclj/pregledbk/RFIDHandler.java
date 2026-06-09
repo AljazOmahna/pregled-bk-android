@@ -244,7 +244,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
         }).start();
     }
 
-    private void disableDataWedgeScanner() {
+    void disableDataWedgeScanner() {
         try {
             Intent i = new Intent("com.symbol.datawedge.api.ACTION");
             i.putExtra("com.symbol.datawedge.api.SCANNER_INPUT_PLUGIN", "DISABLE_PLUGIN");
@@ -255,7 +255,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
         }
     }
 
-    private void enableDataWedgeScanner() {
+    void enableDataWedgeScanner() {
         try {
             Intent i = new Intent("com.symbol.datawedge.api.ACTION");
             i.putExtra("com.symbol.datawedge.api.SCANNER_INPUT_PLUGIN", "ENABLE_PLUGIN");
