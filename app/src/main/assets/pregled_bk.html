@@ -505,12 +505,26 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <div id="settSprejemPowerWarn" style="font-size:11px;margin-top:4px;display:none"></div>
       <div id="sprejemTestList" style="display:none;margin-top:6px;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;max-height:120px;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
     </div>
-    <div style="margin-bottom:10px">
-      <div style="font-size:12px;font-weight:600;margin-bottom:2px">Prag jakosti EPC (RSSI, dBm)</div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Sprejme samo oznako, ki je dovolj blizu. Manj negativno = stro&#382;je (le tik ob &#269;italcu). Priporo&#269;eno: &#8722;55 do &#8722;65</div>
-      <input type="number" id="settRssiMin" min="-90" max="0" step="1"
-        style="width:100px;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px"
-        onchange="onSettRssiChange()" value="-60">
+    <div style="margin-bottom:10px;padding:8px;background:var(--bg3);border-radius:6px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:4px">&#128225; Izbira RFID oznake pri sprejemu</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Sistem zajame <b>najbli&#382;jo</b> oznako (najmo&#269;nej&#353;i RSSI). Oznako, ki jo sprejema&#353;, <b>prisloni tik ob &#269;italec</b> &#8212; takrat o&#269;itno presega ostale in se zajame samodejno. &#268;e sta dve preblizu skupaj, te opozori.</div>
+      <div style="display:-webkit-flex;display:flex;gap:10px;-webkit-flex-wrap:wrap;flex-wrap:wrap">
+        <div>
+          <div style="font-size:11px;font-weight:600;margin-bottom:2px">Spodnji prag (dBm)</div>
+          <input type="number" id="settRssiMin" min="-90" max="0" step="1"
+            style="width:90px;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px"
+            onchange="onSettRssiChange()" value="-70">
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">varovalka za predaleč</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;margin-bottom:2px">Razmik dominance (dB)</div>
+          <input type="number" id="settRssiGap" min="2" max="30" step="1"
+            style="width:90px;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px"
+            onchange="onSettRssiChange()" value="10">
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">koliko mora presegati 2.</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--orange);margin-top:6px">&#9888; Za sprejem priporo&#269;am mo&#269; RFID <b>0&#8211;3 dBm</b> (zgoraj) &#8212; manj&#353;i doseg = manj tujih oznak.</div>
     </div>
     <div>
       <div style="font-size:12px;font-weight:600;margin-bottom:2px">Mo&#269; RFID — MultiRFID (dBm)</div>
@@ -1468,9 +1482,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:78,
+  build:79,
   date:'2026-06-10',
   history:[
+    {build:79,date:'2026-06-10',notes:'Sprejem RFID — samokalibrirajoča izbira: primarno meri dominanco (razliko do druge oznake), ne le absolutni prag. Prisloni oznako ob čitalec → zajame se samodejno; ob več oznakah preblizu skupaj pokaže njihove RSSI vrednosti in opozori. Dodan nastavljiv razmik dominance (gap).'},
     {build:78,date:'2026-06-10',notes:'Sprejem RFID: zajem najbližje oznake po RSSI jakosti (ne več prve naključne). Ob več oznakah podobne jakosti zavrne in opozori; nastavljiv prag jakosti (RSSI) — prepreči zajem tujega EPC sosednjega artikla'},
     {build:77,date:'2026-06-10',notes:'OneDrive sinhronizacija (Microsoft Graph): prijava @kclj.si, nalaganje/prenos s pametnim združevanjem — deljenje podatkov med skenerji'},
     {build:76,date:'2026-06-09',notes:'Serijski sprejem: po obvestilu "že v zalogi" se stanje samodejno ponastavi na novo skeniranje (RFID se ustavi, forma se počisti)'},
@@ -1498,7 +1513,7 @@ function initInfoPanel(){
 }
 
 // ===== NASTAVITVE =====
-var APP_SETTINGS={serialSprejem:false,sprejemPower:6.0,multiRfidPower:30.0,darkMode:false,sprejemRssiMin:-60,sprejemRssiGap:8};
+var APP_SETTINGS={serialSprejem:false,sprejemPower:6.0,multiRfidPower:30.0,darkMode:false,sprejemRssiMin:-70,sprejemRssiGap:10};
 function applyDarkMode(on){
   if(on){document.body.classList.add('dark');}
   else{document.body.classList.remove('dark');}
@@ -1509,16 +1524,20 @@ function loadSettings(){
   var cb=$i('settSerialSprejem');if(cb)cb.checked=!!APP_SETTINGS.serialSprejem;
   var sp=$i('settSprejemPower');if(sp)sp.value=APP_SETTINGS.sprejemPower||6.0;
   var mp=$i('settMultiRfidPower');if(mp)mp.value=APP_SETTINGS.multiRfidPower||30.0;
-  if(typeof APP_SETTINGS.sprejemRssiMin!=='number')APP_SETTINGS.sprejemRssiMin=-60;
-  if(typeof APP_SETTINGS.sprejemRssiGap!=='number')APP_SETTINGS.sprejemRssiGap=8;
+  if(typeof APP_SETTINGS.sprejemRssiMin!=='number')APP_SETTINGS.sprejemRssiMin=-70;
+  if(typeof APP_SETTINGS.sprejemRssiGap!=='number')APP_SETTINGS.sprejemRssiGap=10;
   var rm=$i('settRssiMin');if(rm)rm.value=APP_SETTINGS.sprejemRssiMin;
+  var rg=$i('settRssiGap');if(rg)rg.value=APP_SETTINGS.sprejemRssiGap;
   applyDarkMode(!!APP_SETTINGS.darkMode);
 }
 function onSettRssiChange(){
   var v=parseInt($i('settRssiMin').value,10);
-  if(isNaN(v))v=-60;
+  if(isNaN(v))v=-70;
   if(v>0)v=-v; // dovoli vnos brez minusa
   APP_SETTINGS.sprejemRssiMin=v;
+  var g=parseInt($i('settRssiGap').value,10);
+  if(isNaN(g)||g<0)g=10;
+  APP_SETTINGS.sprejemRssiGap=g;
   localStorage.setItem('pregledBK_sett',JSON.stringify(APP_SETTINGS));
 }
 function onSettChange(){
@@ -1690,35 +1709,38 @@ function spAddEpcCandidate(epc,rssi){
   var st=$i('spRfidStatus');
   if(st)st.textContent='Zaznavam oznake: '+n+' (spusti trigger za zajem)';
 }
-// Ob spustu triggerja izberemo najbližjo (najmočnejši RSSI) z zaščito pred dvoumnostjo.
+// Ob spustu triggerja: SAMOKALIBRIRAJOČA izbira — primarno meri DOMINANCO
+// (razliko do druge najmočnejše oznake), absolutni prag je le spodnja varovalka.
 function spEvaluateEpcCandidates(){
-  var minR=(typeof APP_SETTINGS.sprejemRssiMin==='number')?APP_SETTINGS.sprejemRssiMin:-60;
-  var gap=(typeof APP_SETTINGS.sprejemRssiGap==='number')?APP_SETTINGS.sprejemRssiGap:8;
+  var minR=(typeof APP_SETTINGS.sprejemRssiMin==='number')?APP_SETTINGS.sprejemRssiMin:-70;
+  var gap=(typeof APP_SETTINGS.sprejemRssiGap==='number')?APP_SETTINGS.sprejemRssiGap:10;
   var all=Object.keys(_spEpcCands).map(function(e){return {epc:e,rssi:_spEpcCands[e]};});
   _spEpcCands={};
   if(all.length===0){
-    var st0=$i('spRfidStatus');if(st0)st0.textContent='Ni oznake — pritisni trigger bliže oznaki';
-    notify('RFID: ni oznake — približaj in poskusi znova','warn');return;
+    var st0=$i('spRfidStatus');if(st0)st0.textContent='Ni oznake — prisloni oznako ob čitalec';
+    notify('RFID: ni oznake — prisloni ob čitalec in poskusi znova','warn');return;
   }
-  // RSSI je signiran (bolj negativno = dlje). 0 = neznano (reader ni poročal).
-  var elig=all.filter(function(c){return c.rssi===0||c.rssi>=minR;});
-  if(elig.length===0){
-    all.sort(function(a,b){return b.rssi-a.rssi;});
-    var st1=$i('spRfidStatus');if(st1)st1.textContent='Oznaka prešibka ('+all[0].rssi+' dBm) — približaj';
-    notify('Oznaka prešibka ('+all[0].rssi+' dBm) — približaj čitalec','warn');return;
+  // RSSI signiran (bolj negativno = dlje). 0 = reader ni poročal jakosti.
+  all.sort(function(a,b){return b.rssi-a.rssi;});
+  var top=all[0];
+  var known=top.rssi!==0;
+  // 1) Spodnja varovalka: najmočnejša mora biti vsaj nad pragom (le če je RSSI znan)
+  if(known&&top.rssi<minR){
+    var st1=$i('spRfidStatus');if(st1)st1.textContent='Najmočnejša '+top.rssi+' dBm — predaleč, prisloni ob čitalec';
+    notify('Oznaka predaleč ('+top.rssi+' dBm) — prisloni ob čitalec','warn');flashWarnSp();return;
   }
-  elig.sort(function(a,b){return b.rssi-a.rssi;});
-  var top=elig[0];
-  if(elig.length>=2){
-    var diff=top.rssi-elig[1].rssi;
-    if(top.rssi===0||elig[1].rssi===0||diff<gap){
-      // dvoumno — dve podobno močni oznaki
-      var st2=$i('spRfidStatus');if(st2)st2.textContent='Zaznanih '+elig.length+' oznak podobne jakosti — odmakni druge';
-      notify('⚠ Zaznanih '+elig.length+' oznak podobne jakosti — odmakni druge artikle in poskusi znova','err');
+  // 2) Dominanca: najmočnejša mora očitno presegati DRUGO najmočnejšo
+  if(all.length>=2){
+    var second=all[1];
+    var diff=top.rssi-second.rssi;
+    if(!known||second.rssi===0||diff<gap){
+      var topN=all.slice(0,3).map(function(c){return (c.rssi!==0?c.rssi+'dBm':'?');}).join(', ');
+      var st2=$i('spRfidStatus');if(st2)st2.textContent=all.length+' oznak preblizu skupaj ('+topN+') — prisloni eno';
+      notify('⚠ '+all.length+' oznak, premajhna razlika ('+topN+') — prisloni SAMO eno tik ob čitalec','err');
       flashWarnSp();return;
     }
   }
-  // jasen zmagovalec → zajemi in samodejno potrdi
+  // jasen zmagovalec (očitno najbližji) → zajemi in samodejno potrdi
   spCaptureEpc(top.epc,top.rssi);
   if(sprejemEpc){
     if(_spAutoConfirmTimer){clearTimeout(_spAutoConfirmTimer);_spAutoConfirmTimer=null;}
