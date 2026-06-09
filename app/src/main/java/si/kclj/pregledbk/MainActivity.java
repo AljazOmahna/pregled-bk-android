@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -11,6 +12,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -26,9 +28,11 @@ import java.util.Arrays;
 public class MainActivity extends Activity implements RFIDHandler.Callback {
 
     private static final String TAG = "PregledBK";
+    private static final int FILE_CHOOSER_REQ = 2001;
     private WebView webView;
     private RFIDHandler rfidHandler;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private ValueCallback<Uri[]> filePathCallback;
 
     @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
     @Override
@@ -46,7 +50,24 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         ws.setCacheMode(WebSettings.LOAD_DEFAULT);
 
         webView.setWebViewClient(new WebViewClient());
-        webView.setWebChromeClient(new WebChromeClient());
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> cb,
+                                             FileChooserParams params) {
+                if (filePathCallback != null) filePathCallback.onReceiveValue(null);
+                filePathCallback = cb;
+                Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+                i.addCategory(Intent.CATEGORY_OPENABLE);
+                i.setType("*/*");
+                try {
+                    startActivityForResult(Intent.createChooser(i, "Izberi CSV"), FILE_CHOOSER_REQ);
+                } catch (Exception e) {
+                    filePathCallback = null;
+                    return false;
+                }
+                return true;
+            }
+        });
         webView.addJavascriptInterface(new JsBridge(), "AndroidBridge");
         webView.loadUrl("file:///android_asset/pregled_bk.html");
 
@@ -68,6 +89,20 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
             }, 5000);
         } catch (Throwable t) {
             Log.e(TAG, "RFID init failed: " + t);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == FILE_CHOOSER_REQ) {
+            if (filePathCallback == null) return;
+            Uri[] results = null;
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                results = new Uri[]{ data.getData() };
+            }
+            filePathCallback.onReceiveValue(results);
+            filePathCallback = null;
         }
     }
 
