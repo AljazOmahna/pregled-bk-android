@@ -206,6 +206,24 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
   padding:9px 12px;margin-bottom:10px;font-size:12px;color:var(--red);cursor:pointer;display:none}
 ::-webkit-scrollbar{width:3px;height:3px}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+/* === DARK MODE === */
+body.dark{
+  --bg:#0f172a;--bg2:#1e293b;--bg3:#273449;
+  --border:#334155;--border2:#4a6080;
+  --text:#e2e8f0;--text2:#cbd5e1;--text3:#94a3b8;
+  --accent:#84BD00;--accent2:#a3d900;
+  --green:#84BD00;--gbg:rgba(132,189,0,.18);
+  --yellow:#fbbf24;--ybg:rgba(251,191,36,.13);
+  --orange:#fb923c;--obg:rgba(251,146,60,.12);
+  --red:#f87171;--rbg:rgba(248,113,113,.12);
+  --purple:#e879f9;--pbg:rgba(232,121,249,.13);
+}
+body.dark .hdr{background:#0d1829}
+body.dark .bottom-nav{background:#0d1829}
+body.dark .modal{background:var(--bg2)}
+body.dark .scan-input{background:var(--bg3);color:var(--text)}
+body.dark .fg input,body.dark .fg select,body.dark .fg textarea{background:var(--bg3);color:var(--text)}
+body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)}
 </style>
 </head>
 <body>
@@ -461,6 +479,13 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
   <div class="sec-title" style="margin-bottom:12px">Ve&#269; mo&#382;nosti</div>
   <div class="card">
     <div class="card-title">&#9881;&#65039; Nastavitve</div>
+    <label style="display:-webkit-flex;display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 0;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:12px">
+      <input type="checkbox" id="settDarkMode" onchange="onDarkModeToggle()" style="width:18px;height:18px;flex-shrink:0">
+      <div>
+        <div style="font-size:13px;font-weight:600">&#127769; Temni način (Dark mode)</div>
+        <div style="font-size:11px;color:var(--text3)">Temno ozadje — prijetnejše za oči v slabši svetlobi</div>
+      </div>
+    </label>
     <label style="display:-webkit-flex;display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 0;margin-bottom:12px">
       <input type="checkbox" id="settSerialSprejem" onchange="onSettChange()" style="width:18px;height:18px;flex-shrink:0">
       <div>
@@ -1390,9 +1415,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:73,
+  build:74,
   date:'2026-06-09',
   history:[
+    {build:74,date:'2026-06-09',notes:'Dark mode (temni način) v nastavitvah; popravljen CSV parser za uvoz GTIN (podpora za narekovaje in vejice v imenih)'},
     {build:73,date:'2026-06-09',notes:'Uvoz/izvoz GTIN CSV razširjen s stolpcema catalog in ident (za GTIN Builder)'},
     {build:72,date:'2026-06-09',notes:'Razširjen Info: letnica copyrighta, kontakt podpore, identifikator, min. Android, licence knjižnic; sinhronizacija versionCode'},
     {build:71,date:'2026-06-09',notes:'Info okno, copyright, izjava o omejitvi odgovornosti'},
@@ -1415,15 +1441,26 @@ function initInfoPanel(){
 }
 
 // ===== NASTAVITVE =====
-var APP_SETTINGS={serialSprejem:false,sprejemPower:6.0,multiRfidPower:30.0};
+var APP_SETTINGS={serialSprejem:false,sprejemPower:6.0,multiRfidPower:30.0,darkMode:false};
+function applyDarkMode(on){
+  if(on){document.body.classList.add('dark');}
+  else{document.body.classList.remove('dark');}
+  var cb=$i('settDarkMode');if(cb)cb.checked=!!on;
+}
 function loadSettings(){
   try{var s=localStorage.getItem('pregledBK_sett');if(s)APP_SETTINGS=JSON.parse(s);}catch(e){}
   var cb=$i('settSerialSprejem');if(cb)cb.checked=!!APP_SETTINGS.serialSprejem;
   var sp=$i('settSprejemPower');if(sp)sp.value=APP_SETTINGS.sprejemPower||6.0;
   var mp=$i('settMultiRfidPower');if(mp)mp.value=APP_SETTINGS.multiRfidPower||30.0;
+  applyDarkMode(!!APP_SETTINGS.darkMode);
 }
 function onSettChange(){
   APP_SETTINGS.serialSprejem=!!$i('settSerialSprejem').checked;
+  localStorage.setItem('pregledBK_sett',JSON.stringify(APP_SETTINGS));
+}
+function onDarkModeToggle(){
+  APP_SETTINGS.darkMode=!!$i('settDarkMode').checked;
+  applyDarkMode(APP_SETTINGS.darkMode);
   localStorage.setItem('pregledBK_sett',JSON.stringify(APP_SETTINGS));
 }
 function onSettPowerChange(type){
@@ -2301,19 +2338,36 @@ function openImport(){$i('moImport').classList.add('open');$i('importTxt').value
 function readFile(input){
   var file=input.files[0];if(!file)return;
   var r=new FileReader();
-  r.onload=function(e){$i('importTxt').value=e.target.result;var lines=e.target.result.split('\n').filter(function(l){return l.trim()&&!l.toLowerCase().startsWith('gtin');});$i('importPrev').textContent='Najdenih '+lines.length+' vrstic.';};
+  r.onload=function(e){
+    $i('importTxt').value=e.target.result;
+    var lines=e.target.result.replace(/\r/g,'').split('\n').filter(function(l){return l.trim()&&!/^\s*gtin\s*,/i.test(l);});
+    $i('importPrev').textContent='Najdenih '+lines.length+' vrstic.';
+  };
   r.readAsText(file);
+}
+// Pravi CSV parser — obvladuje narekovaje in vejice v poljih
+function parseCsvLine(line){
+  var out=[],cur='',q=false;
+  for(var i=0;i<line.length;i++){
+    var c=line[i];
+    if(q){if(c==='"'){if(line[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}
+    else{if(c==='"')q=true;else if(c===','){out.push(cur);cur='';}else cur+=c;}
+  }
+  out.push(cur);
+  return out.map(function(x){return x.trim();});
 }
 function importCsv(){
   var txt=$i('importTxt').value.trim();
-  var lines=txt.split('\n').filter(function(l){return l.trim()&&!l.toLowerCase().startsWith('gtin');});
+  if(!txt){notify('Ni vsebine za uvoz','warn');return;}
+  var lines=txt.replace(/\r/g,'').split('\n').filter(function(l){return l.trim()&&!/^\s*gtin\s*,/i.test(l);});
   var added=0,skipped=0;
   lines.forEach(function(line){
-    var p=line.split(',').map(function(x){return x.trim().replace(/^"|"$/g,'');});
-    var gtin=p[0],name=p[1],type=p[2],mfr=p[3],anal=p[4],note=p[5],catalog=p[6],ident=p[7];
+    var p=parseCsvLine(line);
+    var gtin=p[0]||'',name=p[1]||'',type=p[2]||'',mfr=p[3]||'',anal=p[4]||'',note=p[5]||'',catalog=p[6]||'',ident=p[7]||'';
+    gtin=gtin.replace(/\D/g,'');
     if(!gtin||gtin.length!==14||!validGtin(gtin)){skipped++;return;}
     if(DB.gtins.filter(function(g){return g.gtin===gtin;}).length){skipped++;return;}
-    DB.gtins.push({gtin:gtin,name:name||gtin,type:type||'control',manufacturer:mfr||'',analyser:anal||'',note:note||'',catalog:catalog||'',ident:ident||''});
+    DB.gtins.push({gtin:gtin,name:name||gtin,type:type||'consumable',manufacturer:mfr,analyser:anal,note:note,catalog:catalog,ident:ident});
     added++;
   });
   saveDB();closeMo('moImport');renderGtins();notify('Uvoženo '+added+', preskočenih '+skipped,'ok');
