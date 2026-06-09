@@ -189,7 +189,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                 }
                 scanArmed = true;
                 Log.d(TAG, "RFID armed — čakam trigger");
-                callback.onStatus("Pripravljeno: RFD2000");
+                callback.onStatus("Povezan: RFD2000");
             } catch (Exception e) {
                 Log.e(TAG, "startRfidInventory: " + e.getMessage());
             }

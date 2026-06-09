@@ -287,16 +287,14 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
       </div>
     </div>
 
-    <div class="scan-zone" id="scanZone" onclick="focusScan()">
-      <div class="scan-icon" id="szIcon">&#128225;</div>
-      <div class="scan-title" id="szTitle">RFID mod</div>
-      <input type="text" class="scan-input" id="scanInput"
-        placeholder="Skenirajte ali vnesite kodo..."
-        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-        inputmode="none"
-        oninput="onScanInput()" onkeydown="onScanKey(event)">
-      <div class="scan-hint" id="szHint">DataWedge &#8594; pritisk scan gumba &#8594; koda se vnese avtomatsko</div>
-      <div class="scan-fb" id="scanFb"></div>
+    <input type="text" id="scanInput"
+      style="position:absolute;opacity:0;width:1px;height:1px;left:-9999px"
+      autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+      inputmode="none"
+      oninput="onScanInput()" onkeydown="onScanKey(event)">
+    <div style="min-height:32px;margin-bottom:6px">
+      <div id="szHint" style="font-size:10px;color:var(--text3);margin-bottom:2px"></div>
+      <div id="scanFb" class="scan-fb"></div>
     </div>
 
     <div class="card">
@@ -1024,9 +1022,6 @@ var modeCfg={
 function setMode(m){
   scanMode=m;
   var c=modeCfg[m];
-  $i('scanZone').className='scan-zone '+c.cls;
-  $i('szIcon').innerHTML=c.icon;
-  $i('szTitle').textContent=c.title;
   $i('szHint').textContent=c.hint;
   ['rfid','qr','bar'].forEach(function(x){
     var b=$i('mbt-'+x);
@@ -1076,6 +1071,7 @@ document.addEventListener('keydown',function(e){
     e.preventDefault();
     return;
   }
+  if(e.keyCode===29){hidBuf+='\x1d';e.preventDefault();return;}
   if(e.key&&e.key.length===1&&e.keyCode!==10){
     hidBuf+=e.key;
     clearTimeout(hidTmr);
@@ -1088,23 +1084,32 @@ document.addEventListener('keydown',function(e){
 
 // Also handle direct input field (fallback)
 var scanTmr=null;
+var _scanGsBuf='';
 function onScanInput(){
   var inp=$i('scanInput');
   if(!inp)return;
   clearTimeout(scanTmr);
   if(inp.value.trim().length>=4){
     scanTmr=setTimeout(function(){
-      processRawScan(inp.value.trim());
+      var v=_scanGsBuf+inp.value.trim();_scanGsBuf='';
+      processRawScan(v);
       inp.value='';
     },200);
   }
 }
 function onScanKey(e){
+  if(e.keyCode===29){
+    var inp=$i('scanInput');
+    _scanGsBuf+=(inp?inp.value:'')+'\x1d';
+    if(inp)inp.value='';
+    e.preventDefault();return;
+  }
   if(e.keyCode===13||e.keyCode===10||e.key==='Enter'){
     clearTimeout(scanTmr);
     var inp=$i('scanInput');
-    var v=inp?inp.value.trim():'';
-    if(v){processRawScan(v);inp.value='';}
+    var v=_scanGsBuf+(inp?inp.value.trim():'');
+    _scanGsBuf='';
+    if(v.replace(/\x1d/g,'').trim()){processRawScan(v);if(inp)inp.value='';}
     e.preventDefault();
   }
 }
@@ -1177,15 +1182,28 @@ function closeSprejem(){
   sprejemActive=false; sprejemData=null; sprejemEpc=null;
   closeMo('moSprejem');
 }
+var _spGsBuf='';
 function spOnBarcodeInput(){
   clearTimeout(spBarTmr);
   var v=$i('spBarcodeInp').value.trim();
-  if(v.length>=4) spBarTmr=setTimeout(function(){spProcessBarcode(v);},300);
+  if(v.length>=4) spBarTmr=setTimeout(function(){
+    var full=_spGsBuf+v;_spGsBuf='';
+    spProcessBarcode(full);
+  },300);
 }
 function spOnBarcodeKey(e){
+  if(e.keyCode===29){
+    var inp=$i('spBarcodeInp');
+    _spGsBuf+=(inp?inp.value:'')+'\x1d';
+    if(inp)inp.value='';
+    e.preventDefault();return;
+  }
   if(e.keyCode===13||e.key==='Enter'){
     clearTimeout(spBarTmr);
-    spProcessBarcode($i('spBarcodeInp').value.trim());
+    var inp=$i('spBarcodeInp');
+    var v=_spGsBuf+(inp?inp.value.trim():'');
+    _spGsBuf='';
+    if(v.replace(/\x1d/g,'').trim())spProcessBarcode(v);
     e.preventDefault();
   }
 }
@@ -1373,6 +1391,8 @@ function processRawScan(raw){
   var now=Date.now();
   if(raw===_lastScanRaw&&now-_lastScanTs<500)return;
   _lastScanRaw=raw;_lastScanTs=now;
+  var _dbg='';for(var _ci=0;_ci<Math.min(raw.length,80);_ci++)_dbg+=raw.charCodeAt(_ci)+',';
+  if(typeof AndroidBridge!=='undefined')try{AndroidBridge.log('SCAN_CHARS:'+_dbg);}catch(_e){}
   // Sprejem mode: intercept scans for sprejem flow
   if(sprejemActive){
     var rawUp=raw.trim().toUpperCase();
@@ -1521,8 +1541,7 @@ function rejectScan(sess,raw,reason){
 function showFb(msg,t){var el=$i('scanFb');el.textContent=msg;el.className='scan-fb'+(t?' '+t:'');}
 function flash(t){
   var z=$i('scanZone');
-  z.classList.add(t+'-flash');
-  setTimeout(function(){z.classList.remove(t+'-flash');},500);
+  if(z){z.classList.add(t+'-flash');setTimeout(function(){z.classList.remove(t+'-flash');},500);}
 }
 function updateInv(p,gr){
   var it=DB.inventory.filter(function(i){return i.gtin===p.gtin&&i.lot===(p.lot||'');})[0];
