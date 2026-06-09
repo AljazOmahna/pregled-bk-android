@@ -271,11 +271,11 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
     <div id="rfidStagingArea" style="display:none;margin-bottom:8px">
       <div style="background:var(--gbg);border:1px solid var(--green);border-radius:8px;padding:8px;margin-bottom:6px">
         <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--green);margin-bottom:4px">&#10003; Prepoznane (<span id="stagingRecCount">0</span>)</div>
-        <div id="stagingRecList"><div style="color:var(--text3);font-size:10px;padding:2px">Ni prepoznanih EPC.</div></div>
+        <div id="stagingRecList" style="max-height:160px;overflow-y:auto;-webkit-overflow-scrolling:touch"><div style="color:var(--text3);font-size:10px;padding:2px">Ni prepoznanih EPC.</div></div>
       </div>
       <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:6px">
         <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:4px">? Neprepoznane (<span id="stagingUnkCount">0</span>)</div>
-        <div id="stagingUnkList"></div>
+        <div id="stagingUnkList" style="max-height:100px;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
       </div>
       <div style="display:-webkit-flex;display:flex;gap:8px">
         <button class="btn btn-a" id="rfidAcceptBtn" onclick="acceptAllStaged()" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center" disabled>&#10003; Sprejmi prepoznane (0)</button>
@@ -545,6 +545,10 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
         <div class="fg"><label>Analizator</label><input type="text" id="gtinAnal"></div>
       </div>
       <div class="fg"><label>Opomba</label><input type="text" id="gtinNote"></div>
+      <div class="frow">
+        <div class="fg"><label>Katalo&#353;ka &#353;t. (AI 240)</label><input type="text" id="gtinCatalog" maxlength="30"></div>
+        <div class="fg"><label>Ident</label><input type="text" id="gtinIdent" maxlength="30"></div>
+      </div>
     </div>
     <div class="mf">
       <button class="btn btn-g" onclick="closeMo('moGtin')">Preklici</button>
@@ -743,7 +747,7 @@ function parseGS1(raw){
   var s=raw.trim();
   var dbg='';for(var ci=0;ci<Math.min(s.length,60);ci++)dbg+=s.charCodeAt(ci)+',';
   console.log('GS1_RAW_CHARS:'+dbg);
-  var r={raw:raw,gtin:null,lot:null,expiry:null,serial:null};
+  var r={raw:raw,gtin:null,lot:null,expiry:null,serial:null,catalog:null};
   
   // Try bracketed format (01)GTIN (21)serial (10)lot (17)expiry
   var m01b=s.match(/\(01\)(\d{14})/);
@@ -751,7 +755,8 @@ function parseGS1(raw){
     r.gtin=m01b[1];
     var m17b=s.match(/\(17\)(\d{6})/);if(m17b)r.expiry=m17b[1];
     var m10b=s.match(/\(10\)([^\(]+)/);if(m10b)r.lot=m10b[1].trim().slice(0,20);
-    var m21b=s.match(/\(21\)([^\(]+)/);if(m21b)r.serial=m21b[1].trim().slice(0,20);
+    var m21b=s.match(/\(21\)([^\(]+)/);if(m21b)r.serial=m21b[1].trim().slice(0,12);
+    var m240b=s.match(/\(240\)([^\(]+)/);if(m240b)r.catalog=m240b[1].trim().slice(0,30);
     return r;
   }
   
@@ -771,9 +776,9 @@ function parseGS1(raw){
         r.expiry = rest.slice(i+2,i+6)+'01';
         i += 6;
       } else if(ai==='21'){
-        // Serial: read until FNC1 (char<32) or max 20 chars
+        // Serial: read until FNC1 (char<32) or max 12 chars (Abbott SN length)
         var j=i+2;
-        while(j<rest.length&&(j-i-2)<20){if(rest.charCodeAt(j)<32)break;j++;}
+        while(j<rest.length&&(j-i-2)<12){if(rest.charCodeAt(j)<32)break;j++;}
         r.serial=rest.slice(i+2,j).replace(/[^\x20-\x7E]/g,'');
         i=rest.charCodeAt(j)<32?j+1:j;
       } else if(ai==='10'){
@@ -789,9 +794,10 @@ function parseGS1(raw){
         r.lot=rest.slice(i+2,j).replace(/[^\x20-\x7E]/g,'');
         i=rest.charCodeAt(j)<32?j+1:j;
       } else if(rest.slice(i,i+3)==='240'){
-        // AI 240: Abbott catalog number — skip variable-length field
+        // AI 240: Abbott catalog number — store and advance
         var j=i+3;
         while(j<rest.length&&(j-i-3)<30){if(rest.charCodeAt(j)<32)break;j++;}
+        r.catalog=rest.slice(i+3,j).replace(/[^\x20-\x7E]/g,'');
         i=rest.charCodeAt(j)<32?j+1:j;
       } else if(ai==='11'){
         i += 8; // production date fixed 6
@@ -895,7 +901,7 @@ function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt
 function typeName(t){return {control:'Kontrola',calibrator:'Kalibrator','reagent-bio':'Reagenti Bio','reagent-imuno':'Reagenti IMUNO',consumable:'Potrošni material'}[t]||t;}
 function stopMultiRfid(){
   rfidMultiActive=false;
-  if(typeof AndroidBridge!=='undefined'){try{AndroidBridge.stopRfidScan();}catch(e){}}
+  if(typeof AndroidBridge!=='undefined'){try{AndroidBridge.stopAndDisconnectRfid();}catch(e){}}
   var btn=$i('multiRfidBtn');
   if(btn){btn.innerHTML='&#128225; Skeniraj MultiRFID';btn.className='btn btn-a';}
   renderStagingList();
@@ -1158,6 +1164,7 @@ function spProcessBarcode(raw){
     if(p.serial&&!sprejemData.serial){sprejemData.serial=p.serial;changed=true;}
     if(p.lot&&!sprejemData.lot){sprejemData.lot=p.lot;changed=true;}
     if(p.expiry&&!sprejemData.expiry){sprejemData.expiry=p.expiry;changed=true;}
+    if(p.catalog&&!sprejemData.catalog){sprejemData.catalog=p.catalog;changed=true;}
     spUpdateItemInfo();
     if(changed)notify('Podatki dodani'+(p.serial?' #'+p.serial:''),'ok');
     else notify('Podatki že zajeti','warn');
@@ -1173,7 +1180,7 @@ function spProcessBarcode(raw){
   if(!validGtin(p.gtin)){notify('Neveljavna GTIN','warn');return;}
   var gr=(DB.gtins||[]).filter(function(g){return g.gtin===p.gtin;})[0];
   if(!gr){notify('GTIN '+p.gtin+' ni v bazi — dodajte v GTIN zavihek','warn');return;}
-  sprejemData={gtin:p.gtin,name:gr.name,type:gr.type,lot:p.lot||'',expiry:p.expiry||'',serial:p.serial||''};
+  sprejemData={gtin:p.gtin,name:gr.name,type:gr.type,lot:p.lot||'',expiry:p.expiry||'',serial:p.serial||'',catalog:p.catalog||gr.catalog||'',ident:gr.ident||''};
   sprejemStep=2;
   spUpdateItemInfo();
   $i('spStep2').style.display='block';
@@ -1188,6 +1195,8 @@ function spUpdateItemInfo(){
   if(sprejemData.lot)det+=' | L: '+sprejemData.lot;
   if(sprejemData.expiry)det+=' | Rok: '+fmtExp(sprejemData.expiry);
   if(sprejemData.serial)det+=' | #'+sprejemData.serial;
+  if(sprejemData.catalog)det+=' | Kat: '+sprejemData.catalog;
+  if(sprejemData.ident)det+=' | ID: '+sprejemData.ident;
   $i('spItemDetails').textContent=det;
   $i('spItemInfo').style.display='block';
 }
@@ -1269,6 +1278,7 @@ function confirmSprejem(){
     id:Date.now().toString(),
     gtin:sprejemData.gtin, name:sprejemData.name, type:sprejemData.type,
     lot:sprejemData.lot, expiry:sprejemData.expiry, serial:sprejemData.serial,
+    catalog:sprejemData.catalog, ident:sprejemData.ident,
     rfidEpc:sprejemEpc, receivedAt:new Date().toISOString(), status:'active'
   });
   // Posodobi zaloga (DB.inventory)
@@ -1352,6 +1362,7 @@ function processRawScan(raw){
     renderStagingList();
     return;
   }
+  if(rfidMultiActive)return;  // ignore any non-EPC scan while MultiRFID is active
   var sess=getActiveSess();
   if(!sess){showFb('Ni aktivne seje! Zaknite novo sejo.','err');return;}
   // RFID EPC: look up by EPC only (received → inventory), never fall through to GTIN decode
@@ -1871,8 +1882,8 @@ function renderGtins(){
 function openGtinMo(idx){
   editGI=idx!=null?idx:null;
   $i('gtinMoT').textContent=idx!=null?'Uredi GTIN':'Dodaj GTIN';
-  if(idx!=null){var g=DB.gtins[idx];$i('gtinCode').value=g.gtin;$i('gtinName').value=g.name;$i('gtinTypeVal').value=g.type;$i('gtinMfr').value=g.manufacturer||'';$i('gtinAnal').value=g.analyser||'';$i('gtinNote').value=g.note||'';}
-  else{['gtinCode','gtinName','gtinMfr','gtinAnal','gtinNote'].forEach(function(id){$i(id).value='';});$i('gtinTypeVal').value='control';}
+  if(idx!=null){var g=DB.gtins[idx];$i('gtinCode').value=g.gtin;$i('gtinName').value=g.name;$i('gtinTypeVal').value=g.type;$i('gtinMfr').value=g.manufacturer||'';$i('gtinAnal').value=g.analyser||'';$i('gtinNote').value=g.note||'';$i('gtinCatalog').value=g.catalog||'';$i('gtinIdent').value=g.ident||'';}
+  else{['gtinCode','gtinName','gtinMfr','gtinAnal','gtinNote','gtinCatalog','gtinIdent'].forEach(function(id){$i(id).value='';});$i('gtinTypeVal').value='control';}
   $i('moGtin').classList.add('open');
 }
 function saveGtin(){
@@ -1882,7 +1893,7 @@ function saveGtin(){
   if(gtin.length!==14){notify('GTIN mora biti 14 mest','warn');return;}
   if(!validGtin(gtin)){notify('Neveljavna GTIN kontrolna stevilka','warn');return;}
   if(!name){notify('Vpisite naziv','warn');return;}
-  var obj={gtin:gtin,name:name,type:$i('gtinTypeVal').value,manufacturer:$i('gtinMfr').value.trim(),analyser:$i('gtinAnal').value.trim(),note:$i('gtinNote').value.trim()};
+  var obj={gtin:gtin,name:name,type:$i('gtinTypeVal').value,manufacturer:$i('gtinMfr').value.trim(),analyser:$i('gtinAnal').value.trim(),note:$i('gtinNote').value.trim(),catalog:$i('gtinCatalog').value.trim(),ident:$i('gtinIdent').value.trim()};
   if(editGI!=null)DB.gtins[editGI]=obj;
   else{if(DB.gtins.filter(function(g){return g.gtin===gtin;}).length){notify('GTIN ze obstaja','warn');return;}DB.gtins.push(obj);}
   saveDB();closeMo('moGtin');renderGtins();notify('GTIN shranjen','ok');

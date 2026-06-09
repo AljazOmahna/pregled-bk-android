@@ -206,6 +206,24 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
         }).start();
     }
 
+    void stopAndDisconnectRfid() {
+        scanArmed = false;
+        new Thread(() -> {
+            try {
+                if (reader != null) {
+                    reader.Actions.Inventory.stop();
+                    reader.Config.setTriggerMode(ENUM_TRIGGER_MODE.RFID_MODE, false);
+                    reader.disconnect();
+                    reader = null;
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "stopAndDisconnectRfid: " + e.getMessage());
+            } finally {
+                enableDataWedgeScanner();
+            }
+        }).start();
+    }
+
     void performInventory() {
         new Thread(() -> {
             try {
