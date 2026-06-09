@@ -1415,9 +1415,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:75,
+  build:76,
   date:'2026-06-09',
   history:[
+    {build:76,date:'2026-06-09',notes:'Serijski sprejem: po obvestilu "že v zalogi" se stanje samodejno ponastavi na novo skeniranje (RFID se ustavi, forma se počisti)'},
     {build:75,date:'2026-06-09',notes:'Popravljen uvoz CSV datoteke (Choose file gumb zdaj deluje)'},
     {build:74,date:'2026-06-09',notes:'Dark mode (temni način) v nastavitvah; popravljen CSV parser za uvoz GTIN (podpora za narekovaje in vejice v imenih)'},
     {build:73,date:'2026-06-09',notes:'Uvoz/izvoz GTIN CSV razširjen s stolpcema catalog in ident (za GTIN Builder)'},
@@ -1696,7 +1697,11 @@ function confirmSprejem(){
   if(!sprejemData||!sprejemEpc){notify('Manjka barcode ali RFID','warn');return;}
   if(sprejemData.serial){
     var dupS=(DB.received||[]).filter(function(r){return r.serial===sprejemData.serial&&r.gtin===sprejemData.gtin&&r.status==='active';})[0];
-    if(dupS){notify('Serijska '+sprejemData.serial+' je že v zalogi','warn');return;}
+    if(dupS){
+      notify('⚠ Serijska '+sprejemData.serial+' že v zalogi — skeniraj naslednji artikel','warn');
+      setTimeout(function(){spReset();},1500);
+      return;
+    }
   }
   if(!DB.received)DB.received=[];
   DB.received.push({
