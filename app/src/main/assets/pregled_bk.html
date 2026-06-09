@@ -287,7 +287,7 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
       </div>
     </div>
 
-    <div class="scan-zone rfid-a" id="scanZone" onclick="focusScan()">
+    <div class="scan-zone" id="scanZone" onclick="focusScan()">
       <div class="scan-icon" id="szIcon">&#128225;</div>
       <div class="scan-title" id="szTitle">RFID mod</div>
       <input type="text" class="scan-input" id="scanInput"
@@ -450,6 +450,10 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
         style="width:100px;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px"
         oninput="onSettPowerChange('multi')" value="30">
       <div id="settMultiRfidPowerWarn" style="font-size:11px;margin-top:4px;display:none"></div>
+    </div>
+    <div style="display:-webkit-flex;display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-a btn-sm" onclick="testRfidConn()" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center">&#128225; Preveri RFD2000</button>
+      <button class="btn btn-a btn-sm" onclick="testBarcode()" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center">&#9638; Preveri barcode</button>
     </div>
   </div>
   <div class="card">
@@ -896,12 +900,23 @@ function setStatusBc(on){
 }
 function toggleRfidChip(){
   if(rfidMultiActive||sprejemActive)return;
-  if(statusRfidOn){if(typeof AndroidBridge!=='undefined')try{AndroidBridge.stopAndDisconnectRfid();}catch(e){}; setStatusRfid(false);setStatusBc(true);}
+  if(statusRfidOn){if(typeof AndroidBridge!=='undefined')try{AndroidBridge.stopRfidScan();}catch(e){}; setStatusRfid(false);setStatusBc(true);}
   else{if(typeof AndroidBridge!=='undefined')try{AndroidBridge.startMultiRfidScan();}catch(e){};}
 }
 function toggleBcChip(){
   if(statusBcOn){if(typeof AndroidBridge!=='undefined')try{AndroidBridge.disableDataWedge();}catch(e){}; setStatusBc(false);}
   else{if(typeof AndroidBridge!=='undefined')try{AndroidBridge.enableDataWedge();}catch(e){}; setStatusBc(true);}
+}
+function testRfidConn(){
+  if(typeof AndroidBridge==='undefined'){notify('Samo na napravi','warn');return;}
+  try{AndroidBridge.startRfidSprejemScan();}catch(e){notify('Napaka: '+e,'err');return;}
+  notify('Vzpostavljam RFD2000...','ok');
+  setTimeout(function(){try{AndroidBridge.stopRfidScan();}catch(e){}},3000);
+}
+function testBarcode(){
+  if(typeof AndroidBridge!=='undefined')try{AndroidBridge.enableDataWedge();}catch(e){}
+  setStatusBc(true);
+  notify('Barcode &#269;italec aktiven — skenirajte kodo za test','ok');
 }
 function toggleMultiRfid(){
   if(!rfidMultiActive)startMultiRfid();else stopMultiRfid();
@@ -922,7 +937,7 @@ function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt
 function typeName(t){return {control:'Kontrola',calibrator:'Kalibrator','reagent-bio':'Reagenti Bio','reagent-imuno':'Reagenti IMUNO',consumable:'Potrošni material'}[t]||t;}
 function stopMultiRfid(){
   rfidMultiActive=false;
-  if(typeof AndroidBridge!=='undefined'){try{AndroidBridge.stopAndDisconnectRfid();}catch(e){}}
+  if(typeof AndroidBridge!=='undefined'){try{AndroidBridge.stopRfidScan();}catch(e){}}
   setStatusRfid(false);setStatusBc(true);
   var btn=$i('multiRfidBtn');
   if(btn){btn.innerHTML='&#128225; Skeniraj MultiRFID';btn.className='btn btn-a';}
@@ -1002,7 +1017,7 @@ function nav(page){
 // ===== SCAN MODE =====
 var scanMode='rfid';
 var modeCfg={
-  rfid:{icon:'&#128225;',title:'RFID mod',hint:'DataWedge -> pritisk scan gumba -> koda pride avtomatsko',cls:'rfid-a'},
+  rfid:{icon:'&#128225;',title:'RFID mod',hint:'DataWedge -> pritisk scan gumba -> koda pride avtomatsko',cls:''},
   qr:{icon:'&#9638;',title:'QR / DataMatrix mod',hint:'Skenirajte QR ali GS1 DataMatrix kodo',cls:'qr-a'},
   barcode:{icon:'&#9612;&#9612;',title:'Barcode mod (GS1-128)',hint:'Skenirajte GS1-128 barcode',cls:'bar-a'}
 };

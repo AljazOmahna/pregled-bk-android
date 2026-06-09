@@ -36,6 +36,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
     private Readers readers;
     private RFIDReader reader;
     private volatile boolean scanArmed = false;
+    private boolean listenerRegistered = false;
 
     RFIDHandler(Context context, Callback callback) {
         this.context = context.getApplicationContext();
@@ -81,6 +82,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
     public void RFIDReaderDisappeared(ReaderDevice readerDevice) {
         Log.d(TAG, "RFIDReaderDisappeared: " + readerDevice.getName());
         reader = null;
+        listenerRegistered = false;
         callback.onStatus("RFID odklopljen");
     }
 
@@ -106,6 +108,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
             }
             try {
 
+                if (!listenerRegistered) {
                 reader.Events.addEventsListener(new RfidEventsListener() {
                     @Override
                     public void eventReadNotify(RfidReadEvents e) {
@@ -146,6 +149,8 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                 reader.Events.setTagReadEvent(true);
                 reader.Events.setHandheldEvent(true);
                 reader.Events.setReaderDisconnectEvent(true);
+                listenerRegistered = true;
+                }  // end if (!listenerRegistered)
 
                 callback.onStatus("Povezan: " + readerDevice.getName());
             } catch (Throwable e) {
@@ -184,6 +189,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                 }
                 scanArmed = true;
                 Log.d(TAG, "RFID armed — čakam trigger");
+                callback.onStatus("Pripravljeno: RFD2000");
             } catch (Exception e) {
                 Log.e(TAG, "startRfidInventory: " + e.getMessage());
             }
@@ -272,6 +278,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                 if (reader != null) {
                     reader.disconnect();
                     reader = null;
+                    listenerRegistered = false;
                 }
             } catch (Exception e) {
                 Log.e(TAG, "disconnect: " + e.getMessage());

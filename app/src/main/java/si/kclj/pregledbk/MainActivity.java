@@ -118,7 +118,10 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
     @Override
     protected void onPause() {
         super.onPause();
-        if (rfidHandler != null) rfidHandler.disconnect();
+        if (rfidHandler != null) {
+            rfidHandler.enableDataWedgeScanner();
+            rfidHandler.disconnect();
+        }
     }
 
     @Override
