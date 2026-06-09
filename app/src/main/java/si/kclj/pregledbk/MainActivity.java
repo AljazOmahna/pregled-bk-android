@@ -163,6 +163,17 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         }
 
         @JavascriptInterface
+        public void restartRfidReader() {
+            if (rfidHandler != null) {
+                rfidHandler.dispose();
+                mainHandler.postDelayed(() -> {
+                    rfidHandler = new RFIDHandler(MainActivity.this, MainActivity.this);
+                    rfidHandler.init();
+                }, 1000);
+            }
+        }
+
+        @JavascriptInterface
         public void stopAndDisconnectRfid() {
             if (rfidHandler != null) rfidHandler.stopAndDisconnectRfid();
         }

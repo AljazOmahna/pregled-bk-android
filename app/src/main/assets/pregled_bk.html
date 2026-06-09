@@ -310,8 +310,8 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
   </div>
 </div>
 
-<!-- OVERVIEW -->
-<div class="page" id="page-overview">
+<!-- OVERVIEW (skrit — premaknjen v Zaloga) -->
+<div class="page" id="page-overview" style="display:none!important">
   <div class="sec-hdr">
     <div class="sec-title">&#128202; Stanje zaloge</div>
     <button class="btn btn-g btn-sm" onclick="showAlerts()">&#9888; Opozorila <span id="alertBadge" style="background:var(--red);color:#fff;border-radius:10px;padding:1px 5px;font-size:9px;margin-left:3px">0</span></button>
@@ -374,6 +374,31 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
       <tbody id="receivedBody"></tbody>
     </table>
   </div>
+</div>
+
+<!-- LOTI -->
+<div class="page" id="page-lots">
+  <div class="sec-hdr">
+    <div class="sec-title">&#127991; Loti</div>
+  </div>
+  <div class="stat-grid" id="lotsStats"></div>
+  <div class="fr">
+    <input type="text" id="lotsSearch" placeholder="&#128269; I&#353;&#269;i artikel..." oninput="renderLots()">
+    <select id="lotsType" onchange="renderLots()">
+      <option value="">Vsi tipi</option>
+      <option value="calibrator">Kalibratorji</option>
+      <option value="reagent-bio">Reagenti Bio</option>
+      <option value="reagent-imuno">Reagenti IMUNO</option>
+      <option value="control">Kontrole</option>
+      <option value="consumable">Potro&#353;ni material</option>
+    </select>
+    <select id="lotsStatus" onchange="renderLots()">
+      <option value="">Vsi</option>
+      <option value="pending">&#127315; &#268;akajo</option>
+      <option value="ok">&#10003; Preverjeni</option>
+    </select>
+  </div>
+  <div id="lotsBody"></div>
 </div>
 
 <!-- EXPIRY -->
@@ -465,6 +490,9 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
       <button class="btn btn-a btn-sm" onclick="testRfidConn()" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center">&#128225; Preveri RFD2000</button>
       <button class="btn btn-a btn-sm" onclick="testBarcode()" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center">&#9638; Preveri barcode</button>
     </div>
+    <div style="margin-top:8px">
+      <button class="btn btn-g btn-sm" onclick="resetRfidReader()" style="width:100%;-webkit-justify-content:center;justify-content:center">&#128260; Ponastavi &#269;italca</button>
+    </div>
   </div>
   <div class="card">
     <div class="card-title">&#128203; Seje inventure</div>
@@ -500,8 +528,9 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
 <!-- BOTTOM NAV -->
 <nav class="bottom-nav">
   <div class="bn-item active" id="bn-scan" onclick="nav('scan')"><span class="bn-icon">&#128225;</span>Sken.</div>
-  <div class="bn-item" id="bn-overview" onclick="nav('overview')"><span class="bn-icon">&#128202;</span>Stanje</div>
+  <div class="bn-item" id="bn-overview" onclick="nav('overview')" style="display:none"><span class="bn-icon">&#128202;</span>Stanje</div>
   <div class="bn-item" id="bn-inventory" onclick="nav('inventory')"><span class="bn-icon">&#128230;</span>Zaloga</div>
+  <div class="bn-item" id="bn-lots" onclick="nav('lots')"><span class="bn-icon">&#127991;</span>Loti</div>
   <div class="bn-item" id="bn-expiry" onclick="nav('expiry')"><span class="bn-icon">&#9888;&#65039;</span>Roki</div>
   <div class="bn-item" id="bn-gtins" onclick="nav('gtins')"><span class="bn-icon">&#127991;&#65039;</span>GTIN</div>
   <div class="bn-item" id="bn-more" onclick="nav('more')"><span class="bn-icon">&#8942;</span>Ve&#269;</div>
@@ -660,6 +689,16 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
     <div class="mf">
       <button class="btn btn-a" id="spConfirmBtn" onclick="confirmSprejem()" disabled style="flex:1;-webkit-justify-content:center;justify-content:center">&#10003; Sprejmi</button>
       <button class="btn btn-d" id="spCloseBtn" onclick="closeSprejem()">Prekli&#269;i</button>
+    </div>
+  </div>
+</div>
+
+<div class="mo" id="moNewLot">
+  <div class="modal">
+    <div class="mh"><h3 id="newLotTitle">&#127315; Nov lot</h3><button class="mc" onclick="closeMo('moNewLot')">&#10005;</button></div>
+    <div class="mb" id="newLotBody"></div>
+    <div class="mf">
+      <button class="btn btn-a" onclick="closeMo('moNewLot')" style="width:100%;-webkit-justify-content:center;justify-content:center">Razumem</button>
     </div>
   </div>
 </div>
@@ -1036,7 +1075,7 @@ function acceptAllStaged(){
   else notify('Vsi artikli so že v seji','warn');
 }
 // ===== NAVIGATION =====
-var pages=['scan','overview','inventory','expiry','gtins','more'];
+var pages=['scan','overview','inventory','lots','expiry','gtins','more'];
 function nav(page){
   pages.forEach(function(p){
     var el=$i('page-'+p);if(el)el.classList.remove('active');
@@ -1045,11 +1084,127 @@ function nav(page){
   var pg=$i('page-'+page);if(pg)pg.classList.add('active');
   var bn=$i('bn-'+page);if(bn)bn.classList.add('active');
   if(page==='inventory'){renderInventory();renderReceived();}
+  if(page==='lots')renderLots();
   if(page==='expiry')setExpTab('exp');
   if(page==='gtins')renderGtins();
   if(page==='overview')renderOverview();
   if(page==='more')renderSessions();
   if(page==='scan'){updateBanner();setTimeout(focusScan,200);}
+}
+
+// ===== LOTI =====
+var LOT_TYPE_ORDER=['calibrator','reagent-bio','reagent-imuno','control','consumable'];
+var LOT_TYPE_LABEL={'calibrator':'Kalibratorji','reagent-bio':'Reagenti Bio','reagent-imuno':'Reagenti IMUNO','control':'Kontrole','consumable':'Potrošni material'};
+var LOT_TYPE_NOTE={
+  'calibrator':'Vnesi vrednosti novega Lot-a kalibratorja v Alinity analizator.',
+  'reagent-bio':'Napravi Lot-to-Lot primerjavo. Testiraj nov Lot s QC materialom.',
+  'reagent-imuno':'Napravi Lot-to-Lot primerjavo. Testiraj nov Lot s QC materialom.',
+  'control':'Preveri nov Lot QC materiala.'
+};
+function renderLots(){
+  if(!DB.lots)DB.lots=[];
+  var search=($i('lotsSearch')||{value:''}).value.toLowerCase();
+  var typeF=($i('lotsType')||{value:''}).value;
+  var statusF=($i('lotsStatus')||{value:''}).value;
+  // Compute qty per (gtin+lot) from DB.received
+  var qtyMap={};
+  (DB.received||[]).forEach(function(r){if(r.status==='active'){var k=r.gtin+'|'+r.lot;qtyMap[k]=(qtyMap[k]||0)+1;}});
+  var lots=DB.lots.filter(function(l){
+    if(typeF&&l.type!==typeF)return false;
+    if(statusF==='pending'&&l.checked)return false;
+    if(statusF==='ok'&&!l.checked)return false;
+    if(search&&l.name.toLowerCase().indexOf(search)<0&&(l.lot||'').toLowerCase().indexOf(search)<0)return false;
+    return true;
+  });
+  // Stats
+  var total=DB.lots.length;
+  var pending=DB.lots.filter(function(l){return !l.checked;}).length;
+  var now=new Date();var m0=new Date(now.getFullYear(),now.getMonth(),1);
+  var thisMonth=DB.lots.filter(function(l){return l.firstReceivedAt&&new Date(l.firstReceivedAt)>=m0;}).length;
+  var sg=$i('lotsStats');
+  if(sg)sg.innerHTML='<div class="stat-card"><div class="stat-val">'+total+'</div><div class="stat-lbl">Skupaj lotov</div></div>'+
+    '<div class="stat-card" style="'+(pending>0?'border-color:#3b82f6':'')+'">'+'<div class="stat-val" style="'+(pending>0?'color:#3b82f6':'')+'">'+(pending||'0')+'</div><div class="stat-lbl">&#268;akajo akcijo</div></div>'+
+    '<div class="stat-card"><div class="stat-val">'+thisMonth+'</div><div class="stat-lbl">Ta mesec</div></div>';
+  // Group by type then article
+  var h='';
+  LOT_TYPE_ORDER.forEach(function(type){
+    var typeLots=lots.filter(function(l){return l.type===type;});
+    if(typeLots.length===0)return;
+    var hasPending=typeLots.some(function(l){return !l.checked;});
+    var label=LOT_TYPE_LABEL[type]||type;
+    var pendingCount=typeLots.filter(function(l){return !l.checked;}).length;
+    h+='<div style="margin-bottom:4px">';
+    h+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;padding:6px 0 4px;color:'+(hasPending?'#3b82f6':'var(--text3)')+'">'+
+      (hasPending?'&#128997; ':'&#9989; ')+label+(pendingCount>0?' (&#269;aka '+pendingCount+')':'')+'</div>';
+    // Group by article within type
+    var articles={};
+    typeLots.forEach(function(l){if(!articles[l.gtin])articles[l.gtin]={name:l.name,lots:[]};articles[l.gtin].lots.push(l);});
+    Object.keys(articles).forEach(function(gtin){
+      var art=articles[gtin];
+      h+='<div style="margin-bottom:8px">';
+      h+='<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:4px">'+art.name+'</div>';
+      art.lots.sort(function(a,b){return (b.firstReceivedAt||'').localeCompare(a.firstReceivedAt||'');}).forEach(function(l){
+        var qty=qtyMap[l.gtin+'|'+l.lot]||0;
+        var bg=l.checked?'':'background:#e8f0ff;border-left:3px solid #3b82f6;';
+        var note=LOT_TYPE_NOTE[l.type]||'';
+        var dateStr=l.firstReceivedAt?l.firstReceivedAt.slice(0,10):'-';
+        var expStr=l.expiry?fmtExp(l.expiry):'-';
+        h+='<div style="'+bg+'padding:8px;border-radius:6px;margin-bottom:6px;border:1px solid var(--border)">';
+        h+='<div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:6px">';
+        h+='<div style="-webkit-flex:1;flex:1">';
+        h+='<span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text)">'+l.lot+'</span>';
+        h+=' <span style="font-size:10px;color:var(--text3)">Rok: '+expStr+'</span>';
+        h+=' <span style="font-size:10px;color:var(--text3)">Qty: '+qty+'</span>';
+        h+='<br><span style="font-size:10px;color:var(--text3)">Sprejet: '+dateStr+'</span>';
+        h+='</div>';
+        h+='<input type="checkbox"'+(l.checked?' checked':'')+'onchange="toggleLotChecked(\''+l.gtin+'\',\''+l.lot+'\')" style="width:20px;height:20px;accent-color:#3b82f6">';
+        h+='</div>';
+        if(!l.checked&&note)h+='<div style="font-size:10px;color:#3b82f6;margin-top:4px;padding-top:4px;border-top:1px solid #c7d7f5">&#9888; '+note+'</div>';
+        h+='</div>';
+      });
+      h+='</div>';
+    });
+    h+='</div>';
+  });
+  if(!h)h='<div style="text-align:center;color:var(--text3);font-size:12px;padding:24px">Ni lotov</div>';
+  var lb=$i('lotsBody');if(lb)lb.innerHTML=h;
+}
+function toggleLotChecked(gtin,lot){
+  if(!DB.lots)return;
+  var l=DB.lots.filter(function(x){return x.gtin===gtin&&x.lot===lot;})[0];
+  if(!l)return;
+  l.checked=!l.checked;
+  l.checkedAt=l.checked?new Date().toISOString():null;
+  saveDB();renderLots();
+}
+function checkNewLot(gtin,lot,name,type){
+  if(!DB.lots)DB.lots=[];
+  var exists=DB.lots.filter(function(l){return l.gtin===gtin&&l.lot===lot;})[0];
+  if(exists)return;
+  DB.lots.push({gtin:gtin,lot:lot,name:name,type:type,firstReceivedAt:new Date().toISOString(),checked:false,checkedAt:null});
+  saveDB();
+  showNewLotModal(name,lot,type);
+}
+function showNewLotModal(name,lot,type){
+  var note=LOT_TYPE_NOTE[type]||'';
+  var h='<div style="text-align:center;margin-bottom:12px">';
+  h+='<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">'+name+'</div>';
+  h+='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Lot: '+lot+'</div>';
+  h+='</div>';
+  if(note){
+    h+='<div style="background:#e8f0ff;border:1px solid #3b82f6;border-radius:8px;padding:12px;font-size:12px;color:#1d4ed8">';
+    h+='<div style="font-weight:700;margin-bottom:4px">&#9888; Opomba</div>';
+    h+=note;
+    h+='</div>';
+  }
+  var tb=$i('newLotTitle');if(tb)tb.innerHTML='&#127315; Nov lot';
+  var bb=$i('newLotBody');if(bb)bb.innerHTML=h;
+  var mo=$i('moNewLot');if(mo)mo.classList.add('active');
+}
+function resetRfidReader(){
+  if(typeof AndroidBridge==='undefined'){notify('Samo na napravi','warn');return;}
+  try{AndroidBridge.restartRfidReader();notify('Čitalec se resetira — počakajte 5s','ok');}
+  catch(e){notify('Napaka: '+e,'err');}
 }
 
 // ===== SCAN MODE =====
@@ -1299,6 +1454,25 @@ function spUpdateItemInfo(){
   if(sprejemData.ident)det+=' | ID: '+sprejemData.ident;
   $i('spItemDetails').textContent=det;
   $i('spItemInfo').style.display='block';
+  spUpdateRfidBtn();
+}
+function spCanScanRfid(){
+  return !!(sprejemData&&sprejemData.gtin&&sprejemData.lot&&sprejemData.expiry&&sprejemData.serial);
+}
+function spUpdateRfidBtn(){
+  var btn=$i('spRfidScanBtn'),st=$i('spRfidStatus');
+  if(!btn||sprejemEpc)return;
+  var ok=spCanScanRfid();
+  btn.disabled=!ok;
+  if(!ok&&st){
+    var m=[];
+    if(!sprejemData||!sprejemData.lot)m.push('lot');
+    if(!sprejemData||!sprejemData.expiry)m.push('rok');
+    if(!sprejemData||!sprejemData.serial)m.push('SN');
+    st.textContent='Manjka: '+m.join(', ')+' — skenirajte kodo';
+  } else if(ok&&st){
+    st.textContent='Kliknite gumb nato pritisnite trigger na RFD2000';
+  }
 }
 var _spAutoConfirmTimer=null;
 function spCaptureEpc(epc){
@@ -1317,6 +1491,13 @@ function spCaptureEpc(epc){
 function spStartRfid(){
   if(typeof AndroidBridge==='undefined'){notify('Samo na napravi','warn');return;}
   if(sprejemEpc){notify('RFID že zajeto — potrdite ali prekličite','warn');return;}
+  if(!spCanScanRfid()){
+    var m=[];
+    if(!sprejemData||!sprejemData.lot)m.push('lot');
+    if(!sprejemData||!sprejemData.expiry)m.push('rok');
+    if(!sprejemData||!sprejemData.serial)m.push('SN');
+    notify('Manjka: '+m.join(', '),'warn');return;
+  }
   try{
     AndroidBridge.startRfidSprejemScan();
     setStatusRfid(true);setStatusBc(false);
@@ -1402,6 +1583,7 @@ function confirmSprejem(){
     DB.inventory.push(newItem);
   }
   saveDB(); renderReceived(); renderInventory(); updateStats();
+  checkNewLot(sprejemData.gtin,sprejemData.lot,sprejemData.name,sprejemData.type);
   notify('Sprejeto: '+sprejemData.name+(sprejemData.serial?' #'+sprejemData.serial:''),'ok');
   if(APP_SETTINGS.serialSprejem){spReset();}else{closeSprejem();}
 }
