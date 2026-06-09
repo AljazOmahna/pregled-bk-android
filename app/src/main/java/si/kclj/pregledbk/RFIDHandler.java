@@ -26,7 +26,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
     static final String TAG = "PregledBK_RFID";
 
     interface Callback {
-        void onTagRead(String epc);
+        void onTagRead(String epc, int rssi);
         void onStatus(String msg);
         void onTriggerEvent(boolean pressed);
     }
@@ -116,8 +116,10 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                         if (tags == null) return;
                         for (TagData tag : tags) {
                             String epc = tag.getTagID();
-                            Log.d(TAG, "Tag: " + epc);
-                            if (epc != null && !epc.isEmpty()) callback.onTagRead(epc);
+                            int rssi = 0;
+                            try { rssi = tag.getPeakRSSI(); } catch (Throwable ignore) {}
+                            Log.d(TAG, "Tag: " + epc + " rssi=" + rssi);
+                            if (epc != null && !epc.isEmpty()) callback.onTagRead(epc, rssi);
                         }
                     }
 

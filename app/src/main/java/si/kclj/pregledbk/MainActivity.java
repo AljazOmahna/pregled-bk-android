@@ -112,14 +112,15 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
 
     // Called from RFIDHandler (RFID EPC) or DataWedgeHandler (barcode)
     @Override
-    public void onTagRead(String epc) {
+    public void onTagRead(String epc, int rssi) {
         // Strip only JS-unsafe chars ('  \  newlines) and non-printable; allow all printable ASCII
         final String safe = epc.replaceAll("['\\\\\r\n]", "").replaceAll("[^\\x20-\\x7E]", "");
         if (safe.isEmpty()) return;
         final String limited = safe.length() > 60 ? safe.substring(0, 60) : safe;
-        Log.d(TAG, "EPC: " + limited);
+        final int r = rssi;
+        Log.d(TAG, "EPC: " + limited + " rssi=" + r);
         mainHandler.post(() ->
-            webView.evaluateJavascript("processRawScan('" + limited + "')", null)
+            webView.evaluateJavascript("processRawScan('" + limited + "'," + r + ")", null)
         );
     }
 
