@@ -518,6 +518,15 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
       <button class="btn btn-a btn-sm" onclick="exportGtinCSV()">&#127991; GTIN CSV</button>
     </div>
   </div>
+  <div class="card">
+    <div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:space-between;justify-content:space-between">
+      <div class="card-title" style="margin-bottom:0">&#8505;&#65039; O aplikaciji</div>
+      <button class="btn btn-g btn-sm" onclick="showMo('moInfo')">Podrobnosti</button>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px">
+      Pregled BK &nbsp;&#183;&nbsp; Build <span id="infoBuildShort"></span> &nbsp;&#183;&nbsp; &#169; Aljaž Omahna
+    </div>
+  </div>
 </div>
 
 </main>
@@ -687,6 +696,52 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
     <div class="mf">
       <button class="btn btn-a" id="spConfirmBtn" onclick="confirmSprejem()" disabled style="flex:1;-webkit-justify-content:center;justify-content:center">&#10003; Sprejmi</button>
       <button class="btn btn-g" id="spCloseBtn" onclick="closeSprejem()">Prekli&#269;i</button>
+    </div>
+  </div>
+</div>
+
+<div class="mo" id="moInfo">
+  <div class="modal">
+    <div class="mh"><h3>&#8505;&#65039; O aplikaciji</h3><button class="mc" onclick="closeMo('moInfo')">&#10005;</button></div>
+    <div class="mb">
+      <div style="text-align:center;padding:8px 0 16px">
+        <div style="font-size:18px;font-weight:700;color:var(--accent)">Pregled BK</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">Upravljanje zalog laboratorijskega materiala</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:2px">Namenjeno za</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text)">KIKKB — Klinični inštitut za klinično kemijo in biokemijo</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px">Univerzitetni klinični center Ljubljana</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="display:-webkit-flex;display:flex;-webkit-justify-content:space-between;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:11px;font-weight:700;color:var(--text3)">Verzija</span>
+          <span style="font-size:11px;font-family:var(--mono);color:var(--text)" id="infoBuildFull"></span>
+        </div>
+        <div style="display:-webkit-flex;display:flex;-webkit-justify-content:space-between;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:11px;font-weight:700;color:var(--text3)">Zadnja posodobitev</span>
+          <span style="font-size:11px;color:var(--text)" id="infoDate"></span>
+        </div>
+        <div style="display:-webkit-flex;display:flex;-webkit-justify-content:space-between;justify-content:space-between">
+          <span style="font-size:11px;font-weight:700;color:var(--text3)">Avtor</span>
+          <span style="font-size:11px;color:var(--text)">&#169; Aljaž Omahna</span>
+        </div>
+      </div>
+      <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:6px">Shranjevanje podatkov</div>
+        <div style="font-size:11px;color:var(--text2)">Podatki so shranjeni izključno lokalno na napravi. Aplikacija ne pošilja podatkov na zunanje strežnike.</div>
+      </div>
+      <div style="background:rgba(192,32,32,.08);border:1px solid rgba(192,32,32,.2);border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:4px">&#9888; Izjava o omejitvi odgovornosti</div>
+        <div style="font-size:10px;color:var(--text3)">Aplikacija je evidenčno orodje za upravljanje zalog. Ni certificirana medicinska naprava. Za klinične odločitve upoštevajte veljavne laboratorijske protokole.</div>
+      </div>
+      <div style="margin-bottom:4px">
+        <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px">Zgodovina posodobitev</div>
+        <div id="infoHistory"></div>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeMo('moInfo')" style="width:100%;-webkit-justify-content:center;justify-content:center">Zapri</button>
     </div>
   </div>
 </div>
@@ -1310,6 +1365,30 @@ function onScanKey(e){
     if(v.replace(/\x1d/g,'').trim()){processRawScan(v);if(inp)inp.value='';}
     e.preventDefault();
   }
+}
+
+// ===== APP INFO =====
+var APP_VERSION={
+  build:71,
+  date:'2026-06-09',
+  history:[
+    {build:71,date:'2026-06-09',notes:'Info okno, copyright, izjava o omejitvi odgovornosti'},
+    {build:70,date:'2026-06-09',notes:'Sprejem modal animacija od vrha, slovnične popravke, MultiRFID reset ob zaključku seje'},
+    {build:69,date:'2026-06-09',notes:'Odstranitev nepotrebnega okna lokacije datoteke'},
+    {build:68,date:'2026-06-09',notes:'Loti zavihek, sledenje novih lotov, RFID validacija, Ponastavi čitalca'},
+    {build:67,date:'2026-06-07',notes:'QR scan zona, timestamp v sprejemu, power test gumbi'},
+    {build:66,date:'2026-06-07',notes:'Ustavi skeniranje popravek, GS1 FNC1 podpora'},
+    {build:65,date:'2026-06-07',notes:'RFID lifecycle popravek, DataWedge integracija'}
+  ]
+};
+function initInfoPanel(){
+  var b=$i('infoBuildShort');if(b)b.textContent=APP_VERSION.build;
+  var bf=$i('infoBuildFull');if(bf)bf.textContent='Build '+APP_VERSION.build;
+  var d=$i('infoDate');if(d)d.textContent=APP_VERSION.date;
+  var h=$i('infoHistory');
+  if(h)h.innerHTML=APP_VERSION.history.map(function(v){
+    return '<div style="display:-webkit-flex;display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">'+'<span style="font-family:var(--mono);font-size:10px;color:var(--accent);min-width:54px">Build '+v.build+'</span>'+'<span style="font-size:10px;color:var(--text3);min-width:72px">'+v.date+'</span>'+'<span style="font-size:10px;color:var(--text2);-webkit-flex:1;flex:1">'+v.notes+'</span>'+'</div>';
+  }).join('');
 }
 
 // ===== NASTAVITVE =====
@@ -2290,6 +2369,7 @@ for(var mi=0;mi<mos.length;mi++){
 // ===== BOOT =====
 loadDB();
 try { loadSettings(); } catch(e){}
+try { initInfoPanel(); } catch(e){}
 // Auto-load built-in GTIN database on first run
 try {
   if(DB.gtins.length===0){
