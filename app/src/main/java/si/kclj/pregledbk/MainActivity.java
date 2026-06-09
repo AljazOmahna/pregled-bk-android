@@ -19,6 +19,8 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -33,6 +35,7 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
     private RFIDHandler rfidHandler;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private ValueCallback<Uri[]> filePathCallback;
+    private GraphSync graphSync;
 
     @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
     @Override
@@ -69,6 +72,7 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
             }
         });
         webView.addJavascriptInterface(new JsBridge(), "AndroidBridge");
+        graphSync = new GraphSync(this);
         webView.loadUrl("file:///android_asset/pregled_bk.html");
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -163,6 +167,40 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
     protected void onDestroy() {
         super.onDestroy();
         if (rfidHandler != null) rfidHandler.dispose();
+    }
+
+    // ---- Graph sync helpers ----
+    private void runJs(final String js) {
+        mainHandler.post(() -> webView.evaluateJavascript(js, null));
+    }
+
+    /** Varno zakodira niz v JS string literal (vkljucno za predajo JSON-a). */
+    private static String jsStr(String s) {
+        if (s == null) return "null";
+        return JSONObject.quote(s);
+    }
+
+    private GraphSync.Cb graphCb() {
+        return new GraphSync.Cb() {
+            @Override public void deviceCode(String userCode, String verificationUri, String message) {
+                runJs("onMsDeviceCode(" + jsStr(userCode) + "," + jsStr(verificationUri) + "," + jsStr(message) + ")");
+            }
+            @Override public void signedIn(String account) {
+                runJs("onMsSignedIn(" + jsStr(account) + ")");
+            }
+            @Override public void signedOut() {
+                runJs("onMsSignedOut()");
+            }
+            @Override public void error(String msg) {
+                runJs("onMsError(" + jsStr(msg) + ")");
+            }
+            @Override public void uploadDone(boolean ok, String msg) {
+                runJs("onMsUploadDone(" + ok + "," + jsStr(msg) + ")");
+            }
+            @Override public void downloadDone(String jsonOrNull, String msg) {
+                runJs("onMsDownloadDone(" + jsStr(jsonOrNull) + "," + jsStr(msg) + ")");
+            }
+        };
     }
 
     // JavaScript interface — allows HTML to call Android
@@ -294,6 +332,52 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
                 mainHandler.post(() -> Toast.makeText(MainActivity.this,
                     "Napaka: " + t.getMessage(), Toast.LENGTH_SHORT).show());
             }
+        }
+
+        // ---- Microsoft Graph / OneDrive sinhronizacija ----
+        @JavascriptInterface
+        public void msSignIn() {
+            if (graphSync != null) graphSync.signIn(graphCb());
+        }
+
+        @JavascriptInterface
+        public void msCancelSignIn() {
+            if (graphSync != null) graphSync.cancelSignIn();
+        }
+
+        @JavascriptInterface
+        public void msSignOut() {
+            if (graphSync != null) graphSync.signOut(graphCb());
+        }
+
+        @JavascriptInterface
+        public boolean msIsSignedIn() {
+            return graphSync != null && graphSync.isSignedIn();
+        }
+
+        @JavascriptInterface
+        public String msGetAccount() {
+            return graphSync != null ? graphSync.getAccount() : "";
+        }
+
+        @JavascriptInterface
+        public long msGetLastSync() {
+            return graphSync != null ? graphSync.getLastSync() : 0;
+        }
+
+        @JavascriptInterface
+        public void msSetConfig(String clientId, String tenantId) {
+            if (graphSync != null) graphSync.setConfig(clientId, tenantId);
+        }
+
+        @JavascriptInterface
+        public void msUpload(String json) {
+            if (graphSync != null) graphSync.upload(json, graphCb());
+        }
+
+        @JavascriptInterface
+        public void msDownload() {
+            if (graphSync != null) graphSync.download(graphCb());
         }
     }
 }

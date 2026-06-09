@@ -526,6 +526,35 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     </div>
   </div>
   <div class="card">
+    <div class="card-title">&#9729;&#65039; Sinhronizacija (OneDrive)</div>
+    <div id="syncStatus" style="font-size:12px;color:var(--text3);margin-bottom:10px">Preverjam stanje&#8230;</div>
+    <div id="syncSignedOut" style="display:none">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Prijavite se z ra&#269;unom <b>@kclj.si</b> za nalaganje in prenos podatkov med skenerji prek OneDrive.</div>
+      <button class="btn btn-a btn-sm" onclick="msSignIn()" style="width:100%;-webkit-justify-content:center;justify-content:center">&#128273; Prijava v OneDrive</button>
+    </div>
+    <div id="syncSignedIn" style="display:none">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Prijavljen: <b id="syncAccount"></b></div>
+      <div style="display:-webkit-flex;display:flex;gap:8px;margin-bottom:8px">
+        <button class="btn btn-a btn-sm" onclick="msUpload()" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center">&#11014;&#65039; Nalo&#382;i</button>
+        <button class="btn btn-a btn-sm" onclick="msDownload()" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center">&#11015;&#65039; Prenesi &amp; zdru&#382;i</button>
+      </div>
+      <div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:space-between;justify-content:space-between">
+        <div id="syncLast" style="font-size:10px;color:var(--text3)"></div>
+        <button class="btn btn-g btn-sm" onclick="msSignOut()">Odjava</button>
+      </div>
+    </div>
+    <details style="margin-top:10px">
+      <summary style="font-size:11px;color:var(--text3);cursor:pointer">Napredno (client ID / tenant)</summary>
+      <div style="margin-top:8px">
+        <div class="fg" style="margin-bottom:6px"><label style="font-size:11px">Client ID (prazno = privzeti Microsoft)</label>
+          <input type="text" id="syncClientId" placeholder="14d82eec-204b-4c2f-b7e8-296a70dab67e" style="font-family:var(--mono);font-size:11px;padding:6px;width:100%;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)"></div>
+        <div class="fg" style="margin-bottom:6px"><label style="font-size:11px">Tenant (prazno = kclj.si)</label>
+          <input type="text" id="syncTenant" placeholder="59ac58db-e485-4520-aa8b-4ae22d6534e6" style="font-family:var(--mono);font-size:11px;padding:6px;width:100%;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)"></div>
+        <button class="btn btn-g btn-sm" onclick="msSaveConfig()" style="width:100%;-webkit-justify-content:center;justify-content:center">Shrani nastavitve</button>
+      </div>
+    </details>
+  </div>
+  <div class="card">
     <div class="card-title">&#128203; Seje inventure</div>
     <div class="tbl-wrap">
       <table>
@@ -643,6 +672,23 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <button class="btn btn-g" onclick="closeMo('moImport')">Preklici</button>
       <button class="btn btn-a" onclick="importCsv()">&#128229; Uvozi</button>
     </div>
+  </div>
+</div>
+
+<div class="mo" id="moMsLogin">
+  <div class="modal">
+    <div class="mh"><h3>Prijava v OneDrive</h3><button class="mc" onclick="msCancelLogin()">&#10005;</button></div>
+    <div class="mb">
+      <div id="msLoginWait" style="text-align:center;padding:14px;font-size:13px;color:var(--text2)">Pridobivam kodo&#8230;</div>
+      <div id="msLoginCode" style="display:none">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:10px">1. Na telefonu/ra&#269;unalniku odpri:</div>
+        <div style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--accent);text-align:center;padding:8px;background:var(--bg3);border-radius:8px;margin-bottom:12px" id="msVerUri">microsoft.com/devicelogin</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">2. Vnesi to kodo in se prijavi z <b>@kclj.si</b>:</div>
+        <div style="font-family:var(--mono);font-size:26px;font-weight:700;letter-spacing:2px;color:var(--purple);text-align:center;padding:12px;background:var(--bg3);border-radius:8px;-webkit-user-select:all;user-select:all" id="msUserCode">&#8230;</div>
+        <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:10px">&#8987; &#268;akam na potrditev prijave&#8230;</div>
+      </div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="msCancelLogin()">Prekli&#269;i</button></div>
   </div>
 </div>
 
@@ -1415,9 +1461,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:76,
-  date:'2026-06-09',
+  build:77,
+  date:'2026-06-10',
   history:[
+    {build:77,date:'2026-06-10',notes:'OneDrive sinhronizacija (Microsoft Graph): prijava @kclj.si, nalaganje/prenos s pametnim združevanjem — deljenje podatkov med skenerji'},
     {build:76,date:'2026-06-09',notes:'Serijski sprejem: po obvestilu "že v zalogi" se stanje samodejno ponastavi na novo skeniranje (RFID se ustavi, forma se počisti)'},
     {build:75,date:'2026-06-09',notes:'Popravljen uvoz CSV datoteke (Choose file gumb zdaj deluje)'},
     {build:74,date:'2026-06-09',notes:'Dark mode (temni način) v nastavitvah; popravljen CSV parser za uvoz GTIN (podpora za narekovaje in vejice v imenih)'},
@@ -2449,6 +2496,161 @@ for(var mi=0;mi<mos.length;mi++){
   })(mos[mi]);
 }
 
+// ===== ONEDRIVE SINHRONIZACIJA (Microsoft Graph) =====
+function _hasBridge(){return typeof AndroidBridge!=='undefined'&&AndroidBridge&&typeof AndroidBridge.msIsSignedIn==='function';}
+function fmtSyncTime(ts){
+  if(!ts)return '';
+  try{var d=new Date(ts);return d.toLocaleDateString('sl-SI')+' '+d.toLocaleTimeString('sl-SI',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}
+}
+function refreshSyncUI(){
+  var st=$i('syncStatus'),so=$i('syncSignedOut'),si=$i('syncSignedIn');
+  if(!st)return;
+  if(!_hasBridge()){st.textContent='Sinhronizacija je na voljo samo na napravi (Zebra).';if(so)so.style.display='none';if(si)si.style.display='none';return;}
+  var inOn=false;try{inOn=AndroidBridge.msIsSignedIn();}catch(e){}
+  if(inOn){
+    st.textContent='';
+    if(so)so.style.display='none';
+    if(si)si.style.display='block';
+    var acc='';try{acc=AndroidBridge.msGetAccount();}catch(e){}
+    $i('syncAccount').textContent=acc||'OneDrive račun';
+    var ls=0;try{ls=AndroidBridge.msGetLastSync();}catch(e){}
+    $i('syncLast').textContent=ls?('Zadnja sinhr.: '+fmtSyncTime(ls)):'Še ni sinhronizirano';
+  }else{
+    st.textContent='Niste prijavljeni v OneDrive.';
+    if(so)so.style.display='block';
+    if(si)si.style.display='none';
+  }
+}
+function msSaveConfig(){
+  if(!_hasBridge()){notify('Samo na napravi','warn');return;}
+  var cid=$i('syncClientId').value.trim(),ten=$i('syncTenant').value.trim();
+  try{AndroidBridge.msSetConfig(cid,ten);notify('Nastavitve shranjene','ok');}catch(e){notify('Napaka','err');}
+}
+function msSignIn(){
+  if(!_hasBridge()){notify('Samo na napravi','warn');return;}
+  $i('msLoginWait').style.display='block';
+  $i('msLoginCode').style.display='none';
+  showMo('moMsLogin');
+  try{AndroidBridge.msSignIn();}catch(e){notify('Napaka prijave','err');closeMo('moMsLogin');}
+}
+function msCancelLogin(){
+  try{if(_hasBridge())AndroidBridge.msCancelSignIn();}catch(e){}
+  closeMo('moMsLogin');
+}
+function msSignOut(){
+  if(!_hasBridge())return;
+  try{AndroidBridge.msSignOut();}catch(e){}
+}
+function msUpload(){
+  if(!_hasBridge()){notify('Samo na napravi','warn');return;}
+  try{
+    notify('Nalagam v OneDrive…','ok');
+    AndroidBridge.msUpload(JSON.stringify(DB));
+  }catch(e){notify('Napaka nalaganja','err');}
+}
+function msDownload(){
+  if(!_hasBridge()){notify('Samo na napravi','warn');return;}
+  try{
+    notify('Prenašam iz OneDrive…','ok');
+    AndroidBridge.msDownload();
+  }catch(e){notify('Napaka prenosa','err');}
+}
+// ---- callbacks iz Androida ----
+function onMsDeviceCode(userCode,verUri,message){
+  $i('msLoginWait').style.display='none';
+  $i('msLoginCode').style.display='block';
+  $i('msUserCode').textContent=userCode||'';
+  $i('msVerUri').textContent=(verUri||'microsoft.com/devicelogin').replace(/^https?:\/\//,'');
+}
+function onMsSignedIn(account){
+  closeMo('moMsLogin');
+  notify('Prijavljen: '+(account||'OneDrive'),'ok');
+  refreshSyncUI();
+}
+function onMsSignedOut(){
+  notify('Odjavljen iz OneDrive','ok');
+  refreshSyncUI();
+}
+function onMsError(msg){
+  closeMo('moMsLogin');
+  notify(msg||'Napaka OneDrive','err');
+  refreshSyncUI();
+}
+function onMsUploadDone(ok,msg){
+  notify(msg||(ok?'Naloženo':'Napaka'),ok?'ok':'err');
+  refreshSyncUI();
+}
+function onMsDownloadDone(json,msg){
+  if(json===null||json===undefined||json===''){
+    notify(msg||'Ni podatkov v OneDrive','warn');
+    return;
+  }
+  try{
+    var cloud=JSON.parse(json);
+    var r=mergeDB(cloud);
+    saveDB();
+    try{renderGtins();}catch(e){}
+    try{renderInventory();}catch(e){}
+    try{renderSessions();}catch(e){}
+    try{renderReceived();}catch(e){}
+    try{updateStats();}catch(e){}
+    try{updateBanner();}catch(e){}
+    notify('Združeno: +'+r.gtins+' GTIN, +'+r.received+' sprejem, +'+r.sessions+' sej','ok');
+    refreshSyncUI();
+  }catch(e){
+    notify('Napaka pri branju podatkov iz OneDrive','err');
+  }
+}
+// ---- pametno združevanje (merge) ----
+function _arrUnion(a,b){
+  var out=(a||[]).slice();
+  (b||[]).forEach(function(x){if(out.indexOf(x)<0)out.push(x);});
+  return out;
+}
+function mergeDB(cloud){
+  var stats={gtins:0,received:0,sessions:0};
+  cloud=cloud||{};
+  // GTINs — union po gtin, lokalni ima prednost
+  var locG={};(DB.gtins||[]).forEach(function(g){locG[g.gtin]=true;});
+  (cloud.gtins||[]).forEach(function(g){
+    if(g&&g.gtin&&!locG[g.gtin]){DB.gtins.push(g);locG[g.gtin]=true;stats.gtins++;}
+  });
+  // Received (sprejem) — union po identiteti (id / gtin+serial / gtin+epc)
+  if(!DB.received)DB.received=[];
+  function recKey(r){return r.id||((r.gtin||'')+'|'+(r.serial||'')+'|'+(r.rfidEpc||''));}
+  var locR={};DB.received.forEach(function(r){locR[recKey(r)]=true;});
+  (cloud.received||[]).forEach(function(r){
+    if(r&&!locR[recKey(r)]){DB.received.push(r);locR[recKey(r)]=true;stats.received++;}
+  });
+  // Sessions — union po id, lokalni ima prednost
+  if(!DB.sessions)DB.sessions=[];
+  var locS={};DB.sessions.forEach(function(s){locS[s.id]=true;});
+  (cloud.sessions||[]).forEach(function(s){
+    if(s&&s.id&&!locS[s.id]){DB.sessions.push(s);locS[s.id]=true;stats.sessions++;}
+  });
+  // Inventory — union po gtin+lot; serije/EPC kot mnozice; qty preracunan
+  if(!DB.inventory)DB.inventory=[];
+  function invKey(i){return (i.gtin||'')+'|'+(i.lot||'');}
+  var invMap={};DB.inventory.forEach(function(i){invMap[invKey(i)]=i;});
+  (cloud.inventory||[]).forEach(function(ci){
+    if(!ci)return;
+    var k=invKey(ci),li=invMap[k];
+    if(!li){
+      DB.inventory.push(ci);invMap[k]=ci;
+    }else{
+      li.serials=_arrUnion(li.serials,ci.serials);
+      li.rfidEpcs=_arrUnion(li.rfidEpcs,ci.rfidEpcs);
+      if(li.serials&&li.serials.length)li.qty=li.serials.length;
+      else if(li.rfidEpcs&&li.rfidEpcs.length)li.qty=li.rfidEpcs.length;
+      else li.qty=Math.max(li.qty||0,ci.qty||0);
+      if(!li.expiry&&ci.expiry)li.expiry=ci.expiry;
+    }
+  });
+  // lastUsed — union, omeji na 20
+  DB.lastUsed=_arrUnion(DB.lastUsed,cloud.lastUsed).slice(0,20);
+  return stats;
+}
+
 // ===== BOOT =====
 loadDB();
 try { loadSettings(); } catch(e){}
@@ -2462,6 +2664,7 @@ try {
 } catch(e){ console.log('autoload skip:', e); }
 try { updateBanner(); } catch(e){}
 try { updateStats(); } catch(e){}
+try { refreshSyncUI(); } catch(e){}
 try { setMode('rfid'); } catch(e){}
 try { focusScan(); } catch(e){}
 // Show current file path
