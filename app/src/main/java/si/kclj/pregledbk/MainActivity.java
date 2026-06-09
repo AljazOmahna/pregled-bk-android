@@ -158,6 +158,11 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         }
 
         @JavascriptInterface
+        public void startRfidWithPower(int cBm) {
+            if (rfidHandler != null) rfidHandler.startRfidInventory(cBm);
+        }
+
+        @JavascriptInterface
         public void stopAndDisconnectRfid() {
             if (rfidHandler != null) rfidHandler.stopAndDisconnectRfid();
         }
