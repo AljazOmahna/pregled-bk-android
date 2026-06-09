@@ -156,6 +156,12 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
 .modal{background:var(--bg2);border:1px solid var(--border);border-radius:14px 14px 0 0;
   width:100%;max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
   box-shadow:0 -4px 30px rgba(0,0,0,.5)}
+@-webkit-keyframes slideDown{from{-webkit-transform:translateY(-100%);transform:translateY(-100%)}to{-webkit-transform:translateY(0);transform:translateY(0)}}
+@keyframes slideDown{from{transform:translateY(-100%)}to{transform:translateY(0)}}
+#moSprejem{-webkit-align-items:flex-start;align-items:flex-start;}
+#moSprejem.open .modal{border-radius:0 0 14px 14px;-webkit-animation:slideDown .25s ease-out;animation:slideDown .25s ease-out;}
+#moNewLot{-webkit-align-items:flex-start;align-items:flex-start;}
+#moNewLot.open .modal{border-radius:0 0 14px 14px;-webkit-animation:slideDown .25s ease-out;animation:slideDown .25s ease-out;}
 .mh{padding:14px 16px 10px;border-bottom:1px solid var(--border);
   display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:space-between;justify-content:space-between}
 .mh h3{font-size:14px;font-weight:700;color:var(--accent)}
@@ -680,7 +686,7 @@ tr.r-28 td{background:rgba(234,179,8,.04)}
     </div>
     <div class="mf">
       <button class="btn btn-a" id="spConfirmBtn" onclick="confirmSprejem()" disabled style="flex:1;-webkit-justify-content:center;justify-content:center">&#10003; Sprejmi</button>
-      <button class="btn btn-d" id="spCloseBtn" onclick="closeSprejem()">Prekli&#269;i</button>
+      <button class="btn btn-g" id="spCloseBtn" onclick="closeSprejem()">Prekli&#269;i</button>
     </div>
   </div>
 </div>
@@ -1692,7 +1698,7 @@ function processRawScan(raw){
         if(p.lot&&!pi.lot){pi.lot=p.lot;enriched=true;}
         if(p.expiry&&!pi.expiry){pi.expiry=p.expiry;enriched=true;}
         if(enriched){saveDB();renderRecent(sess);showFb('Podatki dodani: '+gr.name+' #'+p.serial,'ok');flash('ok');}
-        else{showFb('Ze skenirana v seji: '+gr.name+' #'+p.serial,'warn');flash('warn');}
+        else{showFb('Že skenirana v seji: '+gr.name+' #'+p.serial,'warn');flash('warn');}
         return;
       }
     }
@@ -1760,7 +1766,7 @@ function acceptScan(sess,raw,p,gr,fromRfid){
   var d=daysLeft(p.expiry);
   if(p.serial)showFb('OK: '+gr.name+(p.lot?' L:'+p.lot:'')+(p.serial?' #'+p.serial:''),'ok');
   else if(d<0)showFb('OK: '+gr.name+' - POZOR: ROK POTEKEL!','ok');
-  else if(d<=14)showFb('OK: '+gr.name+' - poteche v '+d+'d','ok');
+  else if(d<=14)showFb('OK: '+gr.name+' - poteče v '+d+'d','ok');
   else showFb('OK: '+gr.name+(p.lot?' L:'+p.lot:''),'ok');
   flash('ok');
 }
@@ -1820,6 +1826,7 @@ function startSession(){
   setTimeout(focusScan,300);
 }
 function closeSession(){
+  if(rfidMultiActive)stopMultiRfid();
   var sess=getActiveSess();
   if(!sess){notify('Ni aktivne seje','warn');return;}
   if(!confirm('Zaključiti sejo "'+sess.name+'"?'))return;
@@ -2091,7 +2098,7 @@ function saveQty(){
   it.qty=qtyCur;
   if(!it.adjustments)it.adjustments=[];
   it.adjustments.push({dt:new Date().toISOString(),qty:qtyCur,reason:$i('qtyReason').value.trim()});
-  if(it.qty<=0&&confirm('Kolicina je 0. Odstraniti?'))DB.inventory=DB.inventory.filter(function(i){return!(i.gtin===qtyKey.gtin&&i.lot===qtyKey.lot);});
+  if(it.qty<=0&&confirm('Količina je 0. Odstraniti?'))DB.inventory=DB.inventory.filter(function(i){return!(i.gtin===qtyKey.gtin&&i.lot===qtyKey.lot);});
   saveDB();closeMo('moQty');renderOverview();renderInventory();updateStats();notify('Zaloga posodobljena','ok');
 }
 
@@ -2113,7 +2120,7 @@ function showAlerts(){
   }
   $i('moAlertsBody').innerHTML=(!exp.length&&!w14.length&&!w28.length)?
     '<div style="text-align:center;padding:24px;color:var(--green);font-size:14px">&#10003; Vsi artikli so v roku.</div>':
-    sec('Preteceni',exp,'var(--red)')+sec('Poteche v 14 dneh',w14,'var(--orange)')+sec('Poteche v 28 dneh',w28,'var(--yellow)');
+    sec('Pretečeni',exp,'var(--red)')+sec('Poteče v 14 dneh',w14,'var(--orange)')+sec('Poteče v 28 dneh',w28,'var(--yellow)');
   $i('moAlerts').classList.add('open');
 }
 
@@ -2178,13 +2185,13 @@ function openGtinMo(idx){
 function saveGtin(){
   var gtin=$i('gtinCode').value.trim().replace(/\D/g,'');
   var name=$i('gtinName').value.trim();
-  if(!gtin){notify('Vpisite GTIN','warn');return;}
+  if(!gtin){notify('Vpišite GTIN','warn');return;}
   if(gtin.length!==14){notify('GTIN mora biti 14 mest','warn');return;}
-  if(!validGtin(gtin)){notify('Neveljavna GTIN kontrolna stevilka','warn');return;}
-  if(!name){notify('Vpisite naziv','warn');return;}
+  if(!validGtin(gtin)){notify('Neveljavna GTIN kontrolna številka','warn');return;}
+  if(!name){notify('Vpišite naziv','warn');return;}
   var obj={gtin:gtin,name:name,type:$i('gtinTypeVal').value,manufacturer:$i('gtinMfr').value.trim(),analyser:$i('gtinAnal').value.trim(),note:$i('gtinNote').value.trim(),catalog:$i('gtinCatalog').value.trim(),ident:$i('gtinIdent').value.trim()};
   if(editGI!=null)DB.gtins[editGI]=obj;
-  else{if(DB.gtins.filter(function(g){return g.gtin===gtin;}).length){notify('GTIN ze obstaja','warn');return;}DB.gtins.push(obj);}
+  else{if(DB.gtins.filter(function(g){return g.gtin===gtin;}).length){notify('GTIN že obstaja','warn');return;}DB.gtins.push(obj);}
   saveDB();closeMo('moGtin');renderGtins();notify('GTIN shranjen','ok');
 }
 function delGtin(i){if(!confirm('Izbrisati GTIN?'))return;DB.gtins.splice(i,1);saveDB();renderGtins();notify('GTIN izbrisan');}
@@ -2207,7 +2214,7 @@ function importCsv(){
     DB.gtins.push({gtin:gtin,name:name||gtin,type:type||'control',manufacturer:mfr||'',analyser:anal||'',note:note||''});
     added++;
   });
-  saveDB();closeMo('moImport');renderGtins();notify('Uvozeno '+added+', preskocenih '+skipped,'ok');
+  saveDB();closeMo('moImport');renderGtins();notify('Uvoženo '+added+', preskočenih '+skipped,'ok');
 }
 function loadDemo(){
   var added=0;
