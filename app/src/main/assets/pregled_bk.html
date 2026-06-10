@@ -390,7 +390,10 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
   </div>
   <div class="sec-hdr" style="margin-top:16px">
     <div class="sec-title">&#128230; Prejeto</div>
-    <button class="btn btn-a btn-sm" onclick="openSprejem()">+ Sprejmi</button>
+    <div style="display:-webkit-flex;display:flex;gap:6px">
+      <button class="btn btn-d btn-sm" onclick="clearAllReceived()">&#128465; Počisti vse</button>
+      <button class="btn btn-a btn-sm" onclick="openSprejem()">+ Sprejmi</button>
+    </div>
   </div>
   <div class="tbl-wrap">
     <table>
@@ -1492,6 +1495,7 @@ var APP_VERSION={
   build:80,
   date:'2026-06-10',
   history:[
+    {build:81,date:'2026-06-10',notes:'Gumb "Počisti vse" v zavihku Prejeto — izbriše vse testne/stare EPC vnose z enim klikom (ne vpliva na zalogo).'},
     {build:80,date:'2026-06-10',notes:'Test moči RFID zdaj prikazuje RSSI jakost vsake oznake (barvno, razvrščeno po jakosti) — orodje za kalibracijo razdalje/praga. Žive posodobitve med testom.'},
     {build:79,date:'2026-06-10',notes:'Sprejem RFID — samokalibrirajoča izbira: primarno meri dominanco (razliko do druge oznake), ne le absolutni prag. Prisloni oznako ob čitalec → zajame se samodejno; ob več oznakah preblizu skupaj pokaže njihove RSSI vrednosti in opozori. Dodan nastavljiv razmik dominance (gap).'},
     {build:78,date:'2026-06-10',notes:'Sprejem RFID: zajem najbližje oznake po RSSI jakosti (ne več prve naključne). Ob več oznakah podobne jakosti zavrne in opozori; nastavljiv prag jakosti (RSSI) — prepreči zajem tujega EPC sosednjega artikla'},
@@ -1904,6 +1908,13 @@ function deleteReceived(id){
   if(!confirm('Odstraniti artikel iz evidence?'))return;
   var r=(DB.received||[]).filter(function(x){return x.id===id;})[0];
   if(r){r.status='removed';saveDB();renderReceived();notify('Odstranjeno','ok');}
+}
+function clearAllReceived(){
+  var active=(DB.received||[]).filter(function(r){return r.status==='active';});
+  if(!active.length){notify('Ni prejetih artiklov','warn');return;}
+  if(!confirm('Izbrisati VSE prejete artikle ('+active.length+')?\nTo ne vpliva na zalogo.'))return;
+  active.forEach(function(r){r.status='removed';});
+  saveDB();renderReceived();notify('Počiščeno: '+active.length+' prejetih','ok');
 }
 
 // ===== SCAN PROCESSING =====
