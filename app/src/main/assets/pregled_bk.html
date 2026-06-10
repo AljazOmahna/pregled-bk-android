@@ -282,6 +282,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     <div style="font-size:13px;font-weight:600;margin-bottom:4px">Ni aktivne seje</div>
     <div style="font-size:11px;color:var(--text3);margin-bottom:14px">Za&#269;nite novo sejo inventure.</div>
     <button class="btn btn-a" onclick="openNewSession()" style="width:100%;-webkit-justify-content:center;justify-content:center">+ Za&#269;ni novo sejo</button>
+    <button class="btn" onclick="openPregledBK()" style="width:100%;margin-top:8px;background:var(--pbg);border:1px solid var(--purple);color:var(--purple);-webkit-justify-content:center;justify-content:center">&#128269; Za&#269;ni pregled BK</button>
     <button class="btn" onclick="openSprejem()" style="width:100%;margin-top:8px;background:var(--bg3);border:1px solid var(--border);-webkit-justify-content:center;justify-content:center">&#128230; Sprejmi material</button>
   </div>
 
@@ -653,6 +654,51 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     </div>
     <div class="mf">
       <button class="btn btn-g" onclick="closeMo('moSess')">Preklici</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pregled BK — inventura izbranih tipov artiklov -->
+<div class="mo" id="moPregled">
+  <div class="modal">
+    <div class="mh"><h3>&#128269; Pregled BK</h3><button class="mc" onclick="closeMo('moPregled')">&#10005;</button></div>
+    <div class="mb">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Kateri tipi artiklov?</div>
+      <div style="display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;gap:8px;margin-bottom:16px">
+        <label style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="checkbox" id="pscope-control" checked style="width:18px;height:18px"> &#129514; Kontrole (QC)</label>
+        <label style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="checkbox" id="pscope-calibrator" checked style="width:18px;height:18px"> &#128208; Kalibratorji</label>
+        <label style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="checkbox" id="pscope-reagent-bio" style="width:18px;height:18px"> &#129516; Reagenti Bio</label>
+        <label style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="checkbox" id="pscope-reagent-imuno" style="width:18px;height:18px"> &#129516; Reagenti IMUNO</label>
+        <label style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
+          <input type="checkbox" id="pscope-consumable" style="width:18px;height:18px"> &#128230; Potro&#353;ni material</label>
+      </div>
+      <div style="text-align:center;font-size:12px;color:var(--text2);margin-bottom:10px">Kako bo&#353; skeniral?</div>
+      <div style="display:-webkit-flex;display:flex;gap:10px;margin-bottom:14px">
+        <button onclick="quickStartPregled('rfid')" style="
+          -webkit-flex:1;flex:1;display:-webkit-flex;display:flex;
+          -webkit-flex-direction:column;flex-direction:column;
+          -webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;
+          gap:8px;padding:18px 10px;border-radius:10px;cursor:pointer;
+          background:var(--pbg);border:2px solid var(--purple);color:var(--purple);
+          font-size:13px;font-weight:700;min-height:84px">
+          <span style="font-size:32px">&#128225;</span>RFID</button>
+        <button onclick="quickStartPregled('qr')" style="
+          -webkit-flex:1;flex:1;display:-webkit-flex;display:flex;
+          -webkit-flex-direction:column;flex-direction:column;
+          -webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;
+          gap:8px;padding:18px 10px;border-radius:10px;cursor:pointer;
+          background:rgba(56,189,248,.1);border:2px solid var(--accent);color:var(--accent);
+          font-size:13px;font-weight:700;min-height:84px">
+          <span style="font-size:32px">&#9638;</span>QR / DataMatrix</button>
+      </div>
+      <div class="fg"><label>Naziv pregleda (neobvezno)</label><input type="text" id="pregledName" placeholder="npr. Pregled BK jun 2026"></div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeMo('moPregled')">Preklici</button>
     </div>
   </div>
 </div>
@@ -1505,9 +1551,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:88,
+  build:89,
   date:'2026-06-10',
   history:[
+    {build:89,date:'2026-06-10',notes:'Nov gumb "Pregled BK" na prvi strani — inventura izbranih tipov artiklov (privzeto Kontrole + Kalibratorji, izbira s checkboxi). Skeniranje izven obsega se zavrne; zaloga tipov izven obsega ostane nedotaknjena pri zaprtju.'},
     {build:88,date:'2026-06-10',notes:'Gumb "Reset (test)" v zavihku Prejeto zdaj izbriše VSE testne podatke: prejeto, zalogo, seje in lote (GTIN katalog ostane). Začasno orodje za lažje testiranje.'},
     {build:87,date:'2026-06-10',notes:'Testi v zavihku Več (RFID test moči) se samodejno ustavijo ob zapustitvi zavihka — sprosti čitalec in ponovno vklopi DataWedge barcode skener. Odpravljena tudi JS napaka ob zagonu (onRfidStatus timing).'},
     {build:86,date:'2026-06-10',notes:'Popravek: številčna črtna koda (npr. (10)lot(21)serial) se ne obravnava več kot RFID/EPC. RFID skener se vključi ŠELE ko so prebrani vsi podatki (GTIN+Lot+Rok+Serial); do takrat je vsak scan črtna koda. Šele nato RFD prebere najmočnejši EPC po RSSI pravilu.'},
@@ -2109,6 +2156,12 @@ function processRawScan(raw,rssi){
   acceptScan(sess,raw,p,gr,fromRfid);
 }
 function acceptScan(sess,raw,p,gr,fromRfid){
+  // Pregled BK: če ima seja omejen nabor tipov, zavrni artikle izven obsega
+  if(sess.typeScope&&sess.typeScope.length&&gr&&gr.type&&sess.typeScope.indexOf(gr.type)<0){
+    var lbl=LOT_TYPE_LABEL[gr.type]||gr.type;
+    sess.rejected=(sess.rejected||0)+1;saveDB();updateBanner();
+    showFb('Izven obsega pregleda: '+gr.name+' ('+lbl+')','warn');flash('warn');return;
+  }
   if(p.serial&&sess.items.some(function(si){return si.valid&&si.serial===p.serial&&si.gtin===p.gtin;})){
     showFb('Že v seji: '+gr.name+' #'+p.serial,'warn');flash('warn');return;
   }
@@ -2154,6 +2207,29 @@ function getActiveSess(){
   return found;
 }
 function openNewSession(){$i('moSess').classList.add('open');}
+var PREGLED_TYPES=['control','calibrator','reagent-bio','reagent-imuno','consumable'];
+function openPregledBK(){
+  // privzeto: Kontrole + Kalibratorji
+  PREGLED_TYPES.forEach(function(t){
+    var c=$i('pscope-'+t);if(c)c.checked=(t==='control'||t==='calibrator');
+  });
+  var nm=$i('pregledName');if(nm)nm.value='';
+  $i('moPregled').classList.add('open');
+}
+function quickStartPregled(mode){
+  var scope=PREGLED_TYPES.filter(function(t){var c=$i('pscope-'+t);return c&&c.checked;});
+  if(!scope.length){notify('Izberi vsaj en tip artikla','warn');return;}
+  var name=$i('pregledName').value.trim()||'Pregled BK '+new Date().toLocaleString('sl-SI');
+  var sess={id:Date.now().toString(),name:name,mode:mode,note:'',typeScope:scope,isPregled:true,
+    started:new Date().toISOString(),closed:null,scanned:0,rejected:0,items:[]};
+  DB.sessions.push(sess);DB.activeSessionId=sess.id;
+  setMode(mode);
+  saveDB();closeMo('moPregled');updateBanner();
+  $i('noSess').style.display='none';$i('scanPanel').style.display='block';
+  var lbls=scope.map(function(t){return LOT_TYPE_LABEL[t]||t;}).join(', ');
+  notify('Pregled BK začet — obseg: '+lbls,'ok');
+  setTimeout(focusScan,300);
+}
 function quickStart(mode){
   var name=$i('sessName').value.trim()||'Seja '+new Date().toLocaleString('sl-SI');
   var sess={id:Date.now().toString(),name:name,mode:mode,note:'',
@@ -2186,9 +2262,13 @@ function closeSession(){
   var sessItems=sess.items.filter(function(i){return i.valid;});
   var prevInv=DB.inventory.slice();
   var prevUsed=DB.lastUsed||[];
-  // Compute used items: in prev inventory but not in new session
+  // Pregled BK: omejen obseg tipov — zaloga izven obsega se NE preverja in OHRANI
+  var scope=(sess.typeScope&&sess.typeScope.length)?sess.typeScope:null;
+  var inScope=function(t){return !scope||scope.indexOf(t)>=0;};
+  // Compute used items: in prev inventory but not in new session (samo znotraj obsega)
   var used=[];
   prevInv.forEach(function(pi){
+    if(!inScope(pi.type))return; // izven obsega pregleda — ne štejemo kot porabljeno
     if(pi.serials&&pi.serials.length){
       pi.serials.forEach(function(sr){
         if(!sessItems.some(function(si){return si.serial===sr;}))
@@ -2206,6 +2286,12 @@ function closeSession(){
   });
   // Build new inventory from session items
   var invMap={};
+  // Pregled BK: ohrani obstoječo zalogo tipov IZVEN obsega (sicer bi jo izbrisali)
+  if(scope){
+    prevInv.forEach(function(pi){
+      if(!inScope(pi.type)){var k=pi.gtin+'|'+(pi.lot||'');invMap[k]=pi;}
+    });
+  }
   sessItems.forEach(function(si){
     var k=si.gtin+'|'+(si.lot||'');
     if(!invMap[k])invMap[k]={gtin:si.gtin,lot:si.lot||'',expiry:si.expiry||'',qty:0,
@@ -2294,7 +2380,11 @@ function updateBanner(){
   $i('scanPanel').style.display='block';$i('noSess').style.display='none';
   $i('sessNameLbl').textContent=sess.name;
   var ml={rfid:'RFID',qr:'QR/DataMatrix',barcode:'Barcode',combined:'Kombinirano'};
-  $i('sessModeLbl').textContent=(ml[sess.mode]||sess.mode)+' | '+new Date(sess.started).toLocaleString('sl-SI');
+  var modeTxt=(ml[sess.mode]||sess.mode);
+  if(sess.typeScope&&sess.typeScope.length){
+    modeTxt='🔍 Pregled BK ['+sess.typeScope.map(function(t){return LOT_TYPE_LABEL[t]||t;}).join(', ')+'] · '+modeTxt;
+  }
+  $i('sessModeLbl').textContent=modeTxt+' | '+new Date(sess.started).toLocaleString('sl-SI');
   $i('scanCnt').textContent=sess.scanned||0;
   $i('scanRej').textContent=sess.rejected||0;
 }
