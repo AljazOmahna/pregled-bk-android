@@ -402,6 +402,24 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         }
 
         @JavascriptInterface
+        public void openUrl(String url) {
+            if (url == null || !(url.startsWith("http://") || url.startsWith("https://"))) {
+                mainHandler.post(() -> Toast.makeText(MainActivity.this,
+                    "Neveljavna povezava", Toast.LENGTH_SHORT).show());
+                return;
+            }
+            try {
+                Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(i);
+            } catch (Throwable t) {
+                Log.e(TAG, "openUrl: " + t);
+                mainHandler.post(() -> Toast.makeText(MainActivity.this,
+                    "Ni aplikacije za odpiranje povezave", Toast.LENGTH_SHORT).show());
+            }
+        }
+
+        @JavascriptInterface
         public void launchApp(String packageName) {
             try {
                 Log.d(TAG, "launchApp: " + packageName);

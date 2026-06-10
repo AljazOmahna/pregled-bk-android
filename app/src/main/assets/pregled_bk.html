@@ -298,17 +298,17 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     </div>
 
     <div id="rfidStagingArea" style="display:none;margin-bottom:8px">
+      <div style="display:-webkit-flex;display:flex;gap:8px;margin-bottom:6px">
+        <button class="btn btn-a" id="rfidAcceptBtn" onclick="acceptAllStaged()" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center" disabled>&#10003; Sprejmi prepoznane (0)</button>
+        <button class="btn btn-d" onclick="clearStaging()" style="-webkit-justify-content:center;justify-content:center">&#10005; Po&#269;isti</button>
+      </div>
       <div style="background:var(--gbg);border:1px solid var(--green);border-radius:8px;padding:8px;margin-bottom:6px">
         <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--green);margin-bottom:4px">&#10003; Prepoznane (<span id="stagingRecCount">0</span>)</div>
         <div id="stagingRecList" style="max-height:160px;overflow-y:auto;-webkit-overflow-scrolling:touch"><div style="color:var(--text3);font-size:10px;padding:2px">Ni prepoznanih EPC.</div></div>
       </div>
-      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:6px">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px">
         <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:4px">? Neprepoznane (<span id="stagingUnkCount">0</span>)</div>
         <div id="stagingUnkList" style="max-height:100px;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
-      </div>
-      <div style="display:-webkit-flex;display:flex;gap:8px">
-        <button class="btn btn-a" id="rfidAcceptBtn" onclick="acceptAllStaged()" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center" disabled>&#10003; Sprejmi prepoznane (0)</button>
-        <button class="btn btn-d" onclick="clearStaging()" style="-webkit-justify-content:center;justify-content:center">&#10005; Po&#269;isti</button>
       </div>
     </div>
 
@@ -453,6 +453,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     <div style="display:-webkit-flex;display:flex;gap:6px;-webkit-flex-wrap:wrap;flex-wrap:wrap">
       <button class="btn btn-g btn-sm" onclick="loadDemo()">&#128229; Naloži GTIN</button>
       <button class="btn btn-g btn-sm" onclick="openImport()">&#128229; CSV</button>
+      <button class="btn btn-g btn-sm" onclick="openPkgIns()">&#128196; Package insert</button>
       <button class="btn btn-a btn-sm" onclick="openGtinMo()">+ GTIN</button>
     </div>
   </div>
@@ -721,10 +722,25 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
         <div class="fg"><label>Katalo&#353;ka &#353;t. (AI 240)</label><input type="text" id="gtinCatalog" maxlength="30"></div>
         <div class="fg"><label>Ident</label><input type="text" id="gtinIdent" maxlength="30"></div>
       </div>
+      <div class="fg" id="gtinPiWrap"><label>&#128196; Package insert (OneDrive povezava)</label><input type="text" id="gtinPiUrl" placeholder="https://... (OneDrive)"></div>
     </div>
     <div class="mf">
       <button class="btn btn-g" onclick="closeMo('moGtin')">Preklici</button>
       <button class="btn btn-a" onclick="saveGtin()">Shrani</button>
+    </div>
+  </div>
+</div>
+
+<div class="mo" id="moPkgIns">
+  <div class="modal">
+    <div class="mh"><h3>&#128196; Package inserti</h3><button class="mc" onclick="closeMo('moPkgIns')">&#10005;</button></div>
+    <div class="mb">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Dokumenti so shranjeni na OneDrive. Povezavo uredi prek &#9998; (Uredi GTIN).</div>
+      <div class="fg"><input type="text" id="pkgInsSrch" placeholder="&#128269; I&#353;&#269;i artikel..." oninput="renderPkgIns()"></div>
+      <div id="pkgInsBody"></div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-a" onclick="closeMo('moPkgIns')" style="width:100%;-webkit-justify-content:center;justify-content:center">Zapri</button>
     </div>
   </div>
 </div>
@@ -914,6 +930,26 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     <div class="mb" id="newLotBody"></div>
     <div class="mf">
       <button class="btn btn-a" onclick="closeMo('moNewLot')" style="width:100%;-webkit-justify-content:center;justify-content:center">Razumem</button>
+    </div>
+  </div>
+</div>
+
+<div class="mo" id="moLotEval">
+  <div class="modal">
+    <div class="mh"><h3>&#128203; Ovrednotenje lota</h3><button class="mc" onclick="closeMo('moLotEval')">&#10005;</button></div>
+    <div class="mb">
+      <div style="text-align:center;margin-bottom:10px">
+        <div id="lotEvalName" style="font-size:13px;font-weight:700;color:var(--text)"></div>
+        <div id="lotEvalLot" style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:2px"></div>
+      </div>
+      <div id="lotEvalNote" style="display:none;background:#e8f0ff;border:1px solid #3b82f6;border-radius:8px;padding:10px;font-size:11px;color:#1d4ed8;margin-bottom:10px"></div>
+      <div class="fg"><label>Datum ovrednotenja</label><input type="date" id="lotEvalDate"></div>
+      <div class="fg"><label>Sklic na dokument (obvezno) *</label><input type="text" id="lotEvalDoc" placeholder="npr. OneDrive: Ovrednotenja/2026/..."></div>
+      <div style="font-size:10px;color:var(--text3)">&#128161; Dokument z ovrednotenjem je shranjen na OneDrive &mdash; tu vpi&#353;i ime/lokacijo dokumenta.</div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeMo('moLotEval')">Prekli&#269;i</button>
+      <button class="btn btn-a" onclick="confirmLotEval()">&#10003; Potrdi ovrednotenje</button>
     </div>
   </div>
 </div>
@@ -1330,8 +1366,10 @@ function nav(page){
 // ===== LOTI =====
 var LOT_TYPE_ORDER=['calibrator','reagent-bio','reagent-imuno','control','consumable'];
 var LOT_TYPE_LABEL={'calibrator':'Kalibratorji','reagent-bio':'Reagenti Bio','reagent-imuno':'Reagenti IMUNO','control':'Kontrole','consumable':'Potrošni material'};
+// Tipi, ki zahtevajo ovrednotenje novega lota (datum + sklic na dokument)
+var EVAL_TYPES=['calibrator','control','reagent-bio','reagent-imuno'];
 var LOT_TYPE_NOTE={
-  'calibrator':'Vnesi vrednosti novega Lot-a kalibratorja v Alinity analizator.',
+  'calibrator':'Vnesi vrednosti novega Lot-a kalibratorja v Alinity analizator. Ob ovrednotenju potrdi, da so bile nove vrednosti pregledane in vnesene v analizator.',
   'reagent-bio':'Napravi Lot-to-Lot primerjavo. Testiraj nov Lot s QC materialom.',
   'reagent-imuno':'Napravi Lot-to-Lot primerjavo. Testiraj nov Lot s QC materialom.',
   'control':'Preveri nov Lot QC materiala.'
@@ -1384,16 +1422,29 @@ function renderLots(){
         var note=LOT_TYPE_NOTE[l.type]||'';
         var dateStr=l.firstReceivedAt?l.firstReceivedAt.slice(0,10):'-';
         var expStr=l.expiry?fmtExp(l.expiry):'-';
+        var needsEval=EVAL_TYPES.indexOf(l.type)>=0;
         h+='<div style="'+bg+'padding:8px;border-radius:6px;margin-bottom:6px;border:1px solid var(--border)">';
         h+='<div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:6px">';
         h+='<div style="-webkit-flex:1;flex:1">';
         h+='<span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text)">'+l.lot+'</span>';
+        if(!l.checked)h+=' <span style="font-size:9px;font-weight:700;background:#3b82f6;color:#fff;padding:1px 5px;border-radius:5px;vertical-align:1px">&#127381; NOV</span>';
         h+=' <span style="font-size:10px;color:var(--text3)">Rok: '+expStr+'</span>';
         h+=' <span style="font-size:10px;color:var(--text3)">Qty: '+qty+'</span>';
         h+='<br><span style="font-size:10px;color:var(--text3)">Sprejet: '+dateStr+'</span>';
         h+='</div>';
-        h+='<input type="checkbox"'+(l.checked?' checked':'')+'onchange="toggleLotChecked(\''+l.gtin+'\',\''+l.lot+'\')" style="width:20px;height:20px;accent-color:#3b82f6">';
+        if(needsEval){
+          if(!l.checked)h+='<button class="btn btn-a btn-sm" onclick="openLotEval(\''+l.gtin+'\',\''+l.lot.replace(/'/g,"\\'")+'\')" style="padding:5px 9px;min-height:32px;white-space:nowrap">&#128203; Ovrednoti</button>';
+        } else {
+          h+='<input type="checkbox"'+(l.checked?' checked':'')+'onchange="toggleLotChecked(\''+l.gtin+'\',\''+l.lot.replace(/'/g,"\\'")+'\')" style="width:20px;height:20px;accent-color:#3b82f6">';
+        }
         h+='</div>';
+        if(needsEval&&l.checked){
+          h+='<div style="font-size:10px;color:var(--green);margin-top:4px;padding-top:4px;border-top:1px solid var(--border)">';
+          h+='&#10003; Ovrednoten '+(l.evalDate?fmtExp(l.evalDate.replace(/-/g,'').slice(2)):(l.checkedAt?l.checkedAt.slice(0,10):''))+(l.evalDoc?' &middot; &#128196; '+l.evalDoc:'');
+          h+=' <a href="#" onclick="openLotEval(\''+l.gtin+'\',\''+l.lot.replace(/'/g,"\\'")+'\');return false" style="color:var(--text3);font-size:9px;margin-left:6px">uredi</a>';
+          h+=' <a href="#" onclick="clearLotEval(\''+l.gtin+'\',\''+l.lot.replace(/'/g,"\\'")+'\');return false" style="color:var(--red);font-size:9px;margin-left:4px">prekli&#269;i</a>';
+          h+='</div>';
+        }
         if(!l.checked&&note)h+='<div style="font-size:10px;color:#3b82f6;margin-top:4px;padding-top:4px;border-top:1px solid #c7d7f5">&#9888; '+note+'</div>';
         h+='</div>';
       });
@@ -1408,15 +1459,56 @@ function toggleLotChecked(gtin,lot){
   if(!DB.lots)return;
   var l=DB.lots.filter(function(x){return x.gtin===gtin&&x.lot===lot;})[0];
   if(!l)return;
+  // Tipi z obveznim ovrednotenjem ne morejo na golo kljukico
+  if(EVAL_TYPES.indexOf(l.type)>=0&&!l.checked){openLotEval(gtin,lot);return;}
   l.checked=!l.checked;
   l.checkedAt=l.checked?new Date().toISOString():null;
   saveDB();renderLots();
 }
-function checkNewLot(gtin,lot,name,type){
+// ===== OVREDNOTENJE LOTA (datum + obvezen sklic na dokument) =====
+var _lotEvalKey=null; // {gtin,lot} ki se trenutno ovrednoti
+function openLotEval(gtin,lot){
+  var l=(DB.lots||[]).filter(function(x){return x.gtin===gtin&&x.lot===lot;})[0];
+  if(!l)return;
+  _lotEvalKey={gtin:gtin,lot:lot};
+  $i('lotEvalName').textContent=l.name;
+  $i('lotEvalLot').textContent='Lot: '+l.lot;
+  var note=LOT_TYPE_NOTE[l.type]||'';
+  var nb=$i('lotEvalNote');
+  if(note){nb.style.display='block';nb.innerHTML='&#9888; '+note;}else nb.style.display='none';
+  $i('lotEvalDate').value=l.evalDate||new Date().toISOString().slice(0,10);
+  $i('lotEvalDoc').value=l.evalDoc||'';
+  showMo('moLotEval');
+  setTimeout(function(){$i('lotEvalDoc').focus();},200);
+}
+function confirmLotEval(){
+  if(!_lotEvalKey)return;
+  var doc=$i('lotEvalDoc').value.trim();
+  if(!doc){notify('Sklic na dokument je obvezen','warn');$i('lotEvalDoc').focus();return;}
+  var l=(DB.lots||[]).filter(function(x){return x.gtin===_lotEvalKey.gtin&&x.lot===_lotEvalKey.lot;})[0];
+  if(!l)return;
+  l.evalDate=$i('lotEvalDate').value||new Date().toISOString().slice(0,10);
+  l.evalDoc=doc;
+  l.checked=true;
+  l.checkedAt=new Date().toISOString();
+  _lotEvalKey=null;
+  saveDB();closeMo('moLotEval');renderLots();
+  notify('Lot '+l.lot+' ovrednoten','ok');
+}
+function clearLotEval(gtin,lot){
+  var l=(DB.lots||[]).filter(function(x){return x.gtin===gtin&&x.lot===lot;})[0];
+  if(!l)return;
+  if(!confirm('Preklicati ovrednotenje lota '+l.lot+'?'))return;
+  l.checked=false;l.checkedAt=null;l.evalDate='';l.evalDoc='';
+  saveDB();renderLots();notify('Ovrednotenje preklicano');
+}
+var spNewLots=[]; // novi loti, zaznani med trenutnim sprejemom — za zbirni povzetek ob zaključku
+function checkNewLot(gtin,lot,name,type,expiry){
   if(!DB.lots)DB.lots=[];
   var exists=DB.lots.filter(function(l){return l.gtin===gtin&&l.lot===lot;})[0];
-  if(exists)return;
-  DB.lots.push({gtin:gtin,lot:lot,name:name,type:type,firstReceivedAt:new Date().toISOString(),checked:false,checkedAt:null});
+  if(exists){if(expiry&&!exists.expiry){exists.expiry=expiry;saveDB();}return;}
+  DB.lots.push({gtin:gtin,lot:lot,name:name,type:type,expiry:expiry||'',firstReceivedAt:new Date().toISOString(),checked:false,checkedAt:null,evalDate:'',evalDoc:''});
+  if(sprejemActive)spNewLots.push({name:name,lot:lot,type:type});
   saveDB();
   showNewLotModal(name,lot,type);
 }
@@ -1434,7 +1526,28 @@ function showNewLotModal(name,lot,type){
   }
   var tb=$i('newLotTitle');if(tb)tb.innerHTML='&#127315; Nov lot';
   var bb=$i('newLotBody');if(bb)bb.innerHTML=h;
-  var mo=$i('moNewLot');if(mo)mo.classList.add('active');
+  showMo('moNewLot');
+}
+// Zbirni povzetek novih lotov ob zaključku serijskega sprejema
+function showNewLotsSummary(){
+  if(!spNewLots.length)return;
+  var byType={};
+  spNewLots.forEach(function(nl){if(!byType[nl.type])byType[nl.type]=[];byType[nl.type].push(nl);});
+  var h='<div style="text-align:center;margin-bottom:10px;font-size:13px;font-weight:700;color:var(--text)">Med sprejemom '+(spNewLots.length===1?'je bil zaznan 1 nov lot':'je bilo zaznanih '+spNewLots.length+' novih lotov')+'</div>';
+  LOT_TYPE_ORDER.forEach(function(type){
+    var arr=byType[type];if(!arr)return;
+    h+='<div style="margin-bottom:8px">';
+    h+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#3b82f6;margin-bottom:3px">'+(LOT_TYPE_LABEL[type]||type)+'</div>';
+    arr.forEach(function(nl){
+      h+='<div style="font-size:12px;padding:4px 8px;background:#e8f0ff;border-left:3px solid #3b82f6;border-radius:4px;margin-bottom:3px">'+nl.name+' &mdash; <span style="font-family:var(--mono);font-weight:700">'+nl.lot+'</span></div>';
+    });
+    h+='</div>';
+  });
+  h+='<div style="font-size:11px;color:var(--text3);margin-top:8px">&#128161; Nove lote ovrednoti v zavihku <b>Loti</b> (datum + sklic na dokument).</div>';
+  var tb=$i('newLotTitle');if(tb)tb.innerHTML='&#127381; Novi loti ('+spNewLots.length+')';
+  var bb=$i('newLotBody');if(bb)bb.innerHTML=h;
+  spNewLots=[];
+  showMo('moNewLot');
 }
 function resetRfidReader(){
   if(typeof AndroidBridge==='undefined'){notify('Samo na napravi','warn');return;}
@@ -1657,6 +1770,7 @@ var _spRfidArmed=false; // RFID skener aktiven? EPC se sprejme SAMO ko je true (
 
 function openSprejem(){
   sprejemActive=true; sprejemStep=1; sprejemData=null; sprejemEpc=null; _spEpcCands={}; _spRfidArmed=false;
+  spNewLots=[];
   $i('spBarcodeInp').value='';
   $i('spItemInfo').style.display='none';
   $i('spStep2').style.display='none';
@@ -1685,6 +1799,10 @@ function closeSprejem(){
   spStopRfid();
   sprejemActive=false; sprejemData=null; sprejemEpc=null; _spEpcCands={};
   closeMo('moSprejem');
+  // Serijski sprejem: zbirni povzetek novih lotov (v single načinu je takojšnji modal dovolj)
+  if(APP_SETTINGS.serialSprejem&&spNewLots.length>0){
+    setTimeout(function(){showNewLotsSummary();},250);
+  } else spNewLots=[];
 }
 var _spGsBuf='';
 function spOnBarcodeInput(){
@@ -1943,7 +2061,7 @@ function confirmSprejem(){
     DB.inventory.push(newItem);
   }
   saveDB(); renderReceived(); renderInventory(); updateStats();
-  checkNewLot(sprejemData.gtin,sprejemData.lot,sprejemData.name,sprejemData.type);
+  checkNewLot(sprejemData.gtin,sprejemData.lot,sprejemData.name,sprejemData.type,sprejemData.expiry);
   notify('Sprejeto: '+sprejemData.name+(sprejemData.serial?' #'+sprejemData.serial:''),'ok');
   if(APP_SETTINGS.serialSprejem){spReset();}else{closeSprejem();}
 }
@@ -2269,6 +2387,15 @@ function closeSession(){
   if(rfidMultiActive)stopMultiRfid();
   var sess=getActiveSess();
   if(!sess){notify('Ni aktivne seje','warn');return;}
+  // Prepoznani, a še nesprejeti EPCji — opozori pred zaključkom
+  if(rfidStaging.recognized.length>0){
+    if(confirm(rfidStaging.recognized.length+' prepoznanih artiklov še NI sprejetih v sejo.\n\nJih sprejmem pred zaključkom?')){
+      acceptAllStaged();
+    } else {
+      notify('Zaključevanje prekinjeno — preglej ali počisti prepoznane','warn');
+      return;
+    }
+  }
   if(!confirm('Zaključiti sejo "'+sess.name+'"?'))return;
   var sessItems=sess.items.filter(function(i){return i.valid;});
   var prevInv=DB.inventory.slice();
@@ -2632,8 +2759,8 @@ function renderGtins(){
 function openGtinMo(idx){
   editGI=idx!=null?idx:null;
   $i('gtinMoT').textContent=idx!=null?'Uredi GTIN':'Dodaj GTIN';
-  if(idx!=null){var g=DB.gtins[idx];$i('gtinCode').value=g.gtin;$i('gtinName').value=g.name;$i('gtinTypeVal').value=g.type;$i('gtinMfr').value=g.manufacturer||'';$i('gtinAnal').value=g.analyser||'';$i('gtinNote').value=g.note||'';$i('gtinCatalog').value=g.catalog||'';$i('gtinIdent').value=g.ident||'';}
-  else{['gtinCode','gtinName','gtinMfr','gtinAnal','gtinNote','gtinCatalog','gtinIdent'].forEach(function(id){$i(id).value='';});$i('gtinTypeVal').value='control';}
+  if(idx!=null){var g=DB.gtins[idx];$i('gtinCode').value=g.gtin;$i('gtinName').value=g.name;$i('gtinTypeVal').value=g.type;$i('gtinMfr').value=g.manufacturer||'';$i('gtinAnal').value=g.analyser||'';$i('gtinNote').value=g.note||'';$i('gtinCatalog').value=g.catalog||'';$i('gtinIdent').value=g.ident||'';$i('gtinPiUrl').value=g.piUrl||'';}
+  else{['gtinCode','gtinName','gtinMfr','gtinAnal','gtinNote','gtinCatalog','gtinIdent','gtinPiUrl'].forEach(function(id){$i(id).value='';});$i('gtinTypeVal').value='control';}
   $i('moGtin').classList.add('open');
 }
 function saveGtin(){
@@ -2644,11 +2771,57 @@ function saveGtin(){
   if(!validGtin(gtin)){notify('Neveljavna GTIN kontrolna številka','warn');return;}
   if(!name){notify('Vpišite naziv','warn');return;}
   var obj={gtin:gtin,name:name,type:$i('gtinTypeVal').value,manufacturer:$i('gtinMfr').value.trim(),analyser:$i('gtinAnal').value.trim(),note:$i('gtinNote').value.trim(),catalog:$i('gtinCatalog').value.trim(),ident:$i('gtinIdent').value.trim()};
+  // Package insert: ohrani obstoječi timestamp, posodobi ga le ob spremembi povezave
+  var piUrl=$i('gtinPiUrl').value.trim();
+  var prev=editGI!=null?DB.gtins[editGI]:null;
+  obj.piUrl=piUrl;
+  obj.piUpdatedAt=prev&&prev.piUrl===piUrl?(prev.piUpdatedAt||''):(piUrl?new Date().toISOString():'');
   if(editGI!=null)DB.gtins[editGI]=obj;
   else{if(DB.gtins.filter(function(g){return g.gtin===gtin;}).length){notify('GTIN že obstaja','warn');return;}DB.gtins.push(obj);}
   saveDB();closeMo('moGtin');renderGtins();notify('GTIN shranjen','ok');
 }
 function delGtin(i){if(!confirm('Izbrisati GTIN?'))return;DB.gtins.splice(i,1);saveDB();renderGtins();notify('GTIN izbrisan');}
+// ===== PACKAGE INSERTI (OneDrive dokumenti, vezani na GTIN; brez potrošnega materiala) =====
+function openPkgIns(){$i('pkgInsSrch').value='';renderPkgIns();showMo('moPkgIns');}
+function renderPkgIns(){
+  var q=($i('pkgInsSrch').value||'').toLowerCase().trim();
+  var items=(DB.gtins||[]).filter(function(g){
+    if(EVAL_TYPES.indexOf(g.type)<0)return false;
+    if(q&&g.name.toLowerCase().indexOf(q)<0&&g.gtin.indexOf(q)<0)return false;
+    return true;
+  });
+  var h='';
+  LOT_TYPE_ORDER.forEach(function(type){
+    var tItems=items.filter(function(g){return g.type===type;});
+    if(!tItems.length)return;
+    h+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text3);padding:6px 0 3px">'+(LOT_TYPE_LABEL[type]||type)+'</div>';
+    tItems.forEach(function(g){
+      var ri=DB.gtins.indexOf(g);
+      var has=!!(g.piUrl&&g.piUrl.trim());
+      var updStr=g.piUpdatedAt?g.piUpdatedAt.slice(0,10):'';
+      h+='<div style="padding:8px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px'+(has?'':';background:var(--obg)')+'">';
+      h+='<div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:6px">';
+      h+='<div style="-webkit-flex:1;flex:1">';
+      h+='<div style="font-size:11px;font-weight:600">'+g.name+'</div>';
+      h+='<div style="font-size:10px;color:'+(has?'var(--green)':'var(--orange)')+';margin-top:2px">'+
+        (has?'&#128279; povezava &middot; Zadnja sprememba: '+updStr:'&#9888; povezava manjka')+'</div>';
+      h+='</div>';
+      if(has)h+='<button class="btn btn-a btn-sm" onclick="openPiUrl('+ri+')" style="padding:5px 9px;min-height:32px">Odpri</button>';
+      h+='<button class="btn btn-g btn-sm" onclick="closeMo(\'moPkgIns\');openGtinMo('+ri+')" style="padding:5px 8px;min-height:32px">&#9998;</button>';
+      h+='</div></div>';
+    });
+  });
+  if(!h)h='<div style="text-align:center;color:var(--text3);font-size:12px;padding:16px">Ni artiklov.</div>';
+  $i('pkgInsBody').innerHTML=h;
+}
+function openPiUrl(idx){
+  var g=DB.gtins[idx];
+  if(!g||!g.piUrl){notify('Povezava ni nastavljena','warn');return;}
+  if(typeof AndroidBridge!=='undefined'&&AndroidBridge.openUrl){
+    try{AndroidBridge.openUrl(g.piUrl);return;}catch(e){}
+  }
+  try{window.open(g.piUrl,'_blank');}catch(e){notify('Povezave ni mogoče odpreti','err');}
+}
 function openImport(){$i('moImport').classList.add('open');$i('importTxt').value='';$i('importPrev').textContent='';}
 function readFile(input){
   var file=input.files[0];if(!file)return;
