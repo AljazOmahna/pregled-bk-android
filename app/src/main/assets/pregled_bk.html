@@ -498,6 +498,15 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
         <div style="font-size:11px;color:var(--text3)">Okno ostane odprto — sprejmite več artiklov zaporedno</div>
       </div>
     </label>
+    <div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+      <div style="font-size:13px;font-weight:600;margin-bottom:2px">&#127760; Jezik / Language</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Izberi jezik aplikacije</div>
+      <select id="settLang" onchange="onLangChange()" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px">
+        <option value="sl">Sloven&#353;&#269;ina</option>
+        <option value="en">English</option>
+        <option value="hs">Hrvatski / Srpski</option>
+      </select>
+    </div>
     <div style="margin-bottom:10px">
       <div style="font-size:12px;font-weight:600;margin-bottom:2px">Mo&#269; RFID — Sprejem materiala (dBm)</div>
       <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Priporo&#269;eno: 0.0 – 10.0 dBm</div>
@@ -614,13 +623,13 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
 
 <!-- BOTTOM NAV -->
 <nav class="bottom-nav">
-  <div class="bn-item active" id="bn-scan" onclick="nav('scan')"><span class="bn-icon">&#128225;</span>Sken.</div>
+  <div class="bn-item active" id="bn-scan" onclick="nav('scan')"><span class="bn-icon">&#128225;</span><span data-i18n="nav_scan">Sken.</span></div>
   <div class="bn-item" id="bn-overview" onclick="nav('overview')" style="display:none"><span class="bn-icon">&#128202;</span>Stanje</div>
-  <div class="bn-item" id="bn-inventory" onclick="nav('inventory')"><span class="bn-icon">&#128230;</span>Zaloga</div>
-  <div class="bn-item" id="bn-lots" onclick="nav('lots')"><span class="bn-icon">&#127991;</span>Loti</div>
-  <div class="bn-item" id="bn-expiry" onclick="nav('expiry')"><span class="bn-icon">&#9888;&#65039;</span>Roki</div>
+  <div class="bn-item" id="bn-inventory" onclick="nav('inventory')"><span class="bn-icon">&#128230;</span><span data-i18n="nav_stock">Zaloga</span></div>
+  <div class="bn-item" id="bn-lots" onclick="nav('lots')"><span class="bn-icon">&#127991;</span><span data-i18n="nav_lots">Loti</span></div>
+  <div class="bn-item" id="bn-expiry" onclick="nav('expiry')"><span class="bn-icon">&#9888;&#65039;</span><span data-i18n="nav_expiry">Roki</span></div>
   <div class="bn-item" id="bn-gtins" onclick="nav('gtins')"><span class="bn-icon">&#127991;&#65039;</span>GTIN</div>
-  <div class="bn-item" id="bn-more" onclick="nav('more')"><span class="bn-icon">&#8942;</span>Ve&#269;</div>
+  <div class="bn-item" id="bn-more" onclick="nav('more')"><span class="bn-icon">&#8942;</span><span data-i18n="nav_more">Ve&#269;</span></div>
 </nav>
 
 <!-- MODALS -->
@@ -1020,6 +1029,105 @@ function saveDB(){
 function $i(id){return document.getElementById(id);}
 function showMo(id){$i(id).classList.add('open');}
 function closeMo(id){$i(id).classList.remove('open');}
+
+// ===== I18N =====
+var I18N={
+sl:{
+  nav_scan:'Sken.',nav_stock:'Zaloga',nav_lots:'Loti',nav_expiry:'Roki',nav_more:'Več',
+  type_control:'Kontrola',type_calibrator:'Kalibrator',type_reagent_bio:'Reagent Bio',type_reagent_imuno:'Reagent IMUNO',type_consumable:'Potrošni material',
+  lot_lbl_calibrator:'Kalibratorji',lot_lbl_control:'Kontrole',lot_lbl_reagent_bio:'Reagenti Bio',lot_lbl_reagent_imuno:'Reagenti IMUNO',lot_lbl_consumable:'Potrošni material',
+  lot_note_calibrator:'Vnesi vrednosti novega Lot-a kalibratorja v Alinity analizator. Ob ovrednotenju potrdi, da so bile nove vrednosti pregledane in vnesene v analizator.',
+  lot_note_reagent_bio:'Napravi Lot-to-Lot primerjavo. Testiraj nov Lot s QC materialom.',
+  lot_note_reagent_imuno:'Napravi Lot-to-Lot primerjavo. Testiraj nov Lot s QC materialom.',
+  lot_note_control:'Preveri nov Lot QC materiala.',
+  mode_rfid_title:'RFID mod',mode_rfid_hint:'DataWedge → pritisk scan gumba → koda pride avtomatsko',
+  mode_qr_title:'QR / DataMatrix mod',mode_qr_hint:'Skenirajte QR ali GS1 DataMatrix kodo',
+  mode_bar_title:'Barcode mod (GS1-128)',mode_bar_hint:'Skenirajte GS1-128 barcode',
+  btn_save:'Shrani',btn_cancel:'Prekliči',btn_edit:'Uredi',btn_delete:'Izbriši',btn_confirm:'Potrdi',btn_close:'Zapri',btn_add:'Dodaj',
+  eval_open:'📋 Ovrednoti',eval_done:'✓ Ovrednoten',eval_clear_q:'Počisti ovrednotenje?',eval_doc_req:'Vnesite sklic na dokument!',
+  sp_received:'Sprejeto',sp_duplicate:'Duplikat serijske',sp_no_gtin:'GTIN ni v bazi',
+  sp_new_lot:'🆕 Nov lot',sp_lots_summary:'🆕 Novi loti ({n})',
+  sp_during_1:'Med sprejemom je bil zaznan 1 nov lot',sp_during_n:'Med sprejemom je bilo zaznanih {n} novih lotov',
+  sess_no_active:'Ni aktivne seje',
+  sess_close_rfid_warn:'{n} prepoznanih artiklov še NI sprejetih v sejo.\n\nJih sprejmem pred zaključkom?',
+  sess_close_rfid_abort:'Zaključevanje prekinjeno — preglej ali počisti prepoznane',
+  sess_close_confirm:'Zaključiti sejo "{name}"?',
+  lots_total:'Skupaj lotov',lots_pending:'Čakajo akcijo',lots_this_month:'Ta mesec',
+  lots_new_badge:'🆕 NOV',lots_waits:'čaka {n}',
+  pkg_ins_open:'Odpri',pkg_ins_missing:'⚠ manjka',
+  sync_upload_ok:'Naloženo v OneDrive ✓',sync_download_ok:'Preneseno in združeno ✓',
+  sync_upload_err:'Napaka pri nalaganju',sync_download_err:'Napaka pri prenosu',sync_signin_req:'Najprej se prijavite v OneDrive'
+},
+en:{
+  nav_scan:'Scan',nav_stock:'Stock',nav_lots:'Lots',nav_expiry:'Expiry',nav_more:'More',
+  type_control:'Control',type_calibrator:'Calibrator',type_reagent_bio:'Reagent Bio',type_reagent_imuno:'Reagent IMUNO',type_consumable:'Consumable',
+  lot_lbl_calibrator:'Calibrators',lot_lbl_control:'Controls',lot_lbl_reagent_bio:'Reagents Bio',lot_lbl_reagent_imuno:'Reagents IMUNO',lot_lbl_consumable:'Consumables',
+  lot_note_calibrator:'Enter new Lot calibrator values into the Alinity analyzer. When evaluating, confirm that the new values have been reviewed and entered into the analyzer.',
+  lot_note_reagent_bio:'Perform Lot-to-Lot comparison. Test new Lot with QC material.',
+  lot_note_reagent_imuno:'Perform Lot-to-Lot comparison. Test new Lot with QC material.',
+  lot_note_control:'Verify new Lot of QC material.',
+  mode_rfid_title:'RFID mode',mode_rfid_hint:'DataWedge → press scan button → code arrives automatically',
+  mode_qr_title:'QR / DataMatrix mode',mode_qr_hint:'Scan QR or GS1 DataMatrix code',
+  mode_bar_title:'Barcode mode (GS1-128)',mode_bar_hint:'Scan GS1-128 barcode',
+  btn_save:'Save',btn_cancel:'Cancel',btn_edit:'Edit',btn_delete:'Delete',btn_confirm:'Confirm',btn_close:'Close',btn_add:'Add',
+  eval_open:'📋 Evaluate',eval_done:'✓ Evaluated',eval_clear_q:'Clear evaluation?',eval_doc_req:'Please enter document reference!',
+  sp_received:'Received',sp_duplicate:'Duplicate serial',sp_no_gtin:'GTIN not in database',
+  sp_new_lot:'🆕 New lot',sp_lots_summary:'🆕 New lots ({n})',
+  sp_during_1:'1 new lot was detected during receiving',sp_during_n:'{n} new lots were detected during receiving',
+  sess_no_active:'No active session',
+  sess_close_rfid_warn:'{n} recognized items have NOT been accepted into the session.\n\nAccept before closing?',
+  sess_close_rfid_abort:'Session close cancelled — review or clear recognized items',
+  sess_close_confirm:'Close session "{name}"?',
+  lots_total:'Total lots',lots_pending:'Awaiting action',lots_this_month:'This month',
+  lots_new_badge:'🆕 NEW',lots_waits:'awaiting {n}',
+  pkg_ins_open:'Open',pkg_ins_missing:'⚠ missing',
+  sync_upload_ok:'Uploaded to OneDrive ✓',sync_download_ok:'Downloaded and merged ✓',
+  sync_upload_err:'Upload error',sync_download_err:'Download error',sync_signin_req:'Please sign in to OneDrive first'
+},
+hs:{
+  nav_scan:'Sken.',nav_stock:'Zaliha',nav_lots:'Loti',nav_expiry:'Rokovi',nav_more:'Više',
+  type_control:'Kontrola',type_calibrator:'Kalibrator',type_reagent_bio:'Reagens Bio',type_reagent_imuno:'Reagens IMUNO',type_consumable:'Potrošni materijal',
+  lot_lbl_calibrator:'Kalibratori',lot_lbl_control:'Kontrole',lot_lbl_reagent_bio:'Reagensi Bio',lot_lbl_reagent_imuno:'Reagensi IMUNO',lot_lbl_consumable:'Potrošni materijal',
+  lot_note_calibrator:'Unesi vrijednosti novog Lot-a kalibratora u Alinity analizator. Pri vrednovanju potvrdi da su nove vrijednosti pregledane i unesene u analizator.',
+  lot_note_reagent_bio:'Napravi Lot-to-Lot usporedbu. Testiraj novi Lot QC materijalom.',
+  lot_note_reagent_imuno:'Napravi Lot-to-Lot usporedbu. Testiraj novi Lot QC materijalom.',
+  lot_note_control:'Provjeri novi Lot QC materijala.',
+  mode_rfid_title:'RFID mod',mode_rfid_hint:'DataWedge → pritisak tipke sken → kod dolazi automatski',
+  mode_qr_title:'QR / DataMatrix mod',mode_qr_hint:'Skeniraj QR ili GS1 DataMatrix kod',
+  mode_bar_title:'Barcode mod (GS1-128)',mode_bar_hint:'Skeniraj GS1-128 barcode',
+  btn_save:'Spremi',btn_cancel:'Otkaži',btn_edit:'Uredi',btn_delete:'Obriši',btn_confirm:'Potvrdi',btn_close:'Zatvori',btn_add:'Dodaj',
+  eval_open:'📋 Vrednuj',eval_done:'✓ Vrednovano',eval_clear_q:'Obriši vrednovanje?',eval_doc_req:'Unesite referencu dokumenta!',
+  sp_received:'Primljeno',sp_duplicate:'Duplikat serije',sp_no_gtin:'GTIN nije u bazi',
+  sp_new_lot:'🆕 Novi lot',sp_lots_summary:'🆕 Novi loti ({n})',
+  sp_during_1:'Tokom prijema otkriven je 1 novi lot',sp_during_n:'Tokom prijema otkriveno je {n} novih lota',
+  sess_no_active:'Nema aktivne sesije',
+  sess_close_rfid_warn:'{n} prepoznatih artikala NIJE prihvaćeno u sesiju.\n\nPrihvatiti prije zatvaranja?',
+  sess_close_rfid_abort:'Zatvaranje sesije otkazano — pregledaj ili očisti prepoznate',
+  sess_close_confirm:'Zatvoriti sesiju "{name}"?',
+  lots_total:'Ukupno lota',lots_pending:'Čekaju akciju',lots_this_month:'Ovaj mjesec',
+  lots_new_badge:'🆕 NOVO',lots_waits:'čeka {n}',
+  pkg_ins_open:'Otvori',pkg_ins_missing:'⚠ nedostaje',
+  sync_upload_ok:'Učitano na OneDrive ✓',sync_download_ok:'Preuzeto i spojeno ✓',
+  sync_upload_err:'Greška pri učitavanju',sync_download_err:'Greška pri preuzimanju',sync_signin_req:'Najpre se prijavite u OneDrive'
+}};
+function t(key,vars){
+  var lang=(APP_SETTINGS&&APP_SETTINGS.lang)||'sl';
+  var d=I18N[lang]||I18N.sl;
+  var s=d[key]!==undefined?d[key]:(I18N.sl[key]!==undefined?I18N.sl[key]:key);
+  if(vars){Object.keys(vars).forEach(function(k){s=s.replace('{'+k+'}',vars[k]);});}
+  return s;
+}
+function applyLang(){
+  document.querySelectorAll('[data-i18n]').forEach(function(el){el.textContent=t(el.getAttribute('data-i18n'));});
+  document.querySelectorAll('[data-i18n-ph]').forEach(function(el){el.placeholder=t(el.getAttribute('data-i18n-ph'));});
+}
+function onLangChange(){
+  var sel=$i('settLang');if(!sel)return;
+  APP_SETTINGS.lang=sel.value;
+  localStorage.setItem('pregledBK_sett',JSON.stringify(APP_SETTINGS));
+  applyLang();
+}
+
 var nT;
 function notify(msg,t){var el=$i('notif');el.textContent=msg;el.className='notif show'+(t?' '+t:'');clearTimeout(nT);nT=setTimeout(function(){el.classList.remove('show');},3000);}
 
@@ -1374,6 +1482,12 @@ var LOT_TYPE_NOTE={
   'reagent-imuno':'Napravi Lot-to-Lot primerjavo. Testiraj nov Lot s QC materialom.',
   'control':'Preveri nov Lot QC materiala.'
 };
+var _LOT_LBL_KEY={'calibrator':'lot_lbl_calibrator','reagent-bio':'lot_lbl_reagent_bio','reagent-imuno':'lot_lbl_reagent_imuno','control':'lot_lbl_control','consumable':'lot_lbl_consumable'};
+var _LOT_NOTE_KEY={'calibrator':'lot_note_calibrator','reagent-bio':'lot_note_reagent_bio','reagent-imuno':'lot_note_reagent_imuno','control':'lot_note_control'};
+function lotLabel(type){return _LOT_LBL_KEY[type]?t(_LOT_LBL_KEY[type]):(LOT_TYPE_LABEL[type]||type);}
+function lotNote(type){return _LOT_NOTE_KEY[type]?t(_LOT_NOTE_KEY[type]):'';}
+function evalOpenLabel(){return t('eval_open');}
+function evalDoneLabel(){return t('eval_done');}
 function renderLots(){
   if(!DB.lots)DB.lots=[];
   var search=($i('lotsSearch')||{value:''}).value.toLowerCase();
@@ -1395,20 +1509,20 @@ function renderLots(){
   var now=new Date();var m0=new Date(now.getFullYear(),now.getMonth(),1);
   var thisMonth=DB.lots.filter(function(l){return l.firstReceivedAt&&new Date(l.firstReceivedAt)>=m0;}).length;
   var sg=$i('lotsStats');
-  if(sg)sg.innerHTML='<div class="stat-card"><div class="stat-val">'+total+'</div><div class="stat-lbl">Skupaj lotov</div></div>'+
-    '<div class="stat-card" style="'+(pending>0?'border-color:#3b82f6':'')+'">'+'<div class="stat-val" style="'+(pending>0?'color:#3b82f6':'')+'">'+(pending||'0')+'</div><div class="stat-lbl">&#268;akajo akcijo</div></div>'+
-    '<div class="stat-card"><div class="stat-val">'+thisMonth+'</div><div class="stat-lbl">Ta mesec</div></div>';
+  if(sg)sg.innerHTML='<div class="stat-card"><div class="stat-val">'+total+'</div><div class="stat-lbl">'+t('lots_total')+'</div></div>'+
+    '<div class="stat-card" style="'+(pending>0?'border-color:#3b82f6':'')+'">'+'<div class="stat-val" style="'+(pending>0?'color:#3b82f6':'')+'">'+(pending||'0')+'</div><div class="stat-lbl">'+t('lots_pending')+'</div></div>'+
+    '<div class="stat-card"><div class="stat-val">'+thisMonth+'</div><div class="stat-lbl">'+t('lots_this_month')+'</div></div>';
   // Group by type then article
   var h='';
   LOT_TYPE_ORDER.forEach(function(type){
     var typeLots=lots.filter(function(l){return l.type===type;});
     if(typeLots.length===0)return;
     var hasPending=typeLots.some(function(l){return !l.checked;});
-    var label=LOT_TYPE_LABEL[type]||type;
+    var label=lotLabel(type);
     var pendingCount=typeLots.filter(function(l){return !l.checked;}).length;
     h+='<div style="margin-bottom:4px">';
     h+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;padding:6px 0 4px;color:'+(hasPending?'#3b82f6':'var(--text3)')+'">'+
-      (hasPending?'&#128997; ':'&#9989; ')+label+(pendingCount>0?' (&#269;aka '+pendingCount+')':'')+'</div>';
+      (hasPending?'&#128997; ':'&#9989; ')+label+(pendingCount>0?' ('+t('lots_waits',{n:pendingCount})+')':'')+'</div>';
     // Group by article within type
     var articles={};
     typeLots.forEach(function(l){if(!articles[l.gtin])articles[l.gtin]={name:l.name,lots:[]};articles[l.gtin].lots.push(l);});
@@ -1419,7 +1533,7 @@ function renderLots(){
       art.lots.sort(function(a,b){return (b.firstReceivedAt||'').localeCompare(a.firstReceivedAt||'');}).forEach(function(l){
         var qty=qtyMap[l.gtin+'|'+l.lot]||0;
         var bg=l.checked?'':'background:#e8f0ff;border-left:3px solid #3b82f6;';
-        var note=LOT_TYPE_NOTE[l.type]||'';
+        var note=lotNote(l.type);
         var dateStr=l.firstReceivedAt?l.firstReceivedAt.slice(0,10):'-';
         var expStr=l.expiry?fmtExp(l.expiry):'-';
         var needsEval=EVAL_TYPES.indexOf(l.type)>=0;
@@ -1473,7 +1587,7 @@ function openLotEval(gtin,lot){
   _lotEvalKey={gtin:gtin,lot:lot};
   $i('lotEvalName').textContent=l.name;
   $i('lotEvalLot').textContent='Lot: '+l.lot;
-  var note=LOT_TYPE_NOTE[l.type]||'';
+  var note=lotNote(l.type);
   var nb=$i('lotEvalNote');
   if(note){nb.style.display='block';nb.innerHTML='&#9888; '+note;}else nb.style.display='none';
   $i('lotEvalDate').value=l.evalDate||new Date().toISOString().slice(0,10);
@@ -1513,7 +1627,7 @@ function checkNewLot(gtin,lot,name,type,expiry){
   showNewLotModal(name,lot,type);
 }
 function showNewLotModal(name,lot,type){
-  var note=LOT_TYPE_NOTE[type]||'';
+  var note=lotNote(type);
   var h='<div style="text-align:center;margin-bottom:12px">';
   h+='<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">'+name+'</div>';
   h+='<div style="font-family:var(--mono);font-size:11px;color:var(--text3)">Lot: '+lot+'</div>';
@@ -1533,11 +1647,11 @@ function showNewLotsSummary(){
   if(!spNewLots.length)return;
   var byType={};
   spNewLots.forEach(function(nl){if(!byType[nl.type])byType[nl.type]=[];byType[nl.type].push(nl);});
-  var h='<div style="text-align:center;margin-bottom:10px;font-size:13px;font-weight:700;color:var(--text)">Med sprejemom '+(spNewLots.length===1?'je bil zaznan 1 nov lot':'je bilo zaznanih '+spNewLots.length+' novih lotov')+'</div>';
+  var h='<div style="text-align:center;margin-bottom:10px;font-size:13px;font-weight:700;color:var(--text)">'+(spNewLots.length===1?t('sp_during_1'):t('sp_during_n',{n:spNewLots.length}))+'</div>';
   LOT_TYPE_ORDER.forEach(function(type){
     var arr=byType[type];if(!arr)return;
     h+='<div style="margin-bottom:8px">';
-    h+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#3b82f6;margin-bottom:3px">'+(LOT_TYPE_LABEL[type]||type)+'</div>';
+    h+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#3b82f6;margin-bottom:3px">'+lotLabel(type)+'</div>';
     arr.forEach(function(nl){
       h+='<div style="font-size:12px;padding:4px 8px;background:#e8f0ff;border-left:3px solid #3b82f6;border-radius:4px;margin-bottom:3px">'+nl.name+' &mdash; <span style="font-family:var(--mono);font-weight:700">'+nl.lot+'</span></div>';
     });
@@ -1558,9 +1672,9 @@ function resetRfidReader(){
 // ===== SCAN MODE =====
 var scanMode='rfid';
 var modeCfg={
-  rfid:{icon:'&#128225;',title:'RFID mod',hint:'DataWedge -> pritisk scan gumba -> koda pride avtomatsko',cls:''},
-  qr:{icon:'&#9638;',title:'QR / DataMatrix mod',hint:'Skenirajte QR ali GS1 DataMatrix kodo',cls:'qr-a'},
-  barcode:{icon:'&#9612;&#9612;',title:'Barcode mod (GS1-128)',hint:'Skenirajte GS1-128 barcode',cls:'bar-a'}
+  rfid:{icon:'&#128225;',titleKey:'mode_rfid_title',hintKey:'mode_rfid_hint',cls:''},
+  qr:{icon:'&#9638;',titleKey:'mode_qr_title',hintKey:'mode_qr_hint',cls:'qr-a'},
+  barcode:{icon:'&#9612;&#9612;',titleKey:'mode_bar_title',hintKey:'mode_bar_hint',cls:'bar-a'}
 };
 function setMode(m){
   scanMode=m;
@@ -1569,8 +1683,8 @@ function setMode(m){
   var z=$i('scanZone');
   if(z){z.style.display=isQr?'block':'none';if(isQr)z.className='scan-zone '+c.cls;}
   var ico=$i('szIcon');if(ico)ico.innerHTML=c.icon;
-  var ttl=$i('szTitle');if(ttl)ttl.textContent=c.title;
-  $i('szHint').textContent=c.hint;
+  var ttl=$i('szTitle');if(ttl)ttl.textContent=t(c.titleKey);
+  $i('szHint').textContent=t(c.hintKey);
   ['rfid','qr','bar'].forEach(function(x){
     var b=$i('mbt-'+x);
     if(!b)return;
@@ -1705,7 +1819,7 @@ function initInfoPanel(){
 }
 
 // ===== NASTAVITVE =====
-var APP_SETTINGS={serialSprejem:false,sprejemPower:6.0,multiRfidPower:30.0,darkMode:false,sprejemRssiMin:-70,sprejemRssiGap:10};
+var APP_SETTINGS={serialSprejem:false,sprejemPower:6.0,multiRfidPower:30.0,darkMode:false,sprejemRssiMin:-70,sprejemRssiGap:10,lang:'sl'};
 function applyDarkMode(on){
   if(on){document.body.classList.add('dark');}
   else{document.body.classList.remove('dark');}
@@ -1720,7 +1834,10 @@ function loadSettings(){
   if(typeof APP_SETTINGS.sprejemRssiGap!=='number')APP_SETTINGS.sprejemRssiGap=10;
   var rm=$i('settRssiMin');if(rm)rm.value=APP_SETTINGS.sprejemRssiMin;
   var rg=$i('settRssiGap');if(rg)rg.value=APP_SETTINGS.sprejemRssiGap;
+  if(!APP_SETTINGS.lang)APP_SETTINGS.lang='sl';
+  var lg=$i('settLang');if(lg)lg.value=APP_SETTINGS.lang;
   applyDarkMode(!!APP_SETTINGS.darkMode);
+  applyLang();
 }
 function onSettRssiChange(){
   var v=parseInt($i('settRssiMin').value,10);
@@ -2287,7 +2404,7 @@ function processRawScan(raw,rssi){
 function acceptScan(sess,raw,p,gr,fromRfid){
   // Pregled BK: če ima seja omejen nabor tipov, zavrni artikle izven obsega
   if(sess.typeScope&&sess.typeScope.length&&gr&&gr.type&&sess.typeScope.indexOf(gr.type)<0){
-    var lbl=LOT_TYPE_LABEL[gr.type]||gr.type;
+    var lbl=lotLabel(gr.type);
     sess.rejected=(sess.rejected||0)+1;saveDB();updateBanner();
     showFb('Izven obsega pregleda: '+gr.name+' ('+lbl+')','warn');flash('warn');return;
   }
@@ -2355,7 +2472,7 @@ function quickStartPregled(mode){
   setMode(mode);
   saveDB();closeMo('moPregled');updateBanner();
   $i('noSess').style.display='none';$i('scanPanel').style.display='block';
-  var lbls=scope.map(function(t){return LOT_TYPE_LABEL[t]||t;}).join(', ');
+  var lbls=scope.map(lotLabel).join(', ');
   notify('Pregled BK začet — obseg: '+lbls,'ok');
   setTimeout(focusScan,300);
 }
@@ -2389,14 +2506,14 @@ function closeSession(){
   if(!sess){notify('Ni aktivne seje','warn');return;}
   // Prepoznani, a še nesprejeti EPCji — opozori pred zaključkom
   if(rfidStaging.recognized.length>0){
-    if(confirm(rfidStaging.recognized.length+' prepoznanih artiklov še NI sprejetih v sejo.\n\nJih sprejmem pred zaključkom?')){
+    if(confirm(t('sess_close_rfid_warn',{n:rfidStaging.recognized.length}))){
       acceptAllStaged();
     } else {
-      notify('Zaključevanje prekinjeno — preglej ali počisti prepoznane','warn');
+      notify(t('sess_close_rfid_abort'),'warn');
       return;
     }
   }
-  if(!confirm('Zaključiti sejo "'+sess.name+'"?'))return;
+  if(!confirm(t('sess_close_confirm',{name:sess.name})))return;
   var sessItems=sess.items.filter(function(i){return i.valid;});
   var prevInv=DB.inventory.slice();
   var prevUsed=DB.lastUsed||[];
@@ -2520,7 +2637,7 @@ function updateBanner(){
   var ml={rfid:'RFID',qr:'QR/DataMatrix',barcode:'Barcode',combined:'Kombinirano'};
   var modeTxt=(ml[sess.mode]||sess.mode);
   if(sess.typeScope&&sess.typeScope.length){
-    modeTxt='🔍 Pregled BK ['+sess.typeScope.map(function(t){return LOT_TYPE_LABEL[t]||t;}).join(', ')+'] · '+modeTxt;
+    modeTxt='🔍 Pregled BK ['+sess.typeScope.map(lotLabel).join(', ')+'] · '+modeTxt;
   }
   $i('sessModeLbl').textContent=modeTxt+' | '+new Date(sess.started).toLocaleString('sl-SI');
   $i('scanCnt').textContent=sess.scanned||0;
@@ -2794,7 +2911,7 @@ function renderPkgIns(){
   LOT_TYPE_ORDER.forEach(function(type){
     var tItems=items.filter(function(g){return g.type===type;});
     if(!tItems.length)return;
-    h+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text3);padding:6px 0 3px">'+(LOT_TYPE_LABEL[type]||type)+'</div>';
+    h+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text3);padding:6px 0 3px">'+lotLabel(type)+'</div>';
     tItems.forEach(function(g){
       var ri=DB.gtins.indexOf(g);
       var has=!!(g.piUrl&&g.piUrl.trim());
