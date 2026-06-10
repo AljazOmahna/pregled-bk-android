@@ -29,6 +29,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
         void onTagRead(String epc, int rssi);
         void onStatus(String msg);
         void onTriggerEvent(boolean pressed);
+        void onLocateUpdate(String epc, int proximity);
     }
 
     private final Context context;
@@ -37,6 +38,9 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
     private RFIDReader reader;
     private volatile boolean scanArmed = false;
     private boolean listenerRegistered = false;
+    // Locate Tag (iskanje določene RFID oznake) — aktivno samo med pritiskom triggerja
+    private volatile boolean locateMode = false;
+    private volatile String locateEpc = null;
 
     RFIDHandler(Context context, Callback callback) {
         this.context = context.getApplicationContext();
@@ -115,6 +119,16 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                         TagData[] tags = reader.Actions.getReadTags(100);
                         if (tags == null) return;
                         for (TagData tag : tags) {
+                            if (locateMode) {
+                                // Locate Tag: beremo le relativno bližino (0–100) izbrane oznake
+                                try {
+                                    if (tag.isContainsLocationInfo() && tag.LocationInfo != null) {
+                                        int dist = tag.LocationInfo.getRelativeDistance();
+                                        callback.onLocateUpdate(locateEpc, dist);
+                                    }
+                                } catch (Throwable ignore) {}
+                                continue;
+                            }
                             String epc = tag.getTagID();
                             int rssi = 0;
                             try { rssi = tag.getPeakRSSI(); } catch (Throwable ignore) {}
@@ -134,12 +148,20 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                             boolean pressed = (triggerEvent == HANDHELD_TRIGGER_EVENT_TYPE.HANDHELD_TRIGGER_PRESSED);
                             if (pressed && scanArmed) {
                                 new Thread(() -> {
-                                    try { if (reader != null) reader.Actions.Inventory.perform(); }
+                                    try {
+                                        if (reader == null) return;
+                                        if (locateMode && locateEpc != null) reader.Actions.TagLocationing.Perform(locateEpc, null, null);
+                                        else reader.Actions.Inventory.perform();
+                                    }
                                     catch (Exception e) { Log.e(TAG, "trigger perform: " + e.getMessage()); }
                                 }).start();
                             } else if (!pressed && scanArmed) {
                                 new Thread(() -> {
-                                    try { if (reader != null) reader.Actions.Inventory.stop(); }
+                                    try {
+                                        if (reader == null) return;
+                                        if (locateMode) reader.Actions.TagLocationing.Stop();
+                                        else reader.Actions.Inventory.stop();
+                                    }
                                     catch (Exception e) { Log.e(TAG, "trigger stop: " + e.getMessage()); }
                                 }).start();
                             }
@@ -194,6 +216,62 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                 callback.onStatus("Povezan: RFD2000");
             } catch (Exception e) {
                 Log.e(TAG, "startRfidInventory: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    // Locate Tag — kot startRfidInventory, a vklopi locateMode za izbrani EPC (visoka moč za doseg)
+    void startLocateTag(String epc, int targetCBm) {
+        new Thread(() -> {
+            try {
+                if (reader == null) {
+                    Log.w(TAG, "startLocateTag: reader null, poskušam reconnect");
+                    if (readers != null) {
+                        ArrayList<ReaderDevice> list = readers.GetAvailableRFIDReaderList();
+                        if (list != null && !list.isEmpty()) connectReader(list.get(0));
+                    }
+                    Thread.sleep(3000);
+                    if (reader == null) { Log.e(TAG, "startLocateTag: še vedno ni bralnika"); callback.onStatus(null); return; }
+                }
+                reader.Config.setTriggerMode(ENUM_TRIGGER_MODE.RFID_MODE, true);
+                disableDataWedgeScanner();
+                int[] levels = reader.ReaderCapabilities.getTransmitPowerLevelValues();
+                if (levels != null && levels.length > 0) {
+                    int bestIdx = 0, bestDiff = Math.abs(levels[0] - targetCBm);
+                    for (int i = 1; i < levels.length; i++) {
+                        int diff = Math.abs(levels[i] - targetCBm);
+                        if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+                    }
+                    var cfg = reader.Config.Antennas.getAntennaRfConfig(1);
+                    cfg.setTransmitPowerIndex(bestIdx);
+                    reader.Config.Antennas.setAntennaRfConfig(1, cfg);
+                    Log.d(TAG, "Locate power: " + levels[bestIdx] + " cBm idx=" + bestIdx);
+                }
+                locateEpc = epc;
+                locateMode = true;
+                scanArmed = true;
+                Log.d(TAG, "Locate armed za EPC=" + epc + " — čakam trigger");
+                callback.onStatus("Povezan: RFD2000");
+            } catch (Exception e) {
+                Log.e(TAG, "startLocateTag: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    void stopLocateTag() {
+        scanArmed = false;
+        locateMode = false;
+        new Thread(() -> {
+            try {
+                if (reader != null) {
+                    try { reader.Actions.TagLocationing.Stop(); } catch (Exception ignore) {}
+                    reader.Config.setTriggerMode(ENUM_TRIGGER_MODE.RFID_MODE, false);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "stopLocateTag: " + e.getMessage());
+            } finally {
+                locateEpc = null;
+                enableDataWedgeScanner();
             }
         }).start();
     }

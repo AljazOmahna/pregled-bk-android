@@ -155,6 +155,16 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         );
     }
 
+    // Locate Tag — relativna bližina (0–100) izbrane RFID oznake
+    @Override
+    public void onLocateUpdate(String epc, int proximity) {
+        final String safe = (epc == null ? "" : epc.replaceAll("['\\\\\r\n]", ""));
+        final int p = proximity;
+        mainHandler.post(() ->
+            webView.evaluateJavascript("if(typeof onLocateUpdate==='function')onLocateUpdate('" + safe + "'," + p + ")", null)
+        );
+    }
+
     // Called from RFIDHandler for status updates
     @Override
     public void onStatus(String msg) {
@@ -321,6 +331,16 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         @JavascriptInterface
         public void startRfidWithPower(int cBm) {
             if (rfidHandler != null) rfidHandler.startRfidInventory(cBm);
+        }
+
+        @JavascriptInterface
+        public void startLocateTag(String epc) {
+            if (rfidHandler != null) rfidHandler.startLocateTag(epc, 3000);
+        }
+
+        @JavascriptInterface
+        public void stopLocateTag() {
+            if (rfidHandler != null) rfidHandler.stopLocateTag();
         }
 
         @JavascriptInterface

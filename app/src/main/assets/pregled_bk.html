@@ -230,6 +230,10 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
 .unit-sn{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text2)}
 /* EPC vedno viden, zamaknjen pod pripadajočo SN */
 .epc-line{display:block;font-family:var(--mono);font-size:10px;color:var(--text3);padding-left:20px;word-break:break-all;margin-top:2px}
+/* === LOCATE TAG meter === */
+.locate-meter{position:relative;height:54px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin:14px 0}
+.locate-fill{position:absolute;left:0;top:0;bottom:0;width:0%;background:linear-gradient(90deg,#c02020,#b07800,#84BD00);transition:width .18s ease-out}
+.locate-pct{position:absolute;top:0;left:0;right:0;bottom:0;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;font-family:var(--mono);font-size:24px;font-weight:700;color:var(--text);text-shadow:0 1px 3px rgba(255,255,255,.6)}
 </style>
 </head>
 <body>
@@ -446,7 +450,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
   </div>
   <div class="tbl-wrap">
     <table>
-      <thead><tr><th>Artikel</th><th>Lot</th><th>Rok izteka</th><th>Dni</th><th>Kos</th><th>Status</th></tr></thead>
+      <thead><tr><th>Artikel</th><th>Lot</th><th>Rok izteka</th><th>Dni</th><th>Kos</th><th>Status</th><th></th></tr></thead>
       <tbody id="expBody"></tbody>
     </table>
   </div>
@@ -820,6 +824,27 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
   </div>
 </div>
 
+<div class="mo" id="moLocateList">
+  <div class="modal">
+    <div class="mh"><h3>&#128225; <span data-i18n="locate_title">Lociraj oznako</span></h3><button class="mc" onclick="closeMo('moLocateList')">&#10005;</button></div>
+    <div class="mb" id="locateListBody"></div>
+    <div class="mf"><button class="btn btn-g" onclick="closeMo('moLocateList')" data-i18n="btn_close">Zapri</button></div>
+  </div>
+</div>
+
+<div class="mo" id="moLocate">
+  <div class="modal">
+    <div class="mh"><h3>&#128225; <span data-i18n="locate_title">Lociraj oznako</span></h3><button class="mc" onclick="closeLocate()">&#10005;</button></div>
+    <div class="mb">
+      <div id="locateHdr" style="padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:10px"></div>
+      <div id="locateStatus" style="font-size:12px;font-weight:600;color:var(--text2);text-align:center"></div>
+      <div class="locate-meter"><div class="locate-fill" id="locateFill"></div><div class="locate-pct" id="locatePct">0%</div></div>
+      <div id="locateHint" style="text-align:center;font-size:11px;color:var(--text3)"></div>
+    </div>
+    <div class="mf"><button class="btn btn-d" onclick="closeLocate()" style="width:100%;-webkit-justify-content:center;justify-content:center"><span data-i18n="locate_close">&#10003; Zaklju&#269;i iskanje</span></button></div>
+  </div>
+</div>
+
 <div class="mo" id="moAlerts">
   <div class="modal">
     <div class="mh"><h3>&#9888;&#65039; Opozorila o zalogah</h3><button class="mc" onclick="closeMo('moAlerts')">&#10005;</button></div>
@@ -1062,7 +1087,9 @@ sl:{
   lots_new_badge:'🆕 NOV',lots_waits:'čaka {n}',
   pkg_ins_open:'Odpri',pkg_ins_missing:'⚠ manjka',
   sync_upload_ok:'Naloženo v OneDrive ✓',sync_download_ok:'Preneseno in združeno ✓',
-  sync_upload_err:'Napaka pri nalaganju',sync_download_err:'Napaka pri prenosu',sync_signin_req:'Najprej se prijavite v OneDrive'
+  sync_upload_err:'Napaka pri nalaganju',sync_download_err:'Napaka pri prenosu',sync_signin_req:'Najprej se prijavite v OneDrive',
+  locate_title:'Lociraj oznako',locate_close:'✓ Zaključi iskanje',locate_connecting:'Povezujem RFD2000…',locate_connected:'RFD2000 povezan',
+  locate_hold:'Pritisni in drži trigger za iskanje',locate_searching:'Iščem oznako…',locate_veryclose:'🔥 Zelo blizu!',locate_closer:'Približuješ se…',locate_move:'Premikaj čitalec…'
 },
 en:{
   nav_scan:'Scan',nav_stock:'Stock',nav_lots:'Lots',nav_expiry:'Expiry',nav_more:'More',
@@ -1088,7 +1115,9 @@ en:{
   lots_new_badge:'🆕 NEW',lots_waits:'awaiting {n}',
   pkg_ins_open:'Open',pkg_ins_missing:'⚠ missing',
   sync_upload_ok:'Uploaded to OneDrive ✓',sync_download_ok:'Downloaded and merged ✓',
-  sync_upload_err:'Upload error',sync_download_err:'Download error',sync_signin_req:'Please sign in to OneDrive first'
+  sync_upload_err:'Upload error',sync_download_err:'Download error',sync_signin_req:'Please sign in to OneDrive first',
+  locate_title:'Locate tag',locate_close:'✓ Finish search',locate_connecting:'Connecting RFD2000…',locate_connected:'RFD2000 connected',
+  locate_hold:'Press and hold trigger to search',locate_searching:'Searching…',locate_veryclose:'🔥 Very close!',locate_closer:'Getting closer…',locate_move:'Move the reader…'
 },
 hs:{
   nav_scan:'Sken.',nav_stock:'Zaliha',nav_lots:'Loti',nav_expiry:'Rokovi',nav_more:'Više',
@@ -1114,7 +1143,9 @@ hs:{
   lots_new_badge:'🆕 NOVO',lots_waits:'čeka {n}',
   pkg_ins_open:'Otvori',pkg_ins_missing:'⚠ nedostaje',
   sync_upload_ok:'Učitano na OneDrive ✓',sync_download_ok:'Preuzeto i spojeno ✓',
-  sync_upload_err:'Greška pri učitavanju',sync_download_err:'Greška pri preuzimanju',sync_signin_req:'Najpre se prijavite u OneDrive'
+  sync_upload_err:'Greška pri učitavanju',sync_download_err:'Greška pri preuzimanju',sync_signin_req:'Najpre se prijavite u OneDrive',
+  locate_title:'Lociraj oznaku',locate_close:'✓ Završi traženje',locate_connecting:'Povezujem RFD2000…',locate_connected:'RFD2000 povezan',
+  locate_hold:'Pritisni i drži okidač za traženje',locate_searching:'Tražim oznaku…',locate_veryclose:'🔥 Vrlo blizu!',locate_closer:'Približavaš se…',locate_move:'Pomiči čitač…'
 }};
 function t(key,vars){
   var lang=(APP_SETTINGS&&APP_SETTINGS.lang)||'sl';
@@ -1784,9 +1815,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:94,
+  build:95,
   date:'2026-06-10',
   history:[
+    {build:95,date:'2026-06-10',notes:'Locate Tag (kot 123RFID): v zavihku Roki gumb 📡 odpre seznam SN/EPC; 🏷️ ob EPC odpre lociranje. RFD2000 meri bližino (0–100%) samo med držanjem triggerja; ob spustu meritev miruje. Gumb "Zaključi iskanje" deaktivira čitalec.'},
     {build:94,date:'2026-06-10',notes:'EPC je v podrobnostih artikla zdaj VEDNO viden (zamaknjen pod SN), tudi na ozkem zaslonu. EPC se po zaključku seje NE briše več — ostane shranjen v zalogi (potrebno za Locate Tag). Začetna stran: "+ Začni pregled BK" (rumeno), "Sprejmi material" (sinje modro); gumbi za preklic seje so zdaj "Prekliči" in rdeči.'},
     {build:93,date:'2026-06-10',notes:'Podrobnosti artikla: SN in EPC prikazana v parih (EPC zamaknjen pod pripadajočo SN, prazna vrstica med pari). EPC se zabeleži ob sprejemu in se po zaključku seje izbriše iz zaloge (SN ostane). EPC viden le na dovolj širokem zaslonu.'},
     {build:92,date:'2026-06-10',notes:'Večjezičnost: SL / EN / Hrvatski-Srpski (izbira v Več → Nastavitve). Prevedena navigacija, naslovi, obvestila, oznake lotov in načini skeniranja.'},
@@ -2120,6 +2152,12 @@ function spStopRfid(){
   if(st)st.textContent='Kliknite gumb nato pritisnite trigger na RFD2000';
 }
 function onRfidTriggerEvent(pressed){
+  if(_locateActive){
+    var lh=$i('locateHint');
+    if(pressed){if(lh)lh.textContent=t('locate_searching');}
+    else{if(lh)lh.textContent=t('locate_hold');setLocatePct(0);}
+    return;
+  }
   var btn=$i('spRfidScanBtn');
   var st=$i('spRfidStatus');
   var mBtn=$i('multiRfidBtn');
@@ -2887,17 +2925,85 @@ function renderExpiry(tab){
   else if(tab==='28')items=items.filter(function(i){var d=daysLeft(i.expiry);return d>14&&d<=28;});
   items.sort(function(a,b){return daysLeft(a.expiry)-daysLeft(b.expiry);});
   var tbody=$i('expBody');
-  if(!items.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Ni artiklov.</td></tr>';return;}
+  if(!items.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">Ni artiklov.</td></tr>';return;}
   tbody.innerHTML=items.map(function(it){
     var d=daysLeft(it.expiry);var rc=rowCls(it.expiry);
+    var hasEpc=itemUnits(it).some(function(u){return u.epc;});
+    var locBtn=hasEpc?'<button class="btn btn-a btn-sm" onclick="openLocateList(\''+it.gtin+'\',\''+(it.lot||'')+'\')" title="Lociraj oznako" style="padding:4px 7px;min-height:30px">&#128225;</button>':'';
     return '<tr class="'+rc+'">'+
       '<td><div style="font-weight:600;font-size:11px">'+it.name+'</div></td>'+
       '<td class="lot-n">'+(it.lot||'-')+'</td>'+
       '<td style="font-size:10px;white-space:nowrap">'+fmtExp(it.expiry)+'</td>'+
       '<td style="font-family:var(--mono);font-size:11px;color:'+(d<0?'var(--red)':d<=14?'var(--orange)':'var(--yellow)')+'">'+(d<0?Math.abs(d)+'d naz':d+'d')+'</td>'+
       '<td style="font-family:var(--mono)">'+it.qty+'</td>'+
-      '<td>'+expBadge(it.expiry)+'</td></tr>';
+      '<td>'+expBadge(it.expiry)+'</td>'+
+      '<td style="white-space:nowrap">'+locBtn+'</td></tr>';
   }).join('');
+}
+
+// ===== LOCATE TAG (RFD2000) =====
+var _locateEpc=null,_locateActive=false;
+function openLocateList(gtin,lot){
+  var it=DB.inventory.filter(function(i){return i.gtin===gtin&&(i.lot||'')===lot;})[0];
+  if(!it){notify('Artikel ni najden','warn');return;}
+  var units=itemUnits(it);
+  var h='<div style="font-size:13px;font-weight:700">'+escHtml(it.name||gtin)+'</div>'+
+    '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Lot: '+escHtml(it.lot||'-')+'</div>';
+  var withEpc=units.filter(function(u){return u.epc;});
+  if(!withEpc.length){
+    h+='<div style="font-size:12px;color:var(--text3);padding:12px;text-align:center;background:var(--bg3);border-radius:8px">Ta artikel nima shranjenih EPC oznak &#8212; lociranje ni mogo&#269;e.</div>';
+  } else {
+    h+='<div class="tbl-wrap"><table><thead><tr><th>SN</th><th>EPC</th><th></th></tr></thead><tbody>';
+    units.forEach(function(u){
+      var sn=u.sn?escHtml(u.sn):'&mdash;';
+      if(u.epc){
+        h+='<tr><td class="lot-n">'+sn+'</td>'+
+          '<td style="font-family:var(--mono);font-size:9px;word-break:break-all">'+escHtml(u.epc)+'</td>'+
+          '<td><button class="btn btn-a btn-sm" onclick="openLocate(\''+escHtml(u.epc)+'\',\''+escHtml(it.gtin)+'\',\''+escHtml(it.lot||'')+'\',\''+escHtml(u.sn||'')+'\')" style="padding:4px 8px;min-height:30px">&#127991;&#65039;</button></td></tr>';
+      } else {
+        h+='<tr><td class="lot-n">'+sn+'</td><td style="font-size:9px;color:var(--text3)">ni EPC</td><td></td></tr>';
+      }
+    });
+    h+='</tbody></table></div>';
+  }
+  $i('locateListBody').innerHTML=h;
+  showMo('moLocateList');
+}
+function setLocatePct(p){
+  p=Math.max(0,Math.min(100,p|0));
+  var f=$i('locateFill');if(f)f.style.width=p+'%';
+  var t=$i('locatePct');if(t)t.textContent=p+'%';
+}
+function openLocate(epc,gtin,lot,sn){
+  _locateEpc=epc;_locateActive=true;
+  var it=DB.inventory.filter(function(i){return i.gtin===gtin&&(i.lot||'')===lot;})[0];
+  var nm=it?it.name:'';
+  if(!nm){var g=DB.gtins.filter(function(x){return x.gtin===gtin;})[0];nm=g?g.name:gtin;}
+  $i('locateHdr').innerHTML=
+    '<div style="font-size:14px;font-weight:700">'+escHtml(nm)+'</div>'+
+    '<div style="font-size:11px;color:var(--text2);margin-top:2px">Lot: <b>'+escHtml(lot||'-')+'</b> &#183; SN: <b>'+(sn?escHtml(sn):'&mdash;')+'</b></div>'+
+    '<div style="font-family:var(--mono);font-size:9px;color:var(--text3);word-break:break-all;margin-top:2px">EPC: '+escHtml(epc)+'</div>';
+  setLocatePct(0);
+  $i('locateStatus').textContent='&#128225; '+t('locate_connecting');
+  $i('locateHint').textContent=t('locate_hold');
+  closeMo('moLocateList');
+  showMo('moLocate');
+  try{if(window.AndroidBridge&&AndroidBridge.startLocateTag)AndroidBridge.startLocateTag(epc);}catch(e){}
+  setTimeout(function(){
+    try{if(window.AndroidBridge&&AndroidBridge.isRfidConnected&&AndroidBridge.isRfidConnected())$i('locateStatus').textContent='&#128225; '+t('locate_connected');}catch(e){}
+  },800);
+}
+function onLocateUpdate(epc,proximity){
+  if(!_locateActive)return;
+  if(_locateEpc&&epc&&epc.toUpperCase()!==_locateEpc.toUpperCase())return;
+  setLocatePct(proximity);
+  var lh=$i('locateHint');
+  if(lh)lh.textContent=proximity>=80?t('locate_veryclose'):proximity>=40?t('locate_closer'):t('locate_move');
+}
+function closeLocate(){
+  _locateActive=false;_locateEpc=null;
+  try{if(window.AndroidBridge&&AndroidBridge.stopLocateTag)AndroidBridge.stopLocateTag();}catch(e){}
+  closeMo('moLocate');
 }
 
 // ===== GTINS =====
