@@ -391,7 +391,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
   <div class="sec-hdr" style="margin-top:16px">
     <div class="sec-title">&#128230; Prejeto</div>
     <div style="display:-webkit-flex;display:flex;gap:6px">
-      <button class="btn btn-d btn-sm" onclick="clearAllReceived()">&#128465; Počisti vse</button>
+      <button class="btn btn-d btn-sm" onclick="clearAllReceived()">&#128465; Reset (test)</button>
       <button class="btn btn-a btn-sm" onclick="openSprejem()">+ Sprejmi</button>
     </div>
   </div>
@@ -1505,9 +1505,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:87,
+  build:88,
   date:'2026-06-10',
   history:[
+    {build:88,date:'2026-06-10',notes:'Gumb "Reset (test)" v zavihku Prejeto zdaj izbriše VSE testne podatke: prejeto, zalogo, seje in lote (GTIN katalog ostane). Začasno orodje za lažje testiranje.'},
     {build:87,date:'2026-06-10',notes:'Testi v zavihku Več (RFID test moči) se samodejno ustavijo ob zapustitvi zavihka — sprosti čitalec in ponovno vklopi DataWedge barcode skener. Odpravljena tudi JS napaka ob zagonu (onRfidStatus timing).'},
     {build:86,date:'2026-06-10',notes:'Popravek: številčna črtna koda (npr. (10)lot(21)serial) se ne obravnava več kot RFID/EPC. RFID skener se vključi ŠELE ko so prebrani vsi podatki (GTIN+Lot+Rok+Serial); do takrat je vsak scan črtna koda. Šele nato RFD prebere najmočnejši EPC po RSSI pravilu.'},
     {build:85,date:'2026-06-10',notes:'RFID sprejem: vrnjena RSSI dominance izbira (gap=10 dBm) za single in serijski sprejem. Če RSSI ni znan → vzame prvi EPC. Če sta 2+ oznaki in razlika <10 dBm → obvestilo "skenirajte bolj daleč stran od ostalih oznak".'},
@@ -1928,11 +1929,32 @@ function deleteReceived(id){
   if(r){r.status='removed';saveDB();renderReceived();notify('Odstranjeno','ok');}
 }
 function clearAllReceived(){
-  var active=(DB.received||[]).filter(function(r){return r.status==='active';});
-  if(!active.length){notify('Ni prejetih artiklov','warn');return;}
-  if(!confirm('Izbrisati VSE prejete artikle ('+active.length+')?\nTo ne vpliva na zalogo.'))return;
-  active.forEach(function(r){r.status='removed';});
-  saveDB();renderReceived();notify('Počiščeno: '+active.length+' prejetih','ok');
+  // TESTNI RESET: izbriše prejeto, zalogo, seje in lote. GTIN katalog OSTANE.
+  var nRec=(DB.received||[]).length;
+  var nInv=(DB.inventory||[]).length;
+  var nSes=(DB.sessions||[]).length;
+  var nLot=(DB.lots||[]).length;
+  if(nRec+nInv+nSes+nLot===0){notify('Ni podatkov za brisanje','warn');return;}
+  if(!confirm('TESTNI RESET — izbriše VSE:\n'+
+    '• Prejeto: '+nRec+'\n'+
+    '• Zaloga: '+nInv+'\n'+
+    '• Seje: '+nSes+'\n'+
+    '• Loti: '+nLot+'\n\n'+
+    'GTIN katalog ostane. Nadaljujem?'))return;
+  DB.received=[];
+  DB.inventory=[];
+  DB.sessions=[];
+  DB.lots=[];
+  DB.activeSessionId=null;
+  saveDB();
+  try{renderReceived();}catch(e){}
+  try{renderInventory();}catch(e){}
+  try{renderLots();}catch(e){}
+  try{renderSessions();}catch(e){}
+  try{updateStats();}catch(e){}
+  try{updateBanner();}catch(e){}
+  try{renderOverview();}catch(e){}
+  notify('Testni reset opravljen — GTIN katalog ohranjen','ok');
 }
 
 // ===== SCAN PROCESSING =====
