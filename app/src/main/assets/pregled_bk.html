@@ -1492,9 +1492,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:85,
+  build:86,
   date:'2026-06-10',
   history:[
+    {build:86,date:'2026-06-10',notes:'Popravek: številčna črtna koda (npr. (10)lot(21)serial) se ne obravnava več kot RFID/EPC. RFID skener se vključi ŠELE ko so prebrani vsi podatki (GTIN+Lot+Rok+Serial); do takrat je vsak scan črtna koda. Šele nato RFD prebere najmočnejši EPC po RSSI pravilu.'},
     {build:85,date:'2026-06-10',notes:'RFID sprejem: vrnjena RSSI dominance izbira (gap=10 dBm) za single in serijski sprejem. Če RSSI ni znan → vzame prvi EPC. Če sta 2+ oznaki in razlika <10 dBm → obvestilo "skenirajte bolj daleč stran od ostalih oznak".'},
     {build:84,date:'2026-06-10',notes:'DataWedge: zamenjava Keystroke→Intent output (zanesljivo za WebView). App ob zagonu sam nastavi DataWedge profil (Intent broadcast si.kclj.pregledbk.SCAN). Odpravlja težavo brez inputa pri skeniranju DataMatrix/barcode.'},
     {build:83,date:'2026-06-10',notes:'Prikaži polno dolžino EPC v testu moči RFID (prej okrajšano na 16 znakov).'},
@@ -1590,9 +1591,10 @@ var sprejemData=null;
 var sprejemEpc=null;
 var spBarTmr=null;
 var _spEpcCands={}; // epc -> najmočnejši RSSI med trenutnim pritiskom triggerja
+var _spRfidArmed=false; // RFID skener aktiven? EPC se sprejme SAMO ko je true (podatki popolni)
 
 function openSprejem(){
-  sprejemActive=true; sprejemStep=1; sprejemData=null; sprejemEpc=null; _spEpcCands={};
+  sprejemActive=true; sprejemStep=1; sprejemData=null; sprejemEpc=null; _spEpcCands={}; _spRfidArmed=false;
   $i('spBarcodeInp').value='';
   $i('spItemInfo').style.display='none';
   $i('spStep2').style.display='none';
@@ -1606,7 +1608,7 @@ function openSprejem(){
 function spReset(){
   if(_spAutoConfirmTimer){clearTimeout(_spAutoConfirmTimer);_spAutoConfirmTimer=null;}
   spStopRfid();
-  sprejemStep=1;sprejemData=null;sprejemEpc=null;_spEpcCands={};
+  sprejemStep=1;sprejemData=null;sprejemEpc=null;_spEpcCands={};_spRfidArmed=false;
   $i('spBarcodeInp').value='';
   $i('spItemInfo').style.display='none';
   $i('spStep2').style.display='none';
@@ -1790,6 +1792,7 @@ function spStartRfid(){
   }
   try{
     _spEpcCands={};
+    _spRfidArmed=true;
     AndroidBridge.startRfidSprejemScan();
     setStatusRfid(true);setStatusBc(false);
     var btn=$i('spRfidScanBtn');
@@ -1800,6 +1803,7 @@ function spStartRfid(){
   }catch(e){notify('Napaka RFID: '+e,'err');}
 }
 function spStopRfid(){
+  _spRfidArmed=false;
   if(typeof AndroidBridge!=='undefined'){try{AndroidBridge.stopRfidScan();}catch(e){}}
   setStatusRfid(false);setStatusBc(true);
   var btn=$i('spRfidScanBtn');
@@ -1940,8 +1944,13 @@ function processRawScan(raw,rssi){
   // Sprejem mode: intercept scans for sprejem flow
   if(sprejemActive){
     var rawUp=raw.trim().toUpperCase();
-    // EPC (samo hex, ≥8 znakov) → zbiraj kandidate med pritiskom, oceni ob spustu
-    if(/^[0-9A-F]{8,}$/.test(rawUp)){spAddEpcCandidate(rawUp,rssi);return;}
+    // RFID EPC se sprejme SAMO ko je skener aktiviran — kar se zgodi šele
+    // po popolnih podatkih (GTIN+Lot+Rok+Serial), glej spStartRfid()/spCanScanRfid().
+    if(_spRfidArmed){
+      if(/^[0-9A-F]{8,}$/.test(rawUp)){spAddEpcCandidate(rawUp,rssi);}
+      return; // med aktivnim RFID ničesar ne obravnavaj kot črtno kodo
+    }
+    // RFID NI aktiven → vsak scan je črtna koda (GTIN/Lot/Rok/Serial), nikoli EPC
     $i('spBarcodeInp').value=raw;
     spProcessBarcode(raw.trim());
     return;
