@@ -92,7 +92,7 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
                 // Posreduj JS — ista pot kot RFID, GS1 separatorji (0x1D) ostanejo za parser
                 final String safe = data.replaceAll("['\\\\]", "").replaceAll("[\\r\\n]", "");
                 mainHandler.post(() ->
-                    webView.evaluateJavascript("processRawScan(" + JSONObject.quote(safe) + ",0)", null)
+                    webView.evaluateJavascript("if(typeof processRawScan==='function')processRawScan(" + JSONObject.quote(safe) + ",0)", null)
                 );
             }
         };
@@ -144,14 +144,14 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         final int r = rssi;
         Log.d(TAG, "EPC: " + limited + " rssi=" + r);
         mainHandler.post(() ->
-            webView.evaluateJavascript("processRawScan('" + limited + "'," + r + ")", null)
+            webView.evaluateJavascript("if(typeof processRawScan==='function')processRawScan('" + limited + "'," + r + ")", null)
         );
     }
 
     @Override
     public void onTriggerEvent(boolean pressed) {
         mainHandler.post(() ->
-            webView.evaluateJavascript("onRfidTriggerEvent(" + pressed + ")", null)
+            webView.evaluateJavascript("if(typeof onRfidTriggerEvent==='function')onRfidTriggerEvent(" + pressed + ")", null)
         );
     }
 
@@ -162,7 +162,7 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         Log.d(TAG, "Status: " + msg);
         mainHandler.post(() -> {
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
-            webView.evaluateJavascript("onRfidStatus(" + (msg.startsWith("Povezan") ? "true" : "false") + ",'" + msg.replace("'", "\\'") + "')", null);
+            webView.evaluateJavascript("if(typeof onRfidStatus==='function')onRfidStatus(" + (msg.startsWith("Povezan") ? "true" : "false") + ",'" + msg.replace("'", "\\'") + "')", null);
         });
     }
 

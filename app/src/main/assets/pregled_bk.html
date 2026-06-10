@@ -1137,6 +1137,18 @@ function testBarcode(){
   notify('Barcode &#269;italec aktiven — skenirajte kodo za test','ok');
 }
 var rfidTestActive=false,rfidTestType=null,rfidTestEpcs=[];
+// Ustavi vse aktivne teste v zavihku Več (RFID test moči) — kliče se ob zapustitvi zavihka.
+// Pomembno: stopRfidScan ponovno vklopi DataWedge (sicer bi barcode skener ostal izklopljen).
+function stopMoreTests(){
+  if(rfidTestActive){
+    var t=rfidTestType;
+    rfidTestActive=false;rfidTestType=null;
+    if(typeof AndroidBridge!=='undefined')try{AndroidBridge.stopRfidScan();}catch(e){}
+    var btn=$i('btnTest'+(t==='sprejem'?'Sprejem':'Multi'));if(btn)btn.textContent='Test';
+    try{renderPowerTestList(t);}catch(e){}
+  }
+  // Barcode test samo vklopi DataWedge (normalno stanje) — ni kaj ustavljati.
+}
 function testPowerRfid(type){
   var btnId='btnTest'+(type==='sprejem'?'Sprejem':'Multi');
   if(rfidTestActive&&rfidTestType===type){
@@ -1253,6 +1265,7 @@ function acceptAllStaged(){
 // ===== NAVIGATION =====
 var pages=['scan','overview','inventory','lots','expiry','gtins','more'];
 function nav(page){
+  if(page!=='more')stopMoreTests(); // ob zapustitvi zavihka Več ustavi aktivne teste
   pages.forEach(function(p){
     var el=$i('page-'+p);if(el)el.classList.remove('active');
     var bn=$i('bn-'+p);if(bn)bn.classList.remove('active');
@@ -1492,9 +1505,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:86,
+  build:87,
   date:'2026-06-10',
   history:[
+    {build:87,date:'2026-06-10',notes:'Testi v zavihku Več (RFID test moči) se samodejno ustavijo ob zapustitvi zavihka — sprosti čitalec in ponovno vklopi DataWedge barcode skener. Odpravljena tudi JS napaka ob zagonu (onRfidStatus timing).'},
     {build:86,date:'2026-06-10',notes:'Popravek: številčna črtna koda (npr. (10)lot(21)serial) se ne obravnava več kot RFID/EPC. RFID skener se vključi ŠELE ko so prebrani vsi podatki (GTIN+Lot+Rok+Serial); do takrat je vsak scan črtna koda. Šele nato RFD prebere najmočnejši EPC po RSSI pravilu.'},
     {build:85,date:'2026-06-10',notes:'RFID sprejem: vrnjena RSSI dominance izbira (gap=10 dBm) za single in serijski sprejem. Če RSSI ni znan → vzame prvi EPC. Če sta 2+ oznaki in razlika <10 dBm → obvestilo "skenirajte bolj daleč stran od ostalih oznak".'},
     {build:84,date:'2026-06-10',notes:'DataWedge: zamenjava Keystroke→Intent output (zanesljivo za WebView). App ob zagonu sam nastavi DataWedge profil (Intent broadcast si.kclj.pregledbk.SCAN). Odpravlja težavo brez inputa pri skeniranju DataMatrix/barcode.'},
