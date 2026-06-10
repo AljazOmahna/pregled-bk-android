@@ -224,6 +224,13 @@ body.dark .modal{background:var(--bg2)}
 body.dark .scan-input{background:var(--bg3);color:var(--text)}
 body.dark .fg input,body.dark .fg select,body.dark .fg textarea{background:var(--bg3);color:var(--text)}
 body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)}
+/* === SN / EPC pari (podrobnosti artikla) === */
+.unit-row{margin-bottom:10px}
+.unit-row:last-child{margin-bottom:0}
+.unit-sn{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text2)}
+.epc-line{display:none;font-family:var(--mono);font-size:10px;color:var(--text3);padding-left:20px;word-break:break-all;margin-top:2px}
+/* EPC prikažemo le na dovolj širokem zaslonu (npr. landscape/tablica) */
+@media(min-width:480px){.epc-line{display:block}}
 </style>
 </head>
 <body>
@@ -1778,9 +1785,13 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:89,
+  build:93,
   date:'2026-06-10',
   history:[
+    {build:93,date:'2026-06-10',notes:'Podrobnosti artikla: SN in EPC prikazana v parih (EPC zamaknjen pod pripadajočo SN, prazna vrstica med pari). EPC se zabeleži ob sprejemu in se po zaključku seje izbriše iz zaloge (SN ostane). EPC viden le na dovolj širokem zaslonu.'},
+    {build:92,date:'2026-06-10',notes:'Večjezičnost: SL / EN / Hrvatski-Srpski (izbira v Več → Nastavitve). Prevedena navigacija, naslovi, obvestila, oznake lotov in načini skeniranja.'},
+    {build:91,date:'2026-06-10',notes:'Ovrednotenje lotov (datum + obvezen sklic na dokument), značka NOV in povzetek novih lotov ob zaključku sprejema. RFID staging gumbi nad seznamom + opozorilo pred zaključkom seje. Package insert (OneDrive povezava) na GTIN zavihku.'},
+    {build:90,date:'2026-06-10',notes:'GTIN modal: skeniranje kode med odprtim oknom napolni polje GTIN.'},
     {build:89,date:'2026-06-10',notes:'Nov gumb "Pregled BK" na prvi strani — inventura izbranih tipov artiklov (privzeto Kontrole + Kalibratorji, izbira s checkboxi). Skeniranje izven obsega se zavrne; zaloga tipov izven obsega ostane nedotaknjena pri zaprtju.'},
     {build:88,date:'2026-06-10',notes:'Gumb "Reset (test)" v zavihku Prejeto zdaj izbriše VSE testne podatke: prejeto, zalogo, seje in lote (GTIN katalog ostane). Začasno orodje za lažje testiranje.'},
     {build:87,date:'2026-06-10',notes:'Testi v zavihku Več (RFID test moči) se samodejno ustavijo ob zapustitvi zavihka — sprosti čitalec in ponovno vklopi DataWedge barcode skener. Odpravljena tudi JS napaka ob zagonu (onRfidStatus timing).'},
@@ -2167,14 +2178,18 @@ function confirmSprejem(){
   var existing=(DB.inventory||[]).filter(function(i){return i.gtin===sprejemData.gtin&&i.lot===sprejemData.lot;})[0];
   if(existing){
     existing.qty=(existing.qty||0)+1;
+    // SN ↔ EPC par: če units še ne obstaja, ga ustvari iz obstoječih serijskih (EPC neznan)
+    if(!existing.units)existing.units=(existing.serials||[]).map(function(s){return {sn:s,epc:''};});
     if(sprejemData.serial){if(!existing.serials)existing.serials=[];existing.serials.push(sprejemData.serial);}
     if(sprejemEpc){if(!existing.rfidEpcs)existing.rfidEpcs=[];existing.rfidEpcs.push(sprejemEpc);}
+    existing.units.push({sn:sprejemData.serial||'',epc:sprejemEpc||''});
   } else {
     if(!DB.inventory)DB.inventory=[];
     var newItem={gtin:sprejemData.gtin,name:sprejemData.name,type:sprejemData.type,
       lot:sprejemData.lot,expiry:sprejemData.expiry,qty:1};
     if(sprejemData.serial)newItem.serials=[sprejemData.serial];
     if(sprejemEpc)newItem.rfidEpcs=[sprejemEpc];
+    newItem.units=[{sn:sprejemData.serial||'',epc:sprejemEpc||''}];
     DB.inventory.push(newItem);
   }
   saveDB(); renderReceived(); renderInventory(); updateStats();
@@ -2561,6 +2576,11 @@ function closeSession(){
   sess.reappearedCount=reappeared.length;
   DB.activeSessionId=null;
   DB.inventory=Object.keys(invMap).map(function(k){return invMap[k];});
+  // Po zaključku seje počistimo prehodne EPC podatke z zaloge (RFID oznake so začasne) — SN ostane
+  DB.inventory.forEach(function(it){
+    if(it.rfidEpcs)delete it.rfidEpcs;
+    if(it.units)it.units.forEach(function(u){u.epc='';});
+  });
   DB.lastUsed=used;
   saveDB();updateBanner();updateStats();
   $i('scanPanel').style.display='none';$i('noSess').style.display='block';
@@ -2708,11 +2728,30 @@ function renderInventory(){
       '</td></tr>';
   }).join('');
 }
+// Vrne pare SN ↔ EPC (en zapis na sprejet kos). Za starejše/po-sejne artikle izpelje iz serijskih.
+function itemUnits(it){
+  if(it.units&&it.units.length)return it.units;
+  var sns=(it.serials||[]),eps=(it.rfidEpcs||[]);
+  var n=Math.max(sns.length,eps.length),out=[];
+  for(var i=0;i<n;i++)out.push({sn:sns[i]||'',epc:eps[i]||''});
+  return out;
+}
 function showDetail(gtin,lot){
   var it=DB.inventory.filter(function(i){return i.gtin===gtin&&i.lot===lot;})[0];
   if(!it)return;
   var gr=DB.gtins.filter(function(g){return g.gtin===gtin;})[0];
   var d=daysLeft(it.expiry);
+  var units=itemUnits(it);
+  var unitsHtml='';
+  if(units.length){
+    unitsHtml='<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase;margin-bottom:6px">Serijske številke ('+units.length+')</div>'+
+      units.map(function(u){
+        var sn=u.sn?('#'+escHtml(u.sn)):'&mdash;';
+        var epc=u.epc?'<div class="epc-line">'+escHtml(u.epc)+'</div>':'';
+        return '<div class="unit-row"><div class="unit-sn">'+sn+'</div>'+epc+'</div>';
+      }).join('')+
+      '</div>';
+  }
   $i('moItemBody').innerHTML=
     '<div style="display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;gap:10px">'+
     '<div><div style="font-size:15px;font-weight:700">'+(it.name||gtin)+'</div>'+
@@ -2721,8 +2760,7 @@ function showDetail(gtin,lot){
     '<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase">GTIN</div><div style="font-family:var(--mono);font-size:11px">'+it.gtin+'</div></div>'+
     '<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase">Lot</div><div style="font-family:var(--mono);font-size:11px;color:var(--accent)">'+(it.lot||'-')+'</div></div>'+
     '<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase">Zaloga</div><div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--accent)">'+it.qty+'</div></div></div>'+
-    ((it.serials&&it.serials.length)?'<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase;margin-bottom:4px">Serijske številke ('+it.serials.length+')</div>'+it.serials.map(function(s){return '<div style="font-family:var(--mono);font-size:11px;color:var(--text2)">#'+s+'</div>';}).join('')+'</div>':'')+
-    ((it.rfidEpcs&&it.rfidEpcs.length)?'<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase;margin-bottom:4px">RFID EPC ('+it.rfidEpcs.length+')</div>'+it.rfidEpcs.map(function(e){return '<div style="font-family:var(--mono);font-size:10px;color:var(--text2)">'+e+'</div>';}).join('')+'</div>':'')+
+    unitsHtml+
     '<div style="text-align:center;padding:10px;background:var(--bg3);border-radius:8px">'+expBadge(it.expiry)+'<div style="font-size:11px;color:var(--text3);margin-top:4px">'+(d>=0?d+' dni do izteka':'Preteceno '+Math.abs(d)+' dni nazaj')+'</div></div>'+
     '<button class="btn btn-d" onclick="removeItem(\''+gtin+'\',\''+lot+'\');closeMo(\'moItem\')" style="width:100%;-webkit-justify-content:center;justify-content:center">&#10005; Odstrani iz zaloge</button>'+
     '</div>';
