@@ -1492,9 +1492,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:80,
+  build:82,
   date:'2026-06-10',
   history:[
+    {build:82,date:'2026-06-10',notes:'Popravljen sprejem RFID (single in serijski) — vrnjen na zanesljiv zajem: prvi zaznani EPC se zajame takoj, potrditev ob spustu triggerja. Odstranjena prestroga RSSI/dominanca ocena, ki je preprečevala zajem EPC.'},
     {build:81,date:'2026-06-10',notes:'Gumb "Počisti vse" v zavihku Prejeto — izbriše vse testne/stare EPC vnose z enim klikom (ne vpliva na zalogo).'},
     {build:80,date:'2026-06-10',notes:'Test moči RFID zdaj prikazuje RSSI jakost vsake oznake (barvno, razvrščeno po jakosti) — orodje za kalibracijo razdalje/praga. Žive posodobitve med testom.'},
     {build:79,date:'2026-06-10',notes:'Sprejem RFID — samokalibrirajoča izbira: primarno meri dominanco (razliko do druge oznake), ne le absolutni prag. Prisloni oznako ob čitalec → zajame se samodejno; ob več oznakah preblizu skupaj pokaže njihove RSSI vrednosti in opozori. Dodan nastavljiv razmik dominance (gap).'},
@@ -1775,7 +1776,7 @@ function spCaptureEpc(epc,rssi){
   $i('spRfidOk').style.display='block';
   $i('spEpcVal').textContent=epc+(typeof rssi==='number'&&rssi!==0?'  ('+rssi+' dBm)':'');
   $i('spConfirmBtn').disabled=false;
-  notify('RFID zajeto'+(typeof rssi==='number'&&rssi!==0?' ('+rssi+' dBm)':''),'ok');
+  notify('RFID zajeto — spusti trigger za shranjevanje','ok');
 }
 function spStartRfid(){
   if(typeof AndroidBridge==='undefined'){notify('Samo na napravi','warn');return;}
@@ -1825,9 +1826,9 @@ function onRfidTriggerEvent(pressed){
       if(_spAutoConfirmTimer){clearTimeout(_spAutoConfirmTimer);_spAutoConfirmTimer=null;}
       confirmSprejem();
     } else if(sprejemActive&&!sprejemEpc){
-      // Ovrednoti zbrane kandidate: najmočnejši zmaga, dvoumno → zavrni (RFID ostane aktiven za ponovni poskus)
-      if(btn){btn.textContent='📡 Skeniraj RFID';}
-      spEvaluateEpcCandidates();
+      spStopRfid();
+      if(st)st.textContent='Ni kode — kliknite Skeniraj RFID za ponovitev';
+      notify('RFID: ni kode — kliknite Skeniraj RFID znova','warn');
     } else if(rfidMultiActive){
       if(mBtn){mBtn.innerHTML='&#9632; Ustavi skeniranje';mBtn.className='btn btn-d';}
       $i('szHint').textContent='Pritisni trigger znova ali klikni Ustavi';
@@ -1940,8 +1941,8 @@ function processRawScan(raw,rssi){
   // Sprejem mode: intercept scans for sprejem flow
   if(sprejemActive){
     var rawUp=raw.trim().toUpperCase();
-    // EPC (samo hex, ≥8 znakov) → med pritiskom triggerja zbiraj kandidate z RSSI (zajem ob spustu)
-    if(/^[0-9A-F]{8,}$/.test(rawUp)){spAddEpcCandidate(rawUp,rssi);return;}
+    // EPC (samo hex, ≥8 znakov) → zajemi prvi EPC takoj (potrditev ob spustu triggerja)
+    if(/^[0-9A-F]{8,}$/.test(rawUp)){spCaptureEpc(rawUp,rssi);return;}
     $i('spBarcodeInp').value=raw;
     spProcessBarcode(raw.trim());
     return;
