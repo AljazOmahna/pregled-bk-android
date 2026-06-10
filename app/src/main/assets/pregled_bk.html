@@ -1492,9 +1492,11 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:82,
+  build:84,
   date:'2026-06-10',
   history:[
+    {build:84,date:'2026-06-10',notes:'DataWedge: zamenjava Keystroke→Intent output (zanesljivo za WebView). App ob zagonu sam nastavi DataWedge profil (Intent broadcast si.kclj.pregledbk.SCAN). Odpravlja težavo brez inputa pri skeniranju DataMatrix/barcode.'},
+    {build:83,date:'2026-06-10',notes:'Prikaži polno dolžino EPC v testu moči RFID (prej okrajšano na 16 znakov).'},
     {build:82,date:'2026-06-10',notes:'Popravljen sprejem RFID (single in serijski) — vrnjen na zanesljiv zajem: prvi zaznani EPC se zajame takoj, potrditev ob spustu triggerja. Odstranjena prestroga RSSI/dominanca ocena, ki je preprečevala zajem EPC.'},
     {build:81,date:'2026-06-10',notes:'Gumb "Počisti vse" v zavihku Prejeto — izbriše vse testne/stare EPC vnose z enim klikom (ne vpliva na zalogo).'},
     {build:80,date:'2026-06-10',notes:'Test moči RFID zdaj prikazuje RSSI jakost vsake oznake (barvno, razvrščeno po jakosti) — orodje za kalibracijo razdalje/praga. Žive posodobitve med testom.'},

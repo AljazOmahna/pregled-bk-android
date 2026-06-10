@@ -2,7 +2,10 @@ package si.kclj.pregledbk;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
@@ -31,11 +34,15 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
 
     private static final String TAG = "PregledBK";
     private static final int FILE_CHOOSER_REQ = 2001;
+    // DataWedge Intent output — app prejme scan direktno (zanesljivo za WebView)
+    private static final String DW_SCAN_ACTION = "si.kclj.pregledbk.SCAN";
+    private static final String DW_DATA_KEY    = "com.symbol.datawedge.data_string";
     private WebView webView;
     private RFIDHandler rfidHandler;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private ValueCallback<Uri[]> filePathCallback;
     private GraphSync graphSync;
+    private BroadcastReceiver dwReceiver;
 
     @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
     @Override
@@ -74,6 +81,23 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         webView.addJavascriptInterface(new JsBridge(), "AndroidBridge");
         graphSync = new GraphSync(this);
         webView.loadUrl("file:///android_asset/pregled_bk.html");
+
+        // DataWedge: registriraj Intent receiver in nastavi profil
+        dwReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context ctx, Intent intent) {
+                String data = intent.getStringExtra(DW_DATA_KEY);
+                if (data == null || data.isEmpty()) return;
+                Log.d(TAG, "DW barcode: " + data.replace("", "<GS>"));
+                // Posreduj JS — ista pot kot RFID, GS1 separatorji (0x1D) ostanejo za parser
+                final String safe = data.replaceAll("['\\\\]", "").replaceAll("[\\r\\n]", "");
+                mainHandler.post(() ->
+                    webView.evaluateJavascript("processRawScan(" + JSONObject.quote(safe) + ",0)", null)
+                );
+            }
+        };
+        registerReceiver(dwReceiver, new IntentFilter(DW_SCAN_ACTION));
+        setupDataWedgeProfile();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
@@ -168,6 +192,69 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
     protected void onDestroy() {
         super.onDestroy();
         if (rfidHandler != null) rfidHandler.dispose();
+        if (dwReceiver != null) try { unregisterReceiver(dwReceiver); } catch (Exception ignored) {}
+    }
+
+    /** Nastavi DataWedge profil za PregledBK: Intent output → DW_SCAN_ACTION, Keystroke off. */
+    private void setupDataWedgeProfile() {
+        try {
+            // Barcode plugin
+            Bundle barcodeParams = new Bundle();
+            barcodeParams.putString("scanner_input_enabled", "true");
+            barcodeParams.putString("decoder_datamatrix",    "true");
+            barcodeParams.putString("decoder_code128",       "true");
+            barcodeParams.putString("decoder_code39",        "true");
+            barcodeParams.putString("decoder_ean13",         "true");
+            barcodeParams.putString("decoder_ean8",          "true");
+            barcodeParams.putString("decoder_upca",          "true");
+            barcodeParams.putString("decoder_qrcode",        "true");
+            barcodeParams.putString("decoder_pdf417",        "true");
+            barcodeParams.putString("decoder_gs1_databar",       "true");
+            barcodeParams.putString("decoder_gs1_databar_exp",   "true");
+            Bundle barcodePlugin = new Bundle();
+            barcodePlugin.putString("PLUGIN_NAME",   "BARCODE");
+            barcodePlugin.putString("RESET_CONFIG",  "false");
+            barcodePlugin.putBundle("PARAM_LIST",    barcodeParams);
+
+            // Intent output plugin
+            Bundle intentParams = new Bundle();
+            intentParams.putString("intent_output_enabled", "true");
+            intentParams.putString("intent_action",         DW_SCAN_ACTION);
+            intentParams.putString("intent_delivery",       "2"); // broadcast
+            Bundle intentPlugin = new Bundle();
+            intentPlugin.putString("PLUGIN_NAME",  "INTENT");
+            intentPlugin.putString("RESET_CONFIG", "true");
+            intentPlugin.putBundle("PARAM_LIST",   intentParams);
+
+            // Keystroke output — izklopi da se ne podvajajo vnosi
+            Bundle ksParams = new Bundle();
+            ksParams.putString("keystroke_output_enabled", "false");
+            Bundle ksPlugin = new Bundle();
+            ksPlugin.putString("PLUGIN_NAME",  "KEYSTROKE");
+            ksPlugin.putString("RESET_CONFIG", "true");
+            ksPlugin.putBundle("PARAM_LIST",   ksParams);
+
+            // App association
+            Bundle appAssoc = new Bundle();
+            appAssoc.putString("PACKAGE_NAME", getPackageName());
+            appAssoc.putStringArray("ACTIVITY_LIST", new String[]{"*"});
+
+            // Profil
+            Bundle profile = new Bundle();
+            profile.putString("PROFILE_NAME",    "PregledBK");
+            profile.putString("PROFILE_ENABLED", "true");
+            profile.putString("CONFIG_MODE",     "CREATE_IF_NOT_EXIST");
+            profile.putParcelableArrayList("PLUGIN_CONFIG",
+                new ArrayList<>(Arrays.asList(barcodePlugin, intentPlugin, ksPlugin)));
+            profile.putParcelableArray("APP_LIST", new Bundle[]{ appAssoc });
+
+            Intent i = new Intent("com.symbol.datawedge.api.ACTION");
+            i.putExtra("com.symbol.datawedge.api.SET_CONFIG", profile);
+            sendBroadcast(i);
+            Log.d(TAG, "DataWedge profil nastavljen: Intent output → " + DW_SCAN_ACTION);
+        } catch (Throwable t) {
+            Log.e(TAG, "setupDataWedgeProfile: " + t);
+        }
     }
 
     // ---- Graph sync helpers ----
