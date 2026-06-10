@@ -2014,6 +2014,17 @@ function processRawScan(raw,rssi){
   _lastScanRaw=raw;_lastScanTs=now;
   var _dbg='';for(var _ci=0;_ci<Math.min(raw.length,80);_ci++)_dbg+=raw.charCodeAt(_ci)+',';
   if(typeof AndroidBridge!=='undefined')try{AndroidBridge.log('SCAN_CHARS:'+_dbg);}catch(_e){}
+  // moGtin modal odprt → skeniranje polni gtinCode input
+  if($i('moGtin').classList.contains('open')){
+    var gp=parseGS1(raw.trim());
+    if(!gp||!gp.gtin){var ep=parseEPC(raw.trim());if(ep&&ep.gtin)gp=ep;}
+    if(gp&&gp.gtin){
+      $i('gtinCode').value=gp.gtin;
+      if(gp.catalog&&!$i('gtinCatalog').value)$i('gtinCatalog').value=gp.catalog;
+      notify('GTIN iz skeniranja: '+gp.gtin,'ok');
+    }else{notify('Ni GTIN kode v skeniranem nizu','warn');}
+    return;
+  }
   if(rfidTestActive){
     var rawUp=raw.trim().toUpperCase();
     if(/^[0-9A-Fa-f]{8,}$/.test(rawUp)&&/[A-Fa-f]/.test(rawUp)){
