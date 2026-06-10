@@ -228,9 +228,8 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
 .unit-row{margin-bottom:10px}
 .unit-row:last-child{margin-bottom:0}
 .unit-sn{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text2)}
-.epc-line{display:none;font-family:var(--mono);font-size:10px;color:var(--text3);padding-left:20px;word-break:break-all;margin-top:2px}
-/* EPC prikažemo le na dovolj širokem zaslonu (npr. landscape/tablica) */
-@media(min-width:480px){.epc-line{display:block}}
+/* EPC vedno viden, zamaknjen pod pripadajočo SN */
+.epc-line{display:block;font-family:var(--mono);font-size:10px;color:var(--text3);padding-left:20px;word-break:break-all;margin-top:2px}
 </style>
 </head>
 <body>
@@ -289,8 +288,8 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     <div style="font-size:13px;font-weight:600;margin-bottom:4px">Ni aktivne seje</div>
     <div style="font-size:11px;color:var(--text3);margin-bottom:14px">Za&#269;nite novo sejo inventure.</div>
     <button class="btn btn-a" onclick="openNewSession()" style="width:100%;-webkit-justify-content:center;justify-content:center">+ Za&#269;ni novo sejo</button>
-    <button class="btn" onclick="openPregledBK()" style="width:100%;margin-top:8px;background:var(--pbg);border:1px solid var(--purple);color:var(--purple);-webkit-justify-content:center;justify-content:center">&#128269; Za&#269;ni pregled BK</button>
-    <button class="btn" onclick="openSprejem()" style="width:100%;margin-top:8px;background:var(--bg3);border:1px solid var(--border);-webkit-justify-content:center;justify-content:center">&#128230; Sprejmi material</button>
+    <button class="btn" onclick="openPregledBK()" style="width:100%;margin-top:8px;background:var(--ybg);border:1px solid var(--yellow);color:var(--yellow);-webkit-justify-content:center;justify-content:center">+ Za&#269;ni pregled BK</button>
+    <button class="btn" onclick="openSprejem()" style="width:100%;margin-top:8px;background:rgba(56,189,248,.15);border:1px solid #38bdf8;color:#0369a1;-webkit-justify-content:center;justify-content:center">&#128230; Sprejmi material</button>
   </div>
 
   <!-- Scan panel -->
@@ -670,7 +669,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <div class="fg"><label>Naziv seje (neobvezno)</label><input type="text" id="sessName" placeholder="npr. Inventura jun 2026"></div>
     </div>
     <div class="mf">
-      <button class="btn btn-g" onclick="closeMo('moSess')">Preklici</button>
+      <button class="btn btn-d" onclick="closeMo('moSess')">Prekli&#269;i</button>
     </div>
   </div>
 </div>
@@ -715,7 +714,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <div class="fg"><label>Naziv pregleda (neobvezno)</label><input type="text" id="pregledName" placeholder="npr. Pregled BK jun 2026"></div>
     </div>
     <div class="mf">
-      <button class="btn btn-g" onclick="closeMo('moPregled')">Preklici</button>
+      <button class="btn btn-d" onclick="closeMo('moPregled')">Prekli&#269;i</button>
     </div>
   </div>
 </div>
@@ -741,7 +740,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <div class="fg" id="gtinPiWrap"><label>&#128196; Package insert (OneDrive povezava)</label><input type="text" id="gtinPiUrl" placeholder="https://... (OneDrive)"></div>
     </div>
     <div class="mf">
-      <button class="btn btn-g" onclick="closeMo('moGtin')">Preklici</button>
+      <button class="btn btn-g" onclick="closeMo('moGtin')">Prekli&#269;i</button>
       <button class="btn btn-a" onclick="saveGtin()">Shrani</button>
     </div>
   </div>
@@ -771,7 +770,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <div id="importPrev" style="font-size:11px;color:var(--text3)"></div>
     </div>
     <div class="mf">
-      <button class="btn btn-g" onclick="closeMo('moImport')">Preklici</button>
+      <button class="btn btn-g" onclick="closeMo('moImport')">Prekli&#269;i</button>
       <button class="btn btn-a" onclick="importCsv()">&#128229; Uvozi</button>
     </div>
   </div>
@@ -815,7 +814,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <div class="fg"><label>Razlog</label><input type="text" id="qtyReason" placeholder="porabljeno, pokvarjeno..."></div>
     </div>
     <div class="mf">
-      <button class="btn btn-g" onclick="closeMo('moQty')">Preklici</button>
+      <button class="btn btn-g" onclick="closeMo('moQty')">Prekli&#269;i</button>
       <button class="btn btn-a" onclick="saveQty()">Shrani</button>
     </div>
   </div>
@@ -1785,9 +1784,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:93,
+  build:94,
   date:'2026-06-10',
   history:[
+    {build:94,date:'2026-06-10',notes:'EPC je v podrobnostih artikla zdaj VEDNO viden (zamaknjen pod SN), tudi na ozkem zaslonu. EPC se po zaključku seje NE briše več — ostane shranjen v zalogi (potrebno za Locate Tag). Začetna stran: "+ Začni pregled BK" (rumeno), "Sprejmi material" (sinje modro); gumbi za preklic seje so zdaj "Prekliči" in rdeči.'},
     {build:93,date:'2026-06-10',notes:'Podrobnosti artikla: SN in EPC prikazana v parih (EPC zamaknjen pod pripadajočo SN, prazna vrstica med pari). EPC se zabeleži ob sprejemu in se po zaključku seje izbriše iz zaloge (SN ostane). EPC viden le na dovolj širokem zaslonu.'},
     {build:92,date:'2026-06-10',notes:'Večjezičnost: SL / EN / Hrvatski-Srpski (izbira v Več → Nastavitve). Prevedena navigacija, naslovi, obvestila, oznake lotov in načini skeniranja.'},
     {build:91,date:'2026-06-10',notes:'Ovrednotenje lotov (datum + obvezen sklic na dokument), značka NOV in povzetek novih lotov ob zaključku sprejema. RFID staging gumbi nad seznamom + opozorilo pred zaključkom seje. Package insert (OneDrive povezava) na GTIN zavihku.'},
@@ -2576,10 +2576,21 @@ function closeSession(){
   sess.reappearedCount=reappeared.length;
   DB.activeSessionId=null;
   DB.inventory=Object.keys(invMap).map(function(k){return invMap[k];});
-  // Po zaključku seje počistimo prehodne EPC podatke z zaloge (RFID oznake so začasne) — SN ostane
+  // EPC povezave (SN→EPC) ohranimo iz prejšnje zaloge, da Locate Tag deluje tudi po seji
+  var prevUnits={};
+  prevInv.forEach(function(pi){prevUnits[pi.gtin+'|'+(pi.lot||'')]=itemUnits(pi);});
   DB.inventory.forEach(function(it){
-    if(it.rfidEpcs)delete it.rfidEpcs;
-    if(it.units)it.units.forEach(function(u){u.epc='';});
+    var pu=prevUnits[it.gtin+'|'+(it.lot||'')];
+    if(!pu||!pu.length)return;
+    if(it.serials&&it.serials.length){
+      it.units=it.serials.map(function(sn){
+        var f=pu.filter(function(u){return u.sn===sn;})[0];
+        return {sn:sn,epc:f?f.epc:''};
+      });
+    } else if(!it.units||!it.units.length){
+      it.units=pu.slice(0,it.qty||pu.length);
+    }
+    it.rfidEpcs=it.units.map(function(u){return u.epc;}).filter(Boolean);
   });
   DB.lastUsed=used;
   saveDB();updateBanner();updateStats();
