@@ -1166,8 +1166,8 @@ function renderPowerTestList(type){
     rows.map(function(o){
       var r=(o.rssi!==0)?(o.rssi+' dBm'):'?';
       var col=(o.rssi===0)?'var(--text3)':(o.rssi>=-45?'var(--green)':(o.rssi>=-60?'var(--yellow)':'var(--text3)'));
-      return '<div style="display:-webkit-flex;display:flex;-webkit-justify-content:space-between;justify-content:space-between;gap:8px;font-size:10px;font-family:var(--mono);padding:1px 0">'+
-        '<span style="color:var(--text2)">'+o.epc.slice(0,16)+'&#8230;</span>'+
+      return '<div style="display:-webkit-flex;display:flex;-webkit-justify-content:space-between;justify-content:space-between;gap:8px;font-size:10px;font-family:var(--mono);padding:1px 0;word-break:break-all">'+
+        '<span style="color:var(--text2)">'+o.epc+'</span>'+
         '<span style="color:'+col+';font-weight:700;white-space:nowrap">'+r+'</span></div>';
     }).join('');
 }
