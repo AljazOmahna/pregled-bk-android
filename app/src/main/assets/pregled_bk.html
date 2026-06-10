@@ -1492,9 +1492,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:84,
+  build:85,
   date:'2026-06-10',
   history:[
+    {build:85,date:'2026-06-10',notes:'RFID sprejem: vrnjena RSSI dominance izbira (gap=10 dBm) za single in serijski sprejem. Če RSSI ni znan → vzame prvi EPC. Če sta 2+ oznaki in razlika <10 dBm → obvestilo "skenirajte bolj daleč stran od ostalih oznak".'},
     {build:84,date:'2026-06-10',notes:'DataWedge: zamenjava Keystroke→Intent output (zanesljivo za WebView). App ob zagonu sam nastavi DataWedge profil (Intent broadcast si.kclj.pregledbk.SCAN). Odpravlja težavo brez inputa pri skeniranju DataMatrix/barcode.'},
     {build:83,date:'2026-06-10',notes:'Prikaži polno dolžino EPC v testu moči RFID (prej okrajšano na 16 znakov).'},
     {build:82,date:'2026-06-10',notes:'Popravljen sprejem RFID (single in serijski) — vrnjen na zanesljiv zajem: prvi zaznani EPC se zajame takoj, potrditev ob spustu triggerja. Odstranjena prestroga RSSI/dominanca ocena, ki je preprečevala zajem EPC.'},
@@ -1724,38 +1725,35 @@ function spAddEpcCandidate(epc,rssi){
   var st=$i('spRfidStatus');
   if(st)st.textContent='Zaznavam oznake: '+n+' (spusti trigger za zajem)';
 }
-// Ob spustu triggerja: SAMOKALIBRIRAJOČA izbira — primarno meri DOMINANCO
-// (razliko do druge najmočnejše oznake), absolutni prag je le spodnja varovalka.
+// Ob spustu triggerja: izbira po RSSI dominanci (gap=10 dBm).
+// Če reader ne poroča RSSI (vse 0) → vzame prvi zaznani EPC brez preverjanja.
 function spEvaluateEpcCandidates(){
-  var minR=(typeof APP_SETTINGS.sprejemRssiMin==='number')?APP_SETTINGS.sprejemRssiMin:-70;
-  var gap=(typeof APP_SETTINGS.sprejemRssiGap==='number')?APP_SETTINGS.sprejemRssiGap:10;
+  var GAP=10; // dBm — minimalna razlika med 1. in 2. oznako
   var all=Object.keys(_spEpcCands).map(function(e){return {epc:e,rssi:_spEpcCands[e]};});
   _spEpcCands={};
   if(all.length===0){
     var st0=$i('spRfidStatus');if(st0)st0.textContent='Ni oznake — prisloni oznako ob čitalec';
     notify('RFID: ni oznake — prisloni ob čitalec in poskusi znova','warn');return;
   }
-  // RSSI signiran (bolj negativno = dlje). 0 = reader ni poročal jakosti.
   all.sort(function(a,b){return b.rssi-a.rssi;});
   var top=all[0];
-  var known=top.rssi!==0;
-  // 1) Spodnja varovalka: najmočnejša mora biti vsaj nad pragom (le če je RSSI znan)
-  if(known&&top.rssi<minR){
-    var st1=$i('spRfidStatus');if(st1)st1.textContent='Najmočnejša '+top.rssi+' dBm — predaleč, prisloni ob čitalec';
-    notify('Oznaka predaleč ('+top.rssi+' dBm) — prisloni ob čitalec','warn');flashWarnSp();return;
-  }
-  // 2) Dominanca: najmočnejša mora očitno presegati DRUGO najmočnejšo
-  if(all.length>=2){
+  // Preverimo ali čitalec sploh poroča RSSI
+  var rssiKnown=all.some(function(x){return x.rssi!==0;});
+  // Dominanca — samo če RSSI je znan IN sta vsaj 2 oznaki
+  if(rssiKnown&&all.length>=2){
     var second=all[1];
     var diff=top.rssi-second.rssi;
-    if(!known||second.rssi===0||diff<gap){
-      var topN=all.slice(0,3).map(function(c){return (c.rssi!==0?c.rssi+'dBm':'?');}).join(', ');
-      var st2=$i('spRfidStatus');if(st2)st2.textContent=all.length+' oznak preblizu skupaj ('+topN+') — prisloni eno';
-      notify('⚠ '+all.length+' oznak, premajhna razlika ('+topN+') — prisloni SAMO eno tik ob čitalec','err');
+    if(diff<GAP){
+      var topN=all.slice(0,3).map(function(c){
+        return c.epc.slice(0,8)+(c.rssi!==0?' ('+c.rssi+' dBm)':'');
+      }).join(' | ');
+      var st2=$i('spRfidStatus');
+      if(st2)st2.textContent='Preveč oznak v bližini — oddaljite čitalec od sosednjih RFID oznak';
+      notify('⚠ '+all.length+' RFID oznak (razlika '+diff+' dBm < '+GAP+' dBm) — skenirajte BOLJ DALEČ STRAN od ostalih oznak','err');
       flashWarnSp();return;
     }
   }
-  // jasen zmagovalec (očitno najbližji) → zajemi in samodejno potrdi
+  // Zajem najboljšega kandidata → samodejno potrdi ob spustu
   spCaptureEpc(top.epc,top.rssi);
   if(sprejemEpc){
     if(_spAutoConfirmTimer){clearTimeout(_spAutoConfirmTimer);_spAutoConfirmTimer=null;}
@@ -1778,7 +1776,7 @@ function spCaptureEpc(epc,rssi){
   $i('spRfidOk').style.display='block';
   $i('spEpcVal').textContent=epc+(typeof rssi==='number'&&rssi!==0?'  ('+rssi+' dBm)':'');
   $i('spConfirmBtn').disabled=false;
-  notify('RFID zajeto — spusti trigger za shranjevanje','ok');
+  notify('RFID zajeto'+(typeof rssi==='number'&&rssi!==0?' ('+rssi+' dBm)':''),'ok');
 }
 function spStartRfid(){
   if(typeof AndroidBridge==='undefined'){notify('Samo na napravi','warn');return;}
@@ -1828,9 +1826,8 @@ function onRfidTriggerEvent(pressed){
       if(_spAutoConfirmTimer){clearTimeout(_spAutoConfirmTimer);_spAutoConfirmTimer=null;}
       confirmSprejem();
     } else if(sprejemActive&&!sprejemEpc){
-      spStopRfid();
-      if(st)st.textContent='Ni kode — kliknite Skeniraj RFID za ponovitev';
-      notify('RFID: ni kode — kliknite Skeniraj RFID znova','warn');
+      if(btn){btn.textContent='📡 Skeniraj RFID';}
+      spEvaluateEpcCandidates();
     } else if(rfidMultiActive){
       if(mBtn){mBtn.innerHTML='&#9632; Ustavi skeniranje';mBtn.className='btn btn-d';}
       $i('szHint').textContent='Pritisni trigger znova ali klikni Ustavi';
@@ -1943,8 +1940,8 @@ function processRawScan(raw,rssi){
   // Sprejem mode: intercept scans for sprejem flow
   if(sprejemActive){
     var rawUp=raw.trim().toUpperCase();
-    // EPC (samo hex, ≥8 znakov) → zajemi prvi EPC takoj (potrditev ob spustu triggerja)
-    if(/^[0-9A-F]{8,}$/.test(rawUp)){spCaptureEpc(rawUp,rssi);return;}
+    // EPC (samo hex, ≥8 znakov) → zbiraj kandidate med pritiskom, oceni ob spustu
+    if(/^[0-9A-F]{8,}$/.test(rawUp)){spAddEpcCandidate(rawUp,rssi);return;}
     $i('spBarcodeInp').value=raw;
     spProcessBarcode(raw.trim());
     return;
