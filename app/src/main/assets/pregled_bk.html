@@ -266,8 +266,8 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
   <div class="sec-hdr">
     <div class="sec-title">&#128225; Skeniranje</div>
     <div id="sessHdrBtns" style="display:none;-webkit-flex;display:flex;gap:6px">
-      <button class="btn btn-d btn-sm" onclick="cancelSession()">&#10007; Prekli&#269;i</button>
-      <button class="btn btn-a btn-sm" onclick="closeSession()">&#10003; Zaklju&#269;i</button>
+      <button class="btn btn-d btn-sm" onclick="cancelSession()">&#10007; Prekliči</button>
+      <button class="btn btn-a btn-sm" onclick="closeSession()">&#10003; Zaključi</button>
     </div>
   </div>
 
@@ -290,9 +290,9 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
   <div id="noSess" class="card" style="text-align:center;padding:24px">
     <div style="font-size:36px;margin-bottom:8px">&#128230;</div>
     <div style="font-size:13px;font-weight:600;margin-bottom:4px">Ni aktivne seje</div>
-    <div style="font-size:11px;color:var(--text3);margin-bottom:14px">Za&#269;nite novo sejo inventure.</div>
-    <button class="btn btn-a" onclick="openNewSession()" style="width:100%;-webkit-justify-content:center;justify-content:center">+ Za&#269;ni novo sejo</button>
-    <button class="btn" onclick="openPregledBK()" style="width:100%;margin-top:8px;background:var(--ybg);border:1px solid var(--yellow);color:var(--yellow);-webkit-justify-content:center;justify-content:center">+ Za&#269;ni pregled BK</button>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:14px">Začnite novo sejo inventure.</div>
+    <button class="btn btn-a" onclick="openNewSession()" style="width:100%;-webkit-justify-content:center;justify-content:center">+ Začni novo sejo</button>
+    <button class="btn" onclick="openPregledBK()" style="width:100%;margin-top:8px;background:var(--ybg);border:1px solid var(--yellow);color:var(--yellow);-webkit-justify-content:center;justify-content:center">+ Začni pregled BK</button>
     <button class="btn" onclick="openSprejem()" style="width:100%;margin-top:8px;background:rgba(56,189,248,.15);border:1px solid #38bdf8;color:#0369a1;-webkit-justify-content:center;justify-content:center">&#128230; Sprejmi material</button>
   </div>
 
@@ -310,7 +310,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     <div id="rfidStagingArea" style="display:none;margin-bottom:8px">
       <div style="display:-webkit-flex;display:flex;gap:8px;margin-bottom:6px">
         <button class="btn btn-a" id="rfidAcceptBtn" onclick="acceptAllStaged()" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center" disabled>&#10003; Sprejmi prepoznane (0)</button>
-        <button class="btn btn-d" onclick="clearStaging()" style="-webkit-justify-content:center;justify-content:center">&#10005; Po&#269;isti</button>
+        <button class="btn btn-d" onclick="clearStaging()" style="-webkit-justify-content:center;justify-content:center">&#10005; Počisti</button>
       </div>
       <div style="background:var(--gbg);border:1px solid var(--green);border-radius:8px;padding:8px;margin-bottom:6px">
         <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--green);margin-bottom:4px">&#10003; Prepoznane (<span id="stagingRecCount">0</span>)</div>
@@ -337,7 +337,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     </div>
 
     <div class="card">
-      <div class="card-title">&#128203; Teko&#269;a seja</div>
+      <div class="card-title">&#128203; Tekoča seja</div>
       <div id="recentScans" style="max-height:260px;overflow-y:auto;-webkit-overflow-scrolling:touch">
         <div style="color:var(--text3);text-align:center;padding:16px;font-size:11px">Ni skeniranih artiklov.</div>
       </div>
@@ -355,7 +355,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     &#10060; <span id="alertTxt"></span> &#8594; Tapnite za podrobnosti
   </div>
   <div class="fr">
-    <input type="text" id="ovSearch" placeholder="&#128269; I&#353;&#269;i..." oninput="renderOverview()">
+    <input type="text" id="ovSearch" placeholder="&#128269; Išči..." oninput="renderOverview()">
     <select id="ovType" onchange="renderOverview()">
       <option value="">Vsi</option>
       <option value="control">Kontrole</option>
@@ -376,7 +376,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
   </div>
   <div class="stat-grid" id="invStats"></div>
   <div class="fr">
-    <input type="text" id="invSearch" placeholder="&#128269; I&#353;&#269;i..." oninput="renderInventory()">
+    <input type="text" id="invSearch" placeholder="&#128269; Išči..." oninput="renderInventory()">
     <select id="invType" onchange="renderInventory()">
       <option value="">Vsi tipi</option>
       <option value="control">Kontrole</option>
@@ -387,7 +387,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     </select>
     <select id="invExp" onchange="renderInventory()">
       <option value="">Vsi roki</option>
-      <option value="expired">Pretek&#269;eni</option>
+      <option value="expired">Pretekčeni</option>
       <option value="14">&lt;14 dni</option>
       <option value="28">&lt;28 dni</option>
       <option value="ok">OK</option>
@@ -421,18 +421,18 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
   </div>
   <div class="stat-grid" id="lotsStats"></div>
   <div class="fr">
-    <input type="text" id="lotsSearch" placeholder="&#128269; I&#353;&#269;i artikel..." oninput="renderLots()">
+    <input type="text" id="lotsSearch" placeholder="&#128269; Išči artikel..." oninput="renderLots()">
     <select id="lotsType" onchange="renderLots()">
       <option value="">Vsi tipi</option>
       <option value="calibrator">Kalibratorji</option>
       <option value="reagent-bio">Reagenti Bio</option>
       <option value="reagent-imuno">Reagenti IMUNO</option>
       <option value="control">Kontrole</option>
-      <option value="consumable">Potro&#353;ni material</option>
+      <option value="consumable">Potrošni material</option>
     </select>
     <select id="lotsStatus" onchange="renderLots()">
       <option value="">Vsi</option>
-      <option value="pending">&#127315; &#268;akajo</option>
+      <option value="pending">&#127315; Čakajo</option>
       <option value="ok">&#10003; Preverjeni</option>
     </select>
   </div>
@@ -471,7 +471,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     &#128161; Sprejete so samo GTIN kode iz te baze. Ko prejmete Abbott GTIN podatke, jih uvozite s CSV.
   </div>
   <div class="fr">
-    <input type="text" id="gtinSrch" placeholder="&#128269; I&#353;&#269;i..." oninput="renderGtins()">
+    <input type="text" id="gtinSrch" placeholder="&#128269; Išči..." oninput="renderGtins()">
     <select id="gtinType" onchange="renderGtins()">
       <option value="">Vsi</option>
       <option value="control">Kontrole</option>
@@ -491,7 +491,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
 
 <!-- MORE (sessions + export) -->
 <div class="page" id="page-more">
-  <div class="sec-title" style="margin-bottom:12px">Ve&#269; mo&#382;nosti</div>
+  <div class="sec-title" style="margin-bottom:12px">Več možnosti</div>
   <div class="card">
     <div class="card-title">&#9881;&#65039; Nastavitve</div>
     <label style="display:-webkit-flex;display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 0;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:12px">
@@ -512,14 +512,14 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <div style="font-size:13px;font-weight:600;margin-bottom:2px">&#127760; Jezik / Language</div>
       <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Izberi jezik aplikacije</div>
       <select id="settLang" onchange="onLangChange()" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px">
-        <option value="sl">Sloven&#353;&#269;ina</option>
+        <option value="sl">Slovenščina</option>
         <option value="en">English</option>
         <option value="hs">Hrvatski / Srpski</option>
       </select>
     </div>
     <div style="margin-bottom:10px">
-      <div style="font-size:12px;font-weight:600;margin-bottom:2px">Mo&#269; RFID — Sprejem materiala (dBm)</div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Priporo&#269;eno: 0.0 – 10.0 dBm</div>
+      <div style="font-size:12px;font-weight:600;margin-bottom:2px">Moč RFID — Sprejem materiala (dBm)</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Priporočeno: 0.0 – 10.0 dBm</div>
       <div style="display:-webkit-flex;display:flex;gap:6px;align-items:center">
         <input type="number" id="settSprejemPower" min="0" max="30" step="0.5"
           style="width:100px;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px"
@@ -531,7 +531,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     </div>
     <div style="margin-bottom:10px;padding:8px;background:var(--bg3);border-radius:6px">
       <div style="font-size:12px;font-weight:600;margin-bottom:4px">&#128225; Izbira RFID oznake pri sprejemu</div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Sistem zajame <b>najbli&#382;jo</b> oznako (najmo&#269;nej&#353;i RSSI). Oznako, ki jo sprejema&#353;, <b>prisloni tik ob &#269;italec</b> &#8212; takrat o&#269;itno presega ostale in se zajame samodejno. &#268;e sta dve preblizu skupaj, te opozori.</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Sistem zajame <b>najbližjo</b> oznako (najmočnejši RSSI). Oznako, ki jo sprejemaš, <b>prisloni tik ob čitalec</b> &#8212; takrat očitno presega ostale in se zajame samodejno. Če sta dve preblizu skupaj, te opozori.</div>
       <div style="display:-webkit-flex;display:flex;gap:10px;-webkit-flex-wrap:wrap;flex-wrap:wrap">
         <div>
           <div style="font-size:11px;font-weight:600;margin-bottom:2px">Spodnji prag (dBm)</div>
@@ -548,11 +548,11 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
           <div style="font-size:10px;color:var(--text3);margin-top:2px">koliko mora presegati 2.</div>
         </div>
       </div>
-      <div style="font-size:11px;color:var(--orange);margin-top:6px">&#9888; Za sprejem priporo&#269;am mo&#269; RFID <b>0&#8211;3 dBm</b> (zgoraj) &#8212; manj&#353;i doseg = manj tujih oznak.</div>
+      <div style="font-size:11px;color:var(--orange);margin-top:6px">&#9888; Za sprejem priporočam moč RFID <b>0&#8211;3 dBm</b> (zgoraj) &#8212; manjši doseg = manj tujih oznak.</div>
     </div>
     <div>
-      <div style="font-size:12px;font-weight:600;margin-bottom:2px">Mo&#269; RFID — MultiRFID (dBm)</div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Priporo&#269;eno: 15.0 – 30.0 dBm</div>
+      <div style="font-size:12px;font-weight:600;margin-bottom:2px">Moč RFID — MultiRFID (dBm)</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Priporočeno: 15.0 – 30.0 dBm</div>
       <div style="display:-webkit-flex;display:flex;gap:6px;align-items:center">
         <input type="number" id="settMultiRfidPower" min="0" max="30" step="0.5"
           style="width:100px;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px"
@@ -567,21 +567,21 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <button class="btn btn-a btn-sm" onclick="testBarcode()" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center">&#9638; Preveri barcode</button>
     </div>
     <div style="margin-top:8px">
-      <button class="btn btn-g btn-sm" onclick="resetRfidReader()" style="width:100%;-webkit-justify-content:center;justify-content:center">&#128260; Ponastavi &#269;italca</button>
+      <button class="btn btn-g btn-sm" onclick="resetRfidReader()" style="width:100%;-webkit-justify-content:center;justify-content:center">&#128260; Ponastavi čitalca</button>
     </div>
   </div>
   <div class="card">
     <div class="card-title">&#9729;&#65039; Sinhronizacija (OneDrive)</div>
     <div id="syncStatus" style="font-size:12px;color:var(--text3);margin-bottom:10px">Preverjam stanje&#8230;</div>
     <div id="syncSignedOut" style="display:none">
-      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Prijavite se z ra&#269;unom <b>@kclj.si</b> za nalaganje in prenos podatkov med skenerji prek OneDrive.</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Prijavite se z računom <b>@kclj.si</b> za nalaganje in prenos podatkov med skenerji prek OneDrive.</div>
       <button class="btn btn-a btn-sm" onclick="msSignIn()" style="width:100%;-webkit-justify-content:center;justify-content:center">&#128273; Prijava v OneDrive</button>
     </div>
     <div id="syncSignedIn" style="display:none">
       <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Prijavljen: <b id="syncAccount"></b></div>
       <div style="display:-webkit-flex;display:flex;gap:8px;margin-bottom:8px">
-        <button class="btn btn-a btn-sm" onclick="msUpload()" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center">&#11014;&#65039; Nalo&#382;i</button>
-        <button class="btn btn-a btn-sm" onclick="msDownload()" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center">&#11015;&#65039; Prenesi &amp; zdru&#382;i</button>
+        <button class="btn btn-a btn-sm" onclick="msUpload()" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center">&#11014;&#65039; Naloži</button>
+        <button class="btn btn-a btn-sm" onclick="msDownload()" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center">&#11015;&#65039; Prenesi &amp; združi</button>
       </div>
       <div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:space-between;justify-content:space-between">
         <div id="syncLast" style="font-size:10px;color:var(--text3)"></div>
@@ -589,7 +589,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       </div>
     </div>
     <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">&#128229; <b>Quick Share</b> &mdash; deli zalogo neposredno z bli&#382;njo napravo (tablica/skener) brez OneDrive.</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">&#128229; <b>Quick Share</b> &mdash; deli zalogo neposredno z bližnjo napravo (tablica/skener) brez OneDrive.</div>
       <button class="btn btn-g btn-sm" onclick="quickShareDb()" style="width:100%;-webkit-justify-content:center;justify-content:center;border-color:#00a3ad;color:#00a3ad">&#128229; Deli prek Quick Share</button>
     </div>
     <details style="margin-top:10px">
@@ -643,7 +643,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
   <div class="bn-item" id="bn-lots" onclick="nav('lots')"><span class="bn-icon">&#127991;</span><span data-i18n="nav_lots">Loti</span></div>
   <div class="bn-item" id="bn-expiry" onclick="nav('expiry')"><span class="bn-icon">&#9888;&#65039;</span><span data-i18n="nav_expiry">Roki</span></div>
   <div class="bn-item" id="bn-gtins" onclick="nav('gtins')"><span class="bn-icon">&#127991;&#65039;</span>GTIN</div>
-  <div class="bn-item" id="bn-more" onclick="nav('more')"><span class="bn-icon">&#8942;</span><span data-i18n="nav_more">Ve&#269;</span></div>
+  <div class="bn-item" id="bn-more" onclick="nav('more')"><span class="bn-icon">&#8942;</span><span data-i18n="nav_more">Več</span></div>
 </nav>
 
 <!-- MODALS -->
@@ -651,7 +651,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
   <div class="modal">
     <div class="mh"><h3>Nova seja inventure</h3><button class="mc" onclick="closeMo('moSess')">&#10005;</button></div>
     <div class="mb">
-      <div style="text-align:center;font-size:12px;color:var(--text2);margin-bottom:14px">Kako bo&#353; skeniral?</div>
+      <div style="text-align:center;font-size:12px;color:var(--text2);margin-bottom:14px">Kako boš skeniral?</div>
       <div style="display:-webkit-flex;display:flex;gap:10px;margin-bottom:16px">
         <button onclick="quickStart('rfid')" style="
           -webkit-flex:1;flex:1;display:-webkit-flex;display:flex;
@@ -677,7 +677,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <div class="fg"><label>Naziv seje (neobvezno)</label><input type="text" id="sessName" placeholder="npr. Inventura jun 2026"></div>
     </div>
     <div class="mf">
-      <button class="btn btn-d" onclick="closeMo('moSess')">Prekli&#269;i</button>
+      <button class="btn btn-d" onclick="closeMo('moSess')">Prekliči</button>
     </div>
   </div>
 </div>
@@ -698,9 +698,9 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
         <label style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
           <input type="checkbox" id="pscope-reagent-imuno" style="width:18px;height:18px"> &#129516; Reagenti IMUNO</label>
         <label style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
-          <input type="checkbox" id="pscope-consumable" style="width:18px;height:18px"> &#128230; Potro&#353;ni material</label>
+          <input type="checkbox" id="pscope-consumable" style="width:18px;height:18px"> &#128230; Potrošni material</label>
       </div>
-      <div style="text-align:center;font-size:12px;color:var(--text2);margin-bottom:10px">Kako bo&#353; skeniral?</div>
+      <div style="text-align:center;font-size:12px;color:var(--text2);margin-bottom:10px">Kako boš skeniral?</div>
       <div style="display:-webkit-flex;display:flex;gap:10px;margin-bottom:14px">
         <button onclick="quickStartPregled('rfid')" style="
           -webkit-flex:1;flex:1;display:-webkit-flex;display:flex;
@@ -722,7 +722,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <div class="fg"><label>Naziv pregleda (neobvezno)</label><input type="text" id="pregledName" placeholder="npr. Pregled BK jun 2026"></div>
     </div>
     <div class="mf">
-      <button class="btn btn-d" onclick="closeMo('moPregled')">Prekli&#269;i</button>
+      <button class="btn btn-d" onclick="closeMo('moPregled')">Prekliči</button>
     </div>
   </div>
 </div>
@@ -742,13 +742,13 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       </div>
       <div class="fg"><label>Opomba</label><input type="text" id="gtinNote"></div>
       <div class="frow">
-        <div class="fg"><label>Katalo&#353;ka &#353;t. (AI 240)</label><input type="text" id="gtinCatalog" maxlength="30"></div>
+        <div class="fg"><label>Kataloška št. (AI 240)</label><input type="text" id="gtinCatalog" maxlength="30"></div>
         <div class="fg"><label>Ident</label><input type="text" id="gtinIdent" maxlength="30"></div>
       </div>
       <div class="fg" id="gtinPiWrap"><label>&#128196; Package insert (OneDrive povezava)</label><input type="text" id="gtinPiUrl" placeholder="https://... (OneDrive)"></div>
     </div>
     <div class="mf">
-      <button class="btn btn-g" onclick="closeMo('moGtin')">Prekli&#269;i</button>
+      <button class="btn btn-g" onclick="closeMo('moGtin')">Prekliči</button>
       <button class="btn btn-a" onclick="saveGtin()">Shrani</button>
     </div>
   </div>
@@ -759,7 +759,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     <div class="mh"><h3>&#128196; Package inserti</h3><button class="mc" onclick="closeMo('moPkgIns')">&#10005;</button></div>
     <div class="mb">
       <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Dokumenti so shranjeni na OneDrive. Povezavo uredi prek &#9998; (Uredi GTIN).</div>
-      <div class="fg"><input type="text" id="pkgInsSrch" placeholder="&#128269; I&#353;&#269;i artikel..." oninput="renderPkgIns()"></div>
+      <div class="fg"><input type="text" id="pkgInsSrch" placeholder="&#128269; Išči artikel..." oninput="renderPkgIns()"></div>
       <div id="pkgInsBody"></div>
     </div>
     <div class="mf">
@@ -778,7 +778,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <div id="importPrev" style="font-size:11px;color:var(--text3)"></div>
     </div>
     <div class="mf">
-      <button class="btn btn-g" onclick="closeMo('moImport')">Prekli&#269;i</button>
+      <button class="btn btn-g" onclick="closeMo('moImport')">Prekliči</button>
       <button class="btn btn-a" onclick="importCsv()">&#128229; Uvozi</button>
     </div>
   </div>
@@ -790,14 +790,14 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     <div class="mb">
       <div id="msLoginWait" style="text-align:center;padding:14px;font-size:13px;color:var(--text2)">Pridobivam kodo&#8230;</div>
       <div id="msLoginCode" style="display:none">
-        <div style="font-size:12px;color:var(--text2);margin-bottom:10px">1. Na telefonu/ra&#269;unalniku odpri:</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:10px">1. Na telefonu/računalniku odpri:</div>
         <div style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--accent);text-align:center;padding:8px;background:var(--bg3);border-radius:8px;margin-bottom:12px" id="msVerUri">microsoft.com/devicelogin</div>
         <div style="font-size:12px;color:var(--text2);margin-bottom:6px">2. Vnesi to kodo in se prijavi z <b>@kclj.si</b>:</div>
         <div style="font-family:var(--mono);font-size:26px;font-weight:700;letter-spacing:2px;color:var(--purple);text-align:center;padding:12px;background:var(--bg3);border-radius:8px;-webkit-user-select:all;user-select:all" id="msUserCode">&#8230;</div>
-        <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:10px">&#8987; &#268;akam na potrditev prijave&#8230;</div>
+        <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:10px">&#8987; Čakam na potrditev prijave&#8230;</div>
       </div>
     </div>
-    <div class="mf"><button class="btn btn-g" onclick="msCancelLogin()">Prekli&#269;i</button></div>
+    <div class="mf"><button class="btn btn-g" onclick="msCancelLogin()">Prekliči</button></div>
   </div>
 </div>
 
@@ -822,7 +822,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <div class="fg"><label>Razlog</label><input type="text" id="qtyReason" placeholder="porabljeno, pokvarjeno..."></div>
     </div>
     <div class="mf">
-      <button class="btn btn-g" onclick="closeMo('moQty')">Prekli&#269;i</button>
+      <button class="btn btn-g" onclick="closeMo('moQty')">Prekliči</button>
       <button class="btn btn-a" onclick="saveQty()">Shrani</button>
     </div>
   </div>
@@ -845,7 +845,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <div class="locate-meter"><div class="locate-fill" id="locateFill"></div><div class="locate-pct" id="locatePct">0%</div></div>
       <div id="locateHint" style="text-align:center;font-size:11px;color:var(--text3)"></div>
     </div>
-    <div class="mf"><button class="btn btn-d" onclick="closeLocate()" style="width:100%;-webkit-justify-content:center;justify-content:center"><span data-i18n="locate_close">&#10003; Zaklju&#269;i iskanje</span></button></div>
+    <div class="mf"><button class="btn btn-d" onclick="closeLocate()" style="width:100%;-webkit-justify-content:center;justify-content:center"><span data-i18n="locate_close">&#10003; Zaključi iskanje</span></button></div>
   </div>
 </div>
 
@@ -859,7 +859,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
 
 <div class="mo" id="moSessClose">
   <div class="modal">
-    <div class="mh"><h3>&#10003; Seja zaklju&#269;ena</h3><button class="mc" onclick="closeMo('moSessClose')">&#10005;</button></div>
+    <div class="mh"><h3>&#10003; Seja zaključena</h3><button class="mc" onclick="closeMo('moSessClose')">&#10005;</button></div>
     <div class="mb" id="moSessCloseBody"></div>
     <div class="mf">
       <button class="btn btn-g btn-sm" id="moSessCloseExport" onclick="exportUsedCSV()" style="display:none">&#128196; Izvozi porabljene</button>
@@ -896,7 +896,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     </div>
     <div class="mf">
       <button class="btn btn-a" id="spConfirmBtn" onclick="confirmSprejem()" disabled style="flex:1;-webkit-justify-content:center;justify-content:center">&#10003; Sprejmi</button>
-      <button class="btn btn-g" id="spCloseBtn" onclick="closeSprejem()">Prekli&#269;i</button>
+      <button class="btn btn-g" id="spCloseBtn" onclick="closeSprejem()">Prekliči</button>
     </div>
   </div>
 </div>
@@ -989,10 +989,10 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <div id="lotEvalNote" style="display:none;background:#e8f0ff;border:1px solid #3b82f6;border-radius:8px;padding:10px;font-size:11px;color:#1d4ed8;margin-bottom:10px"></div>
       <div class="fg"><label>Datum ovrednotenja</label><input type="date" id="lotEvalDate"></div>
       <div class="fg"><label>Sklic na dokument (obvezno) *</label><input type="text" id="lotEvalDoc" placeholder="npr. OneDrive: Ovrednotenja/2026/..."></div>
-      <div style="font-size:10px;color:var(--text3)">&#128161; Dokument z ovrednotenjem je shranjen na OneDrive &mdash; tu vpi&#353;i ime/lokacijo dokumenta.</div>
+      <div style="font-size:10px;color:var(--text3)">&#128161; Dokument z ovrednotenjem je shranjen na OneDrive &mdash; tu vpiši ime/lokacijo dokumenta.</div>
     </div>
     <div class="mf">
-      <button class="btn btn-g" onclick="closeMo('moLotEval')">Prekli&#269;i</button>
+      <button class="btn btn-g" onclick="closeMo('moLotEval')">Prekliči</button>
       <button class="btn btn-a" onclick="confirmLotEval()">&#10003; Potrdi ovrednotenje</button>
     </div>
   </div>
@@ -1370,7 +1370,7 @@ function testRfidConn(){
 function testBarcode(){
   if(typeof AndroidBridge!=='undefined')try{AndroidBridge.enableDataWedge();}catch(e){}
   setStatusBc(true);
-  notify('Barcode &#269;italec aktiven — skenirajte kodo za test','ok');
+  notify('Barcode čitalec aktiven — skenirajte kodo za test','ok');
 }
 var rfidTestActive=false,rfidTestType=null,rfidTestEpcs=[];
 // Ustavi vse aktivne teste v zavihku Več (RFID test moči) — kliče se ob zapustitvi zavihka.
@@ -1410,7 +1410,7 @@ function renderPowerTestList(type){
   el.style.display='block';
   var rows=rfidTestEpcs.slice().sort(function(a,b){return b.rssi-a.rssi;});
   el.innerHTML='<div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:4px">'+
-    (rfidTestActive?'&#128225; Skeniram — v &#382;ivo:':'Zajetih: ')+rfidTestEpcs.length+' &#183; razvr&#353;&#269;eno po jakosti</div>'+
+    (rfidTestActive?'&#128225; Skeniram — v živo:':'Zajetih: ')+rfidTestEpcs.length+' &#183; razvrščeno po jakosti</div>'+
     rows.map(function(o){
       var r=(o.rssi!==0)?(o.rssi+' dBm'):'?';
       var col=(o.rssi===0)?'var(--text3)':(o.rssi>=-45?'var(--green)':(o.rssi>=-60?'var(--yellow)':'var(--text3)'));
@@ -1602,7 +1602,7 @@ function renderLots(){
           h+='<div style="font-size:10px;color:var(--green);margin-top:4px;padding-top:4px;border-top:1px solid var(--border)">';
           h+='&#10003; Ovrednoten '+(l.evalDate?fmtExp(l.evalDate.replace(/-/g,'').slice(2)):(l.checkedAt?l.checkedAt.slice(0,10):''))+(l.evalDoc?' &middot; &#128196; '+l.evalDoc:'');
           h+=' <a href="#" onclick="openLotEval(\''+l.gtin+'\',\''+l.lot.replace(/'/g,"\\'")+'\');return false" style="color:var(--text3);font-size:9px;margin-left:6px">uredi</a>';
-          h+=' <a href="#" onclick="clearLotEval(\''+l.gtin+'\',\''+l.lot.replace(/'/g,"\\'")+'\');return false" style="color:var(--red);font-size:9px;margin-left:4px">prekli&#269;i</a>';
+          h+=' <a href="#" onclick="clearLotEval(\''+l.gtin+'\',\''+l.lot.replace(/'/g,"\\'")+'\');return false" style="color:var(--red);font-size:9px;margin-left:4px">prekliči</a>';
           h+='</div>';
         }
         if(!l.checked&&note)h+='<div style="font-size:10px;color:#3b82f6;margin-top:4px;padding-top:4px;border-top:1px solid #c7d7f5">&#9888; '+note+'</div>';
@@ -2962,7 +2962,7 @@ function openLocateList(gtin,lot){
     '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Lot: '+escHtml(it.lot||'-')+'</div>';
   var withEpc=units.filter(function(u){return u.epc;});
   if(!withEpc.length){
-    h+='<div style="font-size:12px;color:var(--text3);padding:12px;text-align:center;background:var(--bg3);border-radius:8px">Ta artikel nima shranjenih EPC oznak &#8212; lociranje ni mogo&#269;e.</div>';
+    h+='<div style="font-size:12px;color:var(--text3);padding:12px;text-align:center;background:var(--bg3);border-radius:8px">Ta artikel nima shranjenih EPC oznak &#8212; lociranje ni mogoče.</div>';
   } else {
     h+='<div class="tbl-wrap"><table><thead><tr><th>SN</th><th>EPC</th><th></th></tr></thead><tbody>';
     units.forEach(function(u){
