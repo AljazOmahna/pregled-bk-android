@@ -400,6 +400,15 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     </table>
   </div>
   <div class="sec-hdr" style="margin-top:16px">
+    <div class="sec-title">&#128683; Poraba / history</div>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Artikel</th><th>Lot</th><th>Porabljeno</th><th>Kos</th><th></th></tr></thead>
+      <tbody id="consumedBody"></tbody>
+    </table>
+  </div>
+  <div class="sec-hdr" style="margin-top:16px">
     <div class="sec-title">&#128230; Prejeto</div>
     <div style="display:-webkit-flex;display:flex;gap:6px">
       <button class="btn btn-d btn-sm" onclick="clearAllReceived()">&#128465; Reset (test)</button>
@@ -1830,9 +1839,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:101,
+  build:102,
   date:'2026-06-11',
   history:[
+    {build:102,date:'2026-06-11',notes:'Sledenje porabi: gumb "Porabi" v podrobnostih artikla premakne artikel iz zaloge v "Poraba/history" log namesto čistega brisanja. Gumb "Vrni v zalogo" razveljavi porabo. Sinhronizacija (Quick Share + OneDrive) zdaj prenaša porabo med napravami — porabljeni artikel se po uvozu odstrani iz zaloge tudi na drugi napravi. Seje pri ponavljajočem syncu: nova skeniranja v obstoječi seji se zdaj pravilno dopolnijo (prej se je celotna seja preskočila). Ime izvožene datoteke vsebuje časovni žig (Pregled_BK_YYYYMMDD_HHMMSS.json).'},
     {build:101,date:'2026-06-11',notes:'Dovoljenje za shrambo: app ob zagonu zahteva dostop do datotek, da odpiranje prejete .json (file://) deluje tudi po brisanju podatkov. Ob neuspelem branju datoteke pokaže jasno napako (namesto tihega molka) in po odobritvi dovoljenja samodejno ponovi uvoz.'},
     {build:100,date:'2026-06-11',notes:'Varnostno opozorilo pred uvozom: ob uvozu (Quick Share datoteka / OneDrive) se prikaže potrditev s povzetkom (št. sprejemov/lotov/GTIN + datum), in IZRECNO OPOZORILO, če so podatki v datoteki STAREJŠI od trenutnih — prepreči nenamerno nalaganje starih podatkov. Izvožene datoteke zdaj nosijo žig "ustvarjena" (exportedAt).'},
     {build:99,date:'2026-06-11',notes:'Nov gumb "📤 Uvozi iz datoteke" (Več → Sinhronizacija): prejeto .json datoteko (npr. iz Quick Share, mapa Download/Quick Share) naložiš neposredno v aplikacijo prek izbirnika datotek — brez iskanja "Odpri z". Uporabi isto pametno združevanje (mergeDB) kot Quick Share sprejem.'},
@@ -2803,6 +2813,7 @@ function renderInventory(){
       '<button class="btn btn-g btn-sm" onclick="openQtyMo(\''+it.gtin+'\',\''+it.lot+'\')" style="padding:4px 7px;min-height:30px">&#9998;</button>'+
       '</td></tr>';
   }).join('');
+  try{renderConsumed();}catch(e){}
 }
 // Vrne pare SN ↔ EPC (en zapis na sprejet kos). Za starejše/po-sejne artikle izpelje iz serijskih.
 function itemUnits(it){
@@ -2838,7 +2849,7 @@ function showDetail(gtin,lot){
     '<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase">Zaloga</div><div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--accent)">'+it.qty+'</div></div></div>'+
     unitsHtml+
     '<div style="text-align:center;padding:10px;background:var(--bg3);border-radius:8px">'+expBadge(it.expiry)+'<div style="font-size:11px;color:var(--text3);margin-top:4px">'+(d>=0?d+' dni do izteka':'Preteceno '+Math.abs(d)+' dni nazaj')+'</div></div>'+
-    '<button class="btn btn-d" onclick="removeItem(\''+gtin+'\',\''+lot+'\');closeMo(\'moItem\')" style="width:100%;-webkit-justify-content:center;justify-content:center">&#10005; Odstrani iz zaloge</button>'+
+    '<button class="btn btn-d" onclick="consumeItem(\''+gtin+'\',\''+lot+'\')" style="width:100%;-webkit-justify-content:center;justify-content:center">&#128683; Porabi (premakni v history)</button>'+
     '</div>';
   $i('moItem').classList.add('open');
 }
@@ -2846,6 +2857,46 @@ function removeItem(gtin,lot){
   if(!confirm('Odstraniti artikel?'))return;
   DB.inventory=DB.inventory.filter(function(i){return!(i.gtin===gtin&&i.lot===lot);});
   saveDB();renderInventory();updateStats();notify('Artikel odstranjen');
+}
+function consumeItem(gtin,lot){
+  var it=DB.inventory.filter(function(i){return i.gtin===gtin&&i.lot===lot;})[0];
+  if(!it)return;
+  if(!confirm('Označiti "'+(it.name||gtin)+'" (lot '+lot+') kot porabljeno?\n\nArtikel se premakne v "Poraba / history" in se ob naslednji sinhronizaciji odstrani tudi z druge naprave.'))return;
+  if(!DB.consumed)DB.consumed=[];
+  DB.consumed.push({gtin:it.gtin,lot:it.lot,name:it.name,type:it.type,qty:it.qty||1,
+    serials:(it.serials||[]).slice(),rfidEpcs:(it.rfidEpcs||[]).slice(),
+    expiry:it.expiry||'',consumedAt:new Date().toISOString(),restoredAt:null});
+  DB.inventory=DB.inventory.filter(function(i){return!(i.gtin===gtin&&i.lot===lot);});
+  saveDB();renderInventory();updateStats();
+  try{closeMo('moItem');}catch(e){}
+  notify('Artikel označen kot porabljen ✓');
+}
+function restoreItem(gtin,lot,consumedAt){
+  var c=(DB.consumed||[]).filter(function(x){return x.gtin===gtin&&x.lot===lot&&x.consumedAt===consumedAt;})[0];
+  if(!c)return;
+  if(!confirm('Vrniti artikel v zalogo?'))return;
+  c.restoredAt=new Date().toISOString();
+  if(!DB.inventory.some(function(i){return i.gtin===gtin&&i.lot===lot;})){
+    DB.inventory.push({gtin:c.gtin,lot:c.lot,name:c.name,type:c.type,qty:c.qty||1,
+      serials:c.serials||[],rfidEpcs:c.rfidEpcs||[],expiry:c.expiry||''});
+  }
+  saveDB();renderInventory();updateStats();notify('Artikel vrnjen v zalogo ✓');
+}
+function renderConsumed(){
+  var tbody=$i('consumedBody');if(!tbody)return;
+  var items=(DB.consumed||[]).filter(function(c){return !c.restoredAt;});
+  if(!items.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Ni porabljenih artiklov.</td></tr>';return;}
+  tbody.innerHTML=items.slice().reverse().map(function(c){
+    var ca=c.consumedAt||'';
+    return '<tr>'+
+      '<td><div style="font-weight:600;font-size:11px">'+(c.name||'Neznan')+'</div>'+
+      '<div style="font-size:9px;color:var(--text3)">'+typeName(c.type)+'</div></td>'+
+      '<td class="lot-n">'+(c.lot||'-')+'</td>'+
+      '<td style="font-size:10px;white-space:nowrap">'+(ca?ca.slice(0,16).replace('T',' '):'?')+'</td>'+
+      '<td style="font-family:var(--mono);font-weight:700">'+(c.qty||1)+'</td>'+
+      '<td><button class="btn btn-g btn-sm" onclick="restoreItem(\''+c.gtin+'\',\''+c.lot+'\',\''+ca+'\')" style="padding:4px 7px;min-height:30px">&#8617; Vrni</button></td>'+
+      '</tr>';
+  }).join('');
 }
 
 // ===== OVERVIEW =====
@@ -3317,13 +3368,19 @@ function _dbFreshness(o){
   (o&&o.lots||[]).forEach(function(l){if(l&&l.firstReceivedAt&&l.firstReceivedAt>t)t=l.firstReceivedAt;});
   return t;
 }
+function _exportFilename(){
+  var n=new Date();
+  var ts=n.getFullYear()+('0'+(n.getMonth()+1)).slice(-2)+('0'+n.getDate()).slice(-2)+'_'+('0'+n.getHours()).slice(-2)+('0'+n.getMinutes()).slice(-2)+('0'+n.getSeconds()).slice(-2);
+  return 'Pregled_BK_'+ts+'.json';
+}
 function quickShareDb(){
   var data=_exportPayload();
+  var fname=_exportFilename();
   if(_hasBridge()&&AndroidBridge.quickShare){
-    try{AndroidBridge.quickShare('pregledBK_db.json',data);notify('Odpiram Quick Share…','ok');}
+    try{AndroidBridge.quickShare(fname,data);notify('Odpiram Quick Share…','ok');}
     catch(e){notify('Napaka Quick Share','err');}
   }else{
-    try{var blob=new Blob([data],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pregledBK_db.json';a.click();notify('Quick Share je na voljo na napravi','warn');}catch(e){notify('Napaka','err');}
+    try{var blob=new Blob([data],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname;a.click();notify('Quick Share je na voljo na napravi','warn');}catch(e){notify('Napaka','err');}
   }
 }
 function onQuickShareError(msg){notify(msg||'Napaka Quick Share','err');}
@@ -3355,7 +3412,9 @@ function onSharedImport(filename,json){
     try{renderReceived();}catch(e){}
     try{updateStats();}catch(e){}
     try{updateBanner();}catch(e){}
-    notify('Uvoženo: +'+r.gtins+' GTIN, +'+r.received+' sprejem, +'+r.lots+' lotov, +'+r.sessions+' sej ✓','ok');
+    var nm='Uvoženo: +'+r.gtins+' GTIN, +'+r.received+' sprejem, +'+r.lots+' lotov, +'+r.sessions+' sej';
+    if(r.consumed)nm+=', +'+r.consumed+' poraba';
+    notify(nm+' ✓','ok');
   }catch(e){notify('Napaka pri uvozu deljene datoteke','err');}
 }
 // ---- callbacks iz Androida ----
@@ -3398,7 +3457,7 @@ function _arrUnion(a,b){
   return out;
 }
 function mergeDB(cloud){
-  var stats={gtins:0,received:0,sessions:0,inventory:0,lots:0};
+  var stats={gtins:0,received:0,sessions:0,inventory:0,lots:0,consumed:0};
   cloud=cloud||{};
   // GTINs — union po gtin, lokalni ima prednost
   var locG={};(DB.gtins||[]).forEach(function(g){locG[g.gtin]=true;});
@@ -3412,11 +3471,23 @@ function mergeDB(cloud){
   (cloud.received||[]).forEach(function(r){
     if(r&&!locR[recKey(r)]){DB.received.push(r);locR[recKey(r)]=true;stats.received++;}
   });
-  // Sessions — union po id, lokalni ima prednost
+  // Sessions — union po id; če seja že obstaja, dopolni items[] z novimi skeniranji
   if(!DB.sessions)DB.sessions=[];
-  var locS={};DB.sessions.forEach(function(s){locS[s.id]=true;});
+  var locS={};DB.sessions.forEach(function(s){locS[s.id]=s;});
   (cloud.sessions||[]).forEach(function(s){
-    if(s&&s.id&&!locS[s.id]){DB.sessions.push(s);locS[s.id]=true;stats.sessions++;}
+    if(!s||!s.id)return;
+    var ls=locS[s.id];
+    if(!ls){
+      DB.sessions.push(s);locS[s.id]=s;stats.sessions++;
+    }else{
+      // Seja obstaja — dopolni items[] (union po ključu, enako kot received)
+      function itemKey(i){return i.id||((i.gtin||'')+'|'+(i.serial||'')+'|'+(i.rfidEpc||''));}
+      var im={};(ls.items||[]).forEach(function(i){im[itemKey(i)]=true;});
+      var added=0;
+      (s.items||[]).forEach(function(i){if(i&&!im[itemKey(i)]){(ls.items=ls.items||[]).push(i);im[itemKey(i)]=true;added++;}});
+      if(added){ls.scanned=(ls.items||[]).length;stats.sessions++;}
+      if(!ls.closed&&s.closed)ls.closed=s.closed;
+    }
   });
   // Inventory — union po gtin+lot; serije/EPC kot mnozice; qty preracunan
   if(!DB.inventory)DB.inventory=[];
@@ -3445,13 +3516,39 @@ function mergeDB(cloud){
     var k=lotKey(cl),ll=locL[k];
     if(!ll){DB.lots.push(cl);locL[k]=cl;stats.lots++;}
     else{
-      // če lokalni ni ovrednoten, cloud pa je → prevzemi ovrednotenje (ne prepiši obstoječega)
       if(!ll.checked&&cl.checked){
         ll.checked=true;ll.checkedAt=cl.checkedAt||ll.checkedAt;
         if(!ll.evalDate&&cl.evalDate)ll.evalDate=cl.evalDate;
         if(!ll.evalDoc&&cl.evalDoc)ll.evalDoc=cl.evalDoc;
       }
       if(!ll.expiry&&cl.expiry)ll.expiry=cl.expiry;
+    }
+  });
+  // Consumed — union po gtin+lot+consumedAt; propagiraj restoredAt
+  if(!DB.consumed)DB.consumed=[];
+  function consumedKey(c){return (c.gtin||'')+'|'+(c.lot||'')+'|'+(c.consumedAt||'');}
+  var locC={};DB.consumed.forEach(function(c){locC[consumedKey(c)]=c;});
+  (cloud.consumed||[]).forEach(function(cc){
+    if(!cc)return;
+    var k=consumedKey(cc),lc=locC[k];
+    if(!lc){DB.consumed.push(cc);locC[k]=cc;stats.consumed++;}
+    else if(!lc.restoredAt&&cc.restoredAt){lc.restoredAt=cc.restoredAt;}
+  });
+  // Inventory reconcile: consumed[] določa končno stanje zaloge
+  invMap={};DB.inventory.forEach(function(i){invMap[invKey(i)]=i;});
+  DB.consumed.forEach(function(c){
+    if(!c)return;
+    var k=invKey(c);
+    if(!c.restoredAt){
+      // Porabljeno (brez razveljavitve) → odstrani iz inventory
+      if(invMap[k]){DB.inventory=DB.inventory.filter(function(i){return invKey(i)!==k;});delete invMap[k];}
+    }else{
+      // Razveljavitev porabe → vrni v inventory, če ga ni
+      if(!invMap[k]){
+        var r={gtin:c.gtin,lot:c.lot,name:c.name,type:c.type,qty:c.qty||1,
+          serials:c.serials||[],rfidEpcs:c.rfidEpcs||[],expiry:c.expiry||''};
+        DB.inventory.push(r);invMap[k]=r;
+      }
     }
   });
   // lastUsed — union, omeji na 20
