@@ -1083,6 +1083,7 @@ sl:{
   sp_received:'Sprejeto',sp_duplicate:'Duplikat serijske',sp_no_gtin:'GTIN ni v bazi',
   sp_new_lot:'🆕 Nov lot',sp_lots_summary:'🆕 Novi loti ({n})',
   sp_during_1:'Med sprejemom je bil zaznan 1 nov lot',sp_during_n:'Med sprejemom je bilo zaznanih {n} novih lotov',
+  newlot_confirm:'⚠ Najprej potrdi obvestilo o novem lotu (Razumem)',
   sess_no_active:'Ni aktivne seje',
   sess_close_rfid_warn:'{n} prepoznanih artiklov še NI sprejetih v sejo.\n\nJih sprejmem pred zaključkom?',
   sess_close_rfid_abort:'Zaključevanje prekinjeno — preglej ali počisti prepoznane',
@@ -1111,6 +1112,7 @@ en:{
   sp_received:'Received',sp_duplicate:'Duplicate serial',sp_no_gtin:'GTIN not in database',
   sp_new_lot:'🆕 New lot',sp_lots_summary:'🆕 New lots ({n})',
   sp_during_1:'1 new lot was detected during receiving',sp_during_n:'{n} new lots were detected during receiving',
+  newlot_confirm:'⚠ First confirm the new-lot notice (Razumem)',
   sess_no_active:'No active session',
   sess_close_rfid_warn:'{n} recognized items have NOT been accepted into the session.\n\nAccept before closing?',
   sess_close_rfid_abort:'Session close cancelled — review or clear recognized items',
@@ -1139,6 +1141,7 @@ hs:{
   sp_received:'Primljeno',sp_duplicate:'Duplikat serije',sp_no_gtin:'GTIN nije u bazi',
   sp_new_lot:'🆕 Novi lot',sp_lots_summary:'🆕 Novi loti ({n})',
   sp_during_1:'Tokom prijema otkriven je 1 novi lot',sp_during_n:'Tokom prijema otkriveno je {n} novih lota',
+  newlot_confirm:'⚠ Prvo potvrdi obavijest o novom lotu (Razumem)',
   sess_no_active:'Nema aktivne sesije',
   sess_close_rfid_warn:'{n} prepoznatih artikala NIJE prihvaćeno u sesiju.\n\nPrihvatiti prije zatvaranja?',
   sess_close_rfid_abort:'Zatvaranje sesije otkazano — pregledaj ili očisti prepoznate',
@@ -1824,9 +1827,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:97,
+  build:98,
   date:'2026-06-11',
   history:[
+    {build:98,date:'2026-06-11',notes:'Quick Share / OneDrive sync: loti se zdaj pravilno prenesejo med napravami (prej so se izgubili) — ovrednotenje lota (datum + sklic) se ohrani z obeh naprav. Obvestilo ob uvozu prikaže tudi št. lotov. Serijski sprejem: dokler ni potrjeno obvestilo o novem lotu (Razumem), skeniranje naslednjega artikla je blokirano.'},
     {build:97,date:'2026-06-11',notes:'Locate Tag: barcode čitalec (DataWedge) se takoj onemogoči ob odprtju okna za lociranje in se ponovno vklopi ob zaprtju — preprečuje nenamerne skene med iskanjem.'},
     {build:96,date:'2026-06-11',notes:'Popravek Locate Tag: izklop DPO (sicer TagLocationing na RFD ne deluje) + samodejni rezervni način (navadni inventory + odstotek iz RSSI), da meter VEDNO reagira ob držanju triggerja. Ikona 📡 se zdaj pravilno prikaže (prej dobesedno &#128225;). Napake čitalca vidne v oknu; "Zaključi iskanje"/X zanesljivo ustavita in dasta RFD v mirovanje.'},
     {build:95,date:'2026-06-10',notes:'Locate Tag (kot 123RFID): v zavihku Roki gumb 📡 odpre seznam SN/EPC; 🏷️ ob EPC odpre lociranje. RFD2000 meri bližino (0–100%) samo med držanjem triggerja; ob spustu meritev miruje. Gumb "Zaključi iskanje" deaktivira čitalec.'},
@@ -2001,6 +2005,9 @@ function spOnBarcodeKey(e){
   }
 }
 function spProcessBarcode(raw){
+  // Obvestilo o novem lotu mora biti potrjeno (Razumem) preden je možno skenirati naprej
+  var _nl=$i('moNewLot');
+  if(_nl&&_nl.classList.contains('open')){notify(t('newlot_confirm'),'warn');$i('spBarcodeInp').value='';return;}
   var p=parseGS1(raw);
   if(p&&p.serial&&p.serial.length<5){
     notify('Serijska nepopolna ('+p.serial+', '+p.serial.length+' zn.) — skenirajte znova','err');
@@ -2311,6 +2318,9 @@ function processRawScan(raw,rssi){
   // Med sprejemom (zbiranje kandidatov) in testom moči NE dedupiramo — rabimo žive RSSI
   if(!(sprejemActive&&!sprejemEpc)&&!rfidTestActive&&raw===_lastScanRaw&&now-_lastScanTs<500)return;
   _lastScanRaw=raw;_lastScanTs=now;
+  // Obvestilo o novem lotu mora biti potrjeno (Razumem) preden je možno skenirati naprej
+  var _nl=$i('moNewLot');
+  if(_nl&&_nl.classList.contains('open')){notify(t('newlot_confirm'),'warn');return;}
   var _dbg='';for(var _ci=0;_ci<Math.min(raw.length,80);_ci++)_dbg+=raw.charCodeAt(_ci)+',';
   if(typeof AndroidBridge!=='undefined')try{AndroidBridge.log('SCAN_CHARS:'+_dbg);}catch(_e){}
   // moGtin modal odprt → skeniranje polni gtinCode input
@@ -3301,7 +3311,7 @@ function onSharedImport(filename,json){
     try{renderReceived();}catch(e){}
     try{updateStats();}catch(e){}
     try{updateBanner();}catch(e){}
-    notify('Quick Share: +'+r.gtins+' GTIN, +'+r.received+' sprejem, +'+r.sessions+' sej ✓','ok');
+    notify('Quick Share: +'+r.gtins+' GTIN, +'+r.received+' sprejem, +'+r.lots+' lotov, +'+r.sessions+' sej ✓','ok');
   }catch(e){notify('Napaka pri uvozu deljene datoteke','err');}
 }
 // ---- callbacks iz Androida ----
@@ -3344,7 +3354,7 @@ function onMsDownloadDone(json,msg){
     try{renderReceived();}catch(e){}
     try{updateStats();}catch(e){}
     try{updateBanner();}catch(e){}
-    notify('Združeno: +'+r.gtins+' GTIN, +'+r.received+' sprejem, +'+r.sessions+' sej','ok');
+    notify('Združeno: +'+r.gtins+' GTIN, +'+r.received+' sprejem, +'+r.lots+' lotov, +'+r.sessions+' sej','ok');
     refreshSyncUI();
   }catch(e){
     notify('Napaka pri branju podatkov iz OneDrive','err');
@@ -3357,7 +3367,7 @@ function _arrUnion(a,b){
   return out;
 }
 function mergeDB(cloud){
-  var stats={gtins:0,received:0,sessions:0};
+  var stats={gtins:0,received:0,sessions:0,inventory:0,lots:0};
   cloud=cloud||{};
   // GTINs — union po gtin, lokalni ima prednost
   var locG={};(DB.gtins||[]).forEach(function(g){locG[g.gtin]=true;});
@@ -3385,7 +3395,7 @@ function mergeDB(cloud){
     if(!ci)return;
     var k=invKey(ci),li=invMap[k];
     if(!li){
-      DB.inventory.push(ci);invMap[k]=ci;
+      DB.inventory.push(ci);invMap[k]=ci;stats.inventory++;
     }else{
       li.serials=_arrUnion(li.serials,ci.serials);
       li.rfidEpcs=_arrUnion(li.rfidEpcs,ci.rfidEpcs);
@@ -3393,6 +3403,24 @@ function mergeDB(cloud){
       else if(li.rfidEpcs&&li.rfidEpcs.length)li.qty=li.rfidEpcs.length;
       else li.qty=Math.max(li.qty||0,ci.qty||0);
       if(!li.expiry&&ci.expiry)li.expiry=ci.expiry;
+    }
+  });
+  // Loti — union po gtin+lot; ohrani ovrednotenje z obeh naprav
+  if(!DB.lots)DB.lots=[];
+  function lotKey(l){return (l.gtin||'')+'|'+(l.lot||'');}
+  var locL={};DB.lots.forEach(function(l){locL[lotKey(l)]=l;});
+  (cloud.lots||[]).forEach(function(cl){
+    if(!cl)return;
+    var k=lotKey(cl),ll=locL[k];
+    if(!ll){DB.lots.push(cl);locL[k]=cl;stats.lots++;}
+    else{
+      // če lokalni ni ovrednoten, cloud pa je → prevzemi ovrednotenje (ne prepiši obstoječega)
+      if(!ll.checked&&cl.checked){
+        ll.checked=true;ll.checkedAt=cl.checkedAt||ll.checkedAt;
+        if(!ll.evalDate&&cl.evalDate)ll.evalDate=cl.evalDate;
+        if(!ll.evalDoc&&cl.evalDoc)ll.evalDoc=cl.evalDoc;
+      }
+      if(!ll.expiry&&cl.expiry)ll.expiry=cl.expiry;
     }
   });
   // lastUsed — union, omeji na 20
