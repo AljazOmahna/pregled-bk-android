@@ -1830,9 +1830,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:99,
+  build:100,
   date:'2026-06-11',
   history:[
+    {build:100,date:'2026-06-11',notes:'Varnostno opozorilo pred uvozom: ob uvozu (Quick Share datoteka / OneDrive) se prikaže potrditev s povzetkom (št. sprejemov/lotov/GTIN + datum), in IZRECNO OPOZORILO, če so podatki v datoteki STAREJŠI od trenutnih — prepreči nenamerno nalaganje starih podatkov. Izvožene datoteke zdaj nosijo žig "ustvarjena" (exportedAt).'},
     {build:99,date:'2026-06-11',notes:'Nov gumb "📤 Uvozi iz datoteke" (Več → Sinhronizacija): prejeto .json datoteko (npr. iz Quick Share, mapa Download/Quick Share) naložiš neposredno v aplikacijo prek izbirnika datotek — brez iskanja "Odpri z". Uporabi isto pametno združevanje (mergeDB) kot Quick Share sprejem.'},
     {build:98,date:'2026-06-11',notes:'Quick Share / OneDrive sync: loti se zdaj pravilno prenesejo med napravami (prej so se izgubili) — ovrednotenje lota (datum + sklic) se ohrani z obeh naprav. Obvestilo ob uvozu prikaže tudi št. lotov. Serijski sprejem: dokler ni potrjeno obvestilo o novem lotu (Razumem), skeniranje naslednjega artikla je blokirano.'},
     {build:97,date:'2026-06-11',notes:'Locate Tag: barcode čitalec (DataWedge) se takoj onemogoči ob odprtju okna za lociranje in se ponovno vklopi ob zaprtju — preprečuje nenamerne skene med iskanjem.'},
@@ -3280,7 +3281,7 @@ function msUpload(){
   if(!_hasBridge()){notify('Samo na napravi','warn');return;}
   try{
     notify('Nalagam v OneDrive…','ok');
-    AndroidBridge.msUpload(JSON.stringify(DB));
+    AndroidBridge.msUpload(_exportPayload());
   }catch(e){notify('Napaka nalaganja','err');}
 }
 function msDownload(){
@@ -3302,8 +3303,21 @@ function importDbFile(input){
   r.onerror=function(){notify('Datoteke ni mogoče prebrati','err');input.value='';};
   r.readAsText(file);
 }
+// Izvozni paket = baza + žig exportedAt (za preverjanje starosti ob uvozu)
+function _exportPayload(){
+  var o={};for(var k in DB){if(DB.hasOwnProperty(k))o[k]=DB[k];}
+  o.exportedAt=new Date().toISOString();
+  return JSON.stringify(o);
+}
+// Najnovejši časovni žig v podatkih (za primerjavo starosti)
+function _dbFreshness(o){
+  var t='';
+  (o&&o.received||[]).forEach(function(r){if(r&&r.receivedAt&&r.receivedAt>t)t=r.receivedAt;});
+  (o&&o.lots||[]).forEach(function(l){if(l&&l.firstReceivedAt&&l.firstReceivedAt>t)t=l.firstReceivedAt;});
+  return t;
+}
 function quickShareDb(){
-  var data=JSON.stringify(DB);
+  var data=_exportPayload();
   if(_hasBridge()&&AndroidBridge.quickShare){
     try{AndroidBridge.quickShare('pregledBK_db.json',data);notify('Odpiram Quick Share…','ok');}
     catch(e){notify('Napaka Quick Share','err');}
@@ -3317,6 +3331,20 @@ function onSharedImport(filename,json){
   if(!json){notify('Prazna deljena datoteka','warn');return;}
   var obj;try{obj=JSON.parse(json);}catch(e){notify('Neveljaven JSON','err');return;}
   if(!(obj.inventory||obj.gtins||obj.received||obj.sessions)){notify('Datoteka ni Pregled BK baza','warn');return;}
+  // Varnostno opozorilo pred uvozom: povzetek + opozorilo, če so podatki STAREJŠI od trenutnih
+  var inRec=(obj.received||[]).length,inLots=(obj.lots||[]).length,inGt=(obj.gtins||[]).length;
+  var fIn=_dbFreshness(obj),fCur=_dbFreshness(DB);
+  var fmt=function(s){return s?s.slice(0,16).replace('T',' '):'?';};
+  var sum='Datoteka'+(filename?' "'+filename+'"':'')+':\n• '+inRec+' sprejemov, '+inLots+' lotov, '+inGt+' GTIN';
+  if(obj.exportedAt)sum+='\n• ustvarjena: '+fmt(obj.exportedAt);
+  else if(fIn)sum+='\n• zadnji vnos: '+fmt(fIn);
+  var msg;
+  if(fIn&&fCur&&fIn<fCur){
+    msg='⚠ OPOZORILO: PODATKI V DATOTEKI SO STAREJŠI od trenutnih!\n\n'+sum+'\n• Trenutni zadnji vnos: '+fmt(fCur)+'\n\nUvoz NE izbriše obstoječih (le doda manjkajoče), a uvažaš starejše podatke. Vseeno nadaljujem?';
+  } else {
+    msg=sum+'\n\nZdružim te podatke v trenutno bazo?';
+  }
+  if(!confirm(msg)){notify('Uvoz preklican','warn');return;}
   try{
     var r=mergeDB(obj);
     saveDB();
@@ -3326,7 +3354,7 @@ function onSharedImport(filename,json){
     try{renderReceived();}catch(e){}
     try{updateStats();}catch(e){}
     try{updateBanner();}catch(e){}
-    notify('Quick Share: +'+r.gtins+' GTIN, +'+r.received+' sprejem, +'+r.lots+' lotov, +'+r.sessions+' sej ✓','ok');
+    notify('Uvoženo: +'+r.gtins+' GTIN, +'+r.received+' sprejem, +'+r.lots+' lotov, +'+r.sessions+' sej ✓','ok');
   }catch(e){notify('Napaka pri uvozu deljene datoteke','err');}
 }
 // ---- callbacks iz Androida ----
@@ -3359,21 +3387,8 @@ function onMsDownloadDone(json,msg){
     notify(msg||'Ni podatkov v OneDrive','warn');
     return;
   }
-  try{
-    var cloud=JSON.parse(json);
-    var r=mergeDB(cloud);
-    saveDB();
-    try{renderGtins();}catch(e){}
-    try{renderInventory();}catch(e){}
-    try{renderSessions();}catch(e){}
-    try{renderReceived();}catch(e){}
-    try{updateStats();}catch(e){}
-    try{updateBanner();}catch(e){}
-    notify('Združeno: +'+r.gtins+' GTIN, +'+r.received+' sprejem, +'+r.lots+' lotov, +'+r.sessions+' sej','ok');
-    refreshSyncUI();
-  }catch(e){
-    notify('Napaka pri branju podatkov iz OneDrive','err');
-  }
+  onSharedImport('OneDrive',json);
+  refreshSyncUI();
 }
 // ---- pametno združevanje (merge) ----
 function _arrUnion(a,b){
