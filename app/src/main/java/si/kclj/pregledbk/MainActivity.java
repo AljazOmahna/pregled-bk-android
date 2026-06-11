@@ -335,6 +335,7 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
 
         @JavascriptInterface
         public void startLocateTag(String epc) {
+            Log.d(TAG, "JS startLocateTag " + epc + " (handler=" + (rfidHandler != null) + ")");
             if (rfidHandler != null) rfidHandler.startLocateTag(epc, 3000);
         }
 

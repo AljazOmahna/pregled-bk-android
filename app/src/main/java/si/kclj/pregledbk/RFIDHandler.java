@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.os.AsyncTask;
 import android.util.Log;
 
+import com.zebra.rfid.api3.DYNAMIC_POWER_OPTIMIZATION;
 import com.zebra.rfid.api3.ENUM_TRANSPORT;
 import com.zebra.rfid.api3.ENUM_TRIGGER_MODE;
 import com.zebra.rfid.api3.HANDHELD_TRIGGER_EVENT_TYPE;
@@ -41,6 +42,10 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
     // Locate Tag (iskanje določene RFID oznake) — aktivno samo med pritiskom triggerja
     private volatile boolean locateMode = false;
     private volatile String locateEpc = null;
+    // TagLocationing ni podprt/pade → rezervni način: navadni inventory + odstotek iz RSSI
+    private volatile boolean locateFallback = false;
+    private volatile boolean locTriggerHeld = false;
+    private volatile long lastLocateEventMs = 0;
 
     RFIDHandler(Context context, Callback callback) {
         this.context = context.getApplicationContext();
@@ -120,13 +125,29 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                         if (tags == null) return;
                         for (TagData tag : tags) {
                             if (locateMode) {
-                                // Locate Tag: beremo le relativno bližino (0–100) izbrane oznake
+                                // Locate Tag: bližina iz LocationInfo (0–100); rezerva: RSSI ujemajočega EPC
+                                int pct = -1;
                                 try {
                                     if (tag.isContainsLocationInfo() && tag.LocationInfo != null) {
-                                        int dist = tag.LocationInfo.getRelativeDistance();
-                                        callback.onLocateUpdate(locateEpc, dist);
+                                        pct = tag.LocationInfo.getRelativeDistance();
                                     }
                                 } catch (Throwable ignore) {}
+                                try {
+                                    String tid = tag.getTagID();
+                                    if (tid != null && locateEpc != null && tid.equalsIgnoreCase(locateEpc)) {
+                                        int rssi = 0;
+                                        try { rssi = tag.getPeakRSSI(); } catch (Throwable ignore) {}
+                                        int rssiPct;
+                                        if (rssi == 0) rssiPct = 50; // RSSI neznan, a oznaka vidna
+                                        else rssiPct = Math.max(0, Math.min(100, (rssi + 70) * 100 / 40)); // -70→0%, -30→100%
+                                        if (rssiPct > pct) pct = rssiPct;
+                                    }
+                                } catch (Throwable ignore) {}
+                                if (pct >= 0) {
+                                    lastLocateEventMs = System.currentTimeMillis();
+                                    Log.d(TAG, "Locate pct=" + pct);
+                                    callback.onLocateUpdate(locateEpc, pct);
+                                }
                                 continue;
                             }
                             String epc = tag.getTagID();
@@ -147,20 +168,48 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                             Log.d(TAG, "Trigger: " + triggerEvent);
                             boolean pressed = (triggerEvent == HANDHELD_TRIGGER_EVENT_TYPE.HANDHELD_TRIGGER_PRESSED);
                             if (pressed && scanArmed) {
+                                locTriggerHeld = true;
                                 new Thread(() -> {
                                     try {
                                         if (reader == null) return;
-                                        if (locateMode && locateEpc != null) reader.Actions.TagLocationing.Perform(locateEpc, null, null);
-                                        else reader.Actions.Inventory.perform();
+                                        if (locateMode && locateEpc != null && !locateFallback) {
+                                            lastLocateEventMs = System.currentTimeMillis();
+                                            try {
+                                                reader.Actions.TagLocationing.Perform(locateEpc, null, null);
+                                                Log.d(TAG, "Locate Perform OK epc=" + locateEpc);
+                                            } catch (Exception le) {
+                                                // TagLocationing ni podprt → rezerva: navadni inventory + RSSI odstotek
+                                                Log.w(TAG, "Locate Perform failed → fallback inventory: " + le.getMessage());
+                                                locateFallback = true;
+                                                reader.Actions.Inventory.perform();
+                                                return;
+                                            }
+                                            // Watchdog: Perform OK, a brez locate dogodkov → preklopi na fallback
+                                            Thread.sleep(2000);
+                                            if (locateMode && locTriggerHeld && !locateFallback
+                                                    && System.currentTimeMillis() - lastLocateEventMs > 1800) {
+                                                Log.w(TAG, "Locate watchdog: ni dogodkov → fallback inventory");
+                                                locateFallback = true;
+                                                try { reader.Actions.TagLocationing.Stop(); } catch (Exception ignore) {}
+                                                reader.Actions.Inventory.perform();
+                                            }
+                                        } else {
+                                            reader.Actions.Inventory.perform();
+                                        }
                                     }
                                     catch (Exception e) { Log.e(TAG, "trigger perform: " + e.getMessage()); }
                                 }).start();
                             } else if (!pressed && scanArmed) {
+                                locTriggerHeld = false;
                                 new Thread(() -> {
                                     try {
                                         if (reader == null) return;
-                                        if (locateMode) reader.Actions.TagLocationing.Stop();
-                                        else reader.Actions.Inventory.stop();
+                                        if (locateMode) {
+                                            try { reader.Actions.TagLocationing.Stop(); } catch (Exception ignore) {}
+                                            try { reader.Actions.Inventory.stop(); } catch (Exception ignore) {}
+                                        } else {
+                                            reader.Actions.Inventory.stop();
+                                        }
                                     }
                                     catch (Exception e) { Log.e(TAG, "trigger stop: " + e.getMessage()); }
                                 }).start();
@@ -222,6 +271,7 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
 
     // Locate Tag — kot startRfidInventory, a vklopi locateMode za izbrani EPC (visoka moč za doseg)
     void startLocateTag(String epc, int targetCBm) {
+        Log.d(TAG, "startLocateTag epc=" + epc + " cBm=" + targetCBm);
         new Thread(() -> {
             try {
                 if (reader == null) {
@@ -231,7 +281,11 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                         if (list != null && !list.isEmpty()) connectReader(list.get(0));
                     }
                     Thread.sleep(3000);
-                    if (reader == null) { Log.e(TAG, "startLocateTag: še vedno ni bralnika"); callback.onStatus(null); return; }
+                    if (reader == null) {
+                        Log.e(TAG, "startLocateTag: še vedno ni bralnika");
+                        callback.onStatus("RFID: ni bralnika");
+                        return;
+                    }
                 }
                 reader.Config.setTriggerMode(ENUM_TRIGGER_MODE.RFID_MODE, true);
                 disableDataWedgeScanner();
@@ -247,6 +301,14 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                     reader.Config.Antennas.setAntennaRfConfig(1, cfg);
                     Log.d(TAG, "Locate power: " + levels[bestIdx] + " cBm idx=" + bestIdx);
                 }
+                // DPO mora biti IZKLOPLJEN, sicer TagLocationing na RFD napravah ne deluje
+                try {
+                    reader.Config.setDPOState(DYNAMIC_POWER_OPTIMIZATION.DISABLE);
+                    Log.d(TAG, "DPO disabled za locate");
+                } catch (Throwable de) {
+                    Log.w(TAG, "setDPOState DISABLE: " + de.getMessage());
+                }
+                locateFallback = false;
                 locateEpc = epc;
                 locateMode = true;
                 scanArmed = true;
@@ -254,23 +316,28 @@ class RFIDHandler implements Readers.RFIDReaderEventHandler {
                 callback.onStatus("Povezan: RFD2000");
             } catch (Exception e) {
                 Log.e(TAG, "startLocateTag: " + e.getMessage());
+                callback.onStatus("Locate napaka: " + e.getMessage());
             }
         }).start();
     }
 
     void stopLocateTag() {
+        Log.d(TAG, "stopLocateTag");
         scanArmed = false;
         locateMode = false;
         new Thread(() -> {
             try {
                 if (reader != null) {
                     try { reader.Actions.TagLocationing.Stop(); } catch (Exception ignore) {}
+                    try { reader.Actions.Inventory.stop(); } catch (Exception ignore) {}
+                    try { reader.Config.setDPOState(DYNAMIC_POWER_OPTIMIZATION.ENABLE); } catch (Throwable ignore) {}
                     reader.Config.setTriggerMode(ENUM_TRIGGER_MODE.RFID_MODE, false);
                 }
             } catch (Exception e) {
                 Log.e(TAG, "stopLocateTag: " + e.getMessage());
             } finally {
                 locateEpc = null;
+                locateFallback = false;
                 enableDataWedgeScanner();
             }
         }).start();
