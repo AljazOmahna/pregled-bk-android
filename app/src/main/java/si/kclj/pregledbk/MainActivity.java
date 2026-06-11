@@ -7,12 +7,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.OpenableColumns;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
@@ -22,11 +24,17 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
+import androidx.core.content.FileProvider;
+
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.InputStream;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -43,6 +51,9 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
     private ValueCallback<Uri[]> filePathCallback;
     private GraphSync graphSync;
     private BroadcastReceiver dwReceiver;
+    private boolean pageReady = false;
+    private String pendingSharedName = null;
+    private String pendingSharedJson = null;
 
     @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
     @Override
@@ -59,7 +70,13 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         ws.setAllowContentAccess(true);
         ws.setCacheMode(WebSettings.LOAD_DEFAULT);
 
-        webView.setWebViewClient(new WebViewClient());
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                pageReady = true;
+                flushPendingShared();
+            }
+        });
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> cb,
@@ -81,6 +98,8 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         webView.addJavascriptInterface(new JsBridge(), "AndroidBridge");
         graphSync = new GraphSync(this);
         webView.loadUrl("file:///android_asset/pregled_bk.html");
+
+        handleIncomingIntent(getIntent());
 
         // DataWedge: registriraj Intent receiver in nastavi profil
         dwReceiver = new BroadcastReceiver() {
@@ -272,6 +291,65 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         mainHandler.post(() -> webView.evaluateJavascript(js, null));
     }
 
+    // =========================================================
+    // Quick Share — receive a shared/opened .json file and import
+    // =========================================================
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleIncomingIntent(intent);
+    }
+
+    private void handleIncomingIntent(Intent intent) {
+        if (intent == null) return;
+        Uri uri = null;
+        String action = intent.getAction();
+        if (Intent.ACTION_SEND.equals(action)) {
+            uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+        } else if (Intent.ACTION_VIEW.equals(action)) {
+            uri = intent.getData();
+        }
+        if (uri == null) return;
+        final String name = queryName(uri);
+        final String json = readUri(uri);
+        if (json == null || json.isEmpty()) return;
+        pendingSharedName = name;
+        pendingSharedJson = json;
+        if (pageReady) flushPendingShared();
+    }
+
+    private void flushPendingShared() {
+        if (pendingSharedJson == null) return;
+        final String n = pendingSharedName, j = pendingSharedJson;
+        pendingSharedName = null; pendingSharedJson = null;
+        runJs("if(typeof onSharedImport==='function')onSharedImport(" + jsStr(n) + "," + jsStr(j) + ")");
+    }
+
+    private String queryName(Uri uri) {
+        try (Cursor c = getContentResolver().query(uri, null, null, null, null)) {
+            if (c != null && c.moveToFirst()) {
+                int i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (i >= 0) return c.getString(i);
+            }
+        } catch (Exception ignored) {}
+        String s = uri.getLastPathSegment();
+        return s != null ? s : "";
+    }
+
+    private String readUri(Uri uri) {
+        try (InputStream in = getContentResolver().openInputStream(uri)) {
+            if (in == null) return null;
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int r;
+            while ((r = in.read(buf)) != -1) bos.write(buf, 0, r);
+            return bos.toString("UTF-8");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     /** Varno zakodira niz v JS string literal (vkljucno za predajo JSON-a). */
     private static String jsStr(String s) {
         if (s == null) return "null";
@@ -420,6 +498,36 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
                 Log.e(TAG, "importRfidCsv: " + t);
                 return "[]";
             }
+        }
+
+        // ---- Quick Share (Nearby) — share a JSON file via system chooser ----
+        @JavascriptInterface
+        public void quickShare(String filename, String json) {
+            mainHandler.post(() -> {
+                try {
+                    String name = (filename == null || filename.isEmpty()) ? "pregledBK_db.json" : filename;
+                    File dir = new File(getCacheDir(), "share");
+                    if (!dir.exists()) dir.mkdirs();
+                    File f = new File(dir, name);
+                    try (FileOutputStream fos = new FileOutputStream(f);
+                         OutputStreamWriter w = new OutputStreamWriter(fos, "UTF-8")) {
+                        w.write(json == null ? "" : json);
+                    }
+                    Uri uri = FileProvider.getUriForFile(MainActivity.this,
+                            getPackageName() + ".fileprovider", f);
+                    Intent send = new Intent(Intent.ACTION_SEND);
+                    send.setType("application/json");
+                    send.putExtra(Intent.EXTRA_STREAM, uri);
+                    send.putExtra(Intent.EXTRA_TITLE, name);
+                    send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    Intent chooser = Intent.createChooser(send, "Deli prek Quick Share");
+                    chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(chooser);
+                } catch (Throwable t) {
+                    Log.e(TAG, "quickShare: " + t);
+                    runJs("if(typeof onQuickShareError==='function')onQuickShareError(" + jsStr(t.getMessage()) + ")");
+                }
+            });
         }
 
         @JavascriptInterface

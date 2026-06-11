@@ -588,6 +588,10 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
         <button class="btn btn-g btn-sm" onclick="msSignOut()">Odjava</button>
       </div>
     </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">&#128229; <b>Quick Share</b> &mdash; deli zalogo neposredno z bli&#382;njo napravo (tablica/skener) brez OneDrive.</div>
+      <button class="btn btn-g btn-sm" onclick="quickShareDb()" style="width:100%;-webkit-justify-content:center;justify-content:center;border-color:#00a3ad;color:#00a3ad">&#128229; Deli prek Quick Share</button>
+    </div>
     <details style="margin-top:10px">
       <summary style="font-size:11px;color:var(--text3);cursor:pointer">Napredno (client ID / tenant)</summary>
       <div style="margin-top:8px">
@@ -3271,6 +3275,34 @@ function msDownload(){
     notify('Prenašam iz OneDrive…','ok');
     AndroidBridge.msDownload();
   }catch(e){notify('Napaka prenosa','err');}
+}
+// ---- Quick Share (Nearby) ----
+function quickShareDb(){
+  var data=JSON.stringify(DB);
+  if(_hasBridge()&&AndroidBridge.quickShare){
+    try{AndroidBridge.quickShare('pregledBK_db.json',data);notify('Odpiram Quick Share…','ok');}
+    catch(e){notify('Napaka Quick Share','err');}
+  }else{
+    try{var blob=new Blob([data],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pregledBK_db.json';a.click();notify('Quick Share je na voljo na napravi','warn');}catch(e){notify('Napaka','err');}
+  }
+}
+function onQuickShareError(msg){notify(msg||'Napaka Quick Share','err');}
+// Sprejem deljene datoteke (Quick Share / odprtje .json) — združi v obstoječo bazo
+function onSharedImport(filename,json){
+  if(!json){notify('Prazna deljena datoteka','warn');return;}
+  var obj;try{obj=JSON.parse(json);}catch(e){notify('Neveljaven JSON','err');return;}
+  if(!(obj.inventory||obj.gtins||obj.received||obj.sessions)){notify('Datoteka ni Pregled BK baza','warn');return;}
+  try{
+    var r=mergeDB(obj);
+    saveDB();
+    try{renderGtins();}catch(e){}
+    try{renderInventory();}catch(e){}
+    try{renderSessions();}catch(e){}
+    try{renderReceived();}catch(e){}
+    try{updateStats();}catch(e){}
+    try{updateBanner();}catch(e){}
+    notify('Quick Share: +'+r.gtins+' GTIN, +'+r.received+' sprejem, +'+r.sessions+' sej ✓','ok');
+  }catch(e){notify('Napaka pri uvozu deljene datoteke','err');}
 }
 // ---- callbacks iz Androida ----
 function onMsDeviceCode(userCode,verUri,message){
