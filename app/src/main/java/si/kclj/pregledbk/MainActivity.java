@@ -42,6 +42,7 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
 
     private static final String TAG = "PregledBK";
     private static final int FILE_CHOOSER_REQ = 2001;
+    private static final int STORAGE_PERM_REQ = 2002;
     // DataWedge Intent output — app prejme scan direktno (zanesljivo za WebView)
     private static final String DW_SCAN_ACTION = "si.kclj.pregledbk.SCAN";
     private static final String DW_DATA_KEY    = "com.symbol.datawedge.data_string";
@@ -99,6 +100,7 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         graphSync = new GraphSync(this);
         webView.loadUrl("file:///android_asset/pregled_bk.html");
 
+        ensureStoragePermission();
         handleIncomingIntent(getIntent());
 
         // DataWedge: registriraj Intent receiver in nastavi profil
@@ -301,6 +303,29 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         handleIncomingIntent(intent);
     }
 
+    /** Ob zagonu zagotovi dovoljenje za branje shrambe — sicer odpiranje .json prek file:// (npr. iz datotečnega upravitelja) tiho ne uspe. */
+    private void ensureStoragePermission() {
+        try {
+            if (Build.VERSION.SDK_INT < 33
+                    && checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+                       != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE}, STORAGE_PERM_REQ);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "ensureStoragePermission: " + t.getMessage());
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == STORAGE_PERM_REQ
+                && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            // Dovoljenje pravkar odobreno — če nas je zagnal VIEW/SEND intent, ga zdaj ponovno obdelaj
+            handleIncomingIntent(getIntent());
+        }
+    }
+
     private void handleIncomingIntent(Intent intent) {
         if (intent == null) return;
         Uri uri = null;
@@ -313,7 +338,13 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         if (uri == null) return;
         final String name = queryName(uri);
         final String json = readUri(uri);
-        if (json == null || json.isEmpty()) return;
+        if (json == null || json.isEmpty()) {
+            // Branje ni uspelo — najpogosteje manjka dovoljenje za shrambo (po brisanju podatkov)
+            Toast.makeText(this, "Datoteke ni mogoče prebrati. Dovolite dostop do shrambe in poskusite znova "
+                    + "(ali uporabite Več → Uvozi iz datoteke).", Toast.LENGTH_LONG).show();
+            Log.w(TAG, "handleIncomingIntent: prazna/neberljiva vsebina za uri=" + uri);
+            return;
+        }
         pendingSharedName = name;
         pendingSharedJson = json;
         if (pageReady) flushPendingShared();

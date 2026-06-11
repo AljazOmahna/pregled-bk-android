@@ -1830,9 +1830,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:100,
+  build:101,
   date:'2026-06-11',
   history:[
+    {build:101,date:'2026-06-11',notes:'Dovoljenje za shrambo: app ob zagonu zahteva dostop do datotek, da odpiranje prejete .json (file://) deluje tudi po brisanju podatkov. Ob neuspelem branju datoteke pokaže jasno napako (namesto tihega molka) in po odobritvi dovoljenja samodejno ponovi uvoz.'},
     {build:100,date:'2026-06-11',notes:'Varnostno opozorilo pred uvozom: ob uvozu (Quick Share datoteka / OneDrive) se prikaže potrditev s povzetkom (št. sprejemov/lotov/GTIN + datum), in IZRECNO OPOZORILO, če so podatki v datoteki STAREJŠI od trenutnih — prepreči nenamerno nalaganje starih podatkov. Izvožene datoteke zdaj nosijo žig "ustvarjena" (exportedAt).'},
     {build:99,date:'2026-06-11',notes:'Nov gumb "📤 Uvozi iz datoteke" (Več → Sinhronizacija): prejeto .json datoteko (npr. iz Quick Share, mapa Download/Quick Share) naložiš neposredno v aplikacijo prek izbirnika datotek — brez iskanja "Odpri z". Uporabi isto pametno združevanje (mergeDB) kot Quick Share sprejem.'},
     {build:98,date:'2026-06-11',notes:'Quick Share / OneDrive sync: loti se zdaj pravilno prenesejo med napravami (prej so se izgubili) — ovrednotenje lota (datum + sklic) se ohrani z obeh naprav. Obvestilo ob uvozu prikaže tudi št. lotov. Serijski sprejem: dokler ni potrjeno obvestilo o novem lotu (Razumem), skeniranje naslednjega artikla je blokirano.'},
