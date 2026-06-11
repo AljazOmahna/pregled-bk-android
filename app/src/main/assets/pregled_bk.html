@@ -591,6 +591,9 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
       <div style="font-size:11px;color:var(--text3);margin-bottom:6px">&#128229; <b>Quick Share</b> &mdash; deli zalogo neposredno z bližnjo napravo (tablica/skener) brez OneDrive.</div>
       <button class="btn btn-g btn-sm" onclick="quickShareDb()" style="width:100%;-webkit-justify-content:center;justify-content:center;border-color:#00a3ad;color:#00a3ad">&#128229; Deli prek Quick Share</button>
+      <div style="font-size:11px;color:var(--text3);margin:8px 0 6px">&#128228; Prejeto datoteko (.json) naloži v aplikacijo:</div>
+      <button class="btn btn-g btn-sm" onclick="$i('dbImportFile').click()" style="width:100%;-webkit-justify-content:center;justify-content:center;border-color:#00a3ad;color:#00a3ad">&#128228; Uvozi iz datoteke</button>
+      <input type="file" id="dbImportFile" accept=".json,application/json" onchange="importDbFile(this)" style="display:none">
     </div>
     <details style="margin-top:10px">
       <summary style="font-size:11px;color:var(--text3);cursor:pointer">Napredno (client ID / tenant)</summary>
@@ -1827,9 +1830,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:98,
+  build:99,
   date:'2026-06-11',
   history:[
+    {build:99,date:'2026-06-11',notes:'Nov gumb "📤 Uvozi iz datoteke" (Več → Sinhronizacija): prejeto .json datoteko (npr. iz Quick Share, mapa Download/Quick Share) naložiš neposredno v aplikacijo prek izbirnika datotek — brez iskanja "Odpri z". Uporabi isto pametno združevanje (mergeDB) kot Quick Share sprejem.'},
     {build:98,date:'2026-06-11',notes:'Quick Share / OneDrive sync: loti se zdaj pravilno prenesejo med napravami (prej so se izgubili) — ovrednotenje lota (datum + sklic) se ohrani z obeh naprav. Obvestilo ob uvozu prikaže tudi št. lotov. Serijski sprejem: dokler ni potrjeno obvestilo o novem lotu (Razumem), skeniranje naslednjega artikla je blokirano.'},
     {build:97,date:'2026-06-11',notes:'Locate Tag: barcode čitalec (DataWedge) se takoj onemogoči ob odprtju okna za lociranje in se ponovno vklopi ob zaprtju — preprečuje nenamerne skene med iskanjem.'},
     {build:96,date:'2026-06-11',notes:'Popravek Locate Tag: izklop DPO (sicer TagLocationing na RFD ne deluje) + samodejni rezervni način (navadni inventory + odstotek iz RSSI), da meter VEDNO reagira ob držanju triggerja. Ikona 📡 se zdaj pravilno prikaže (prej dobesedno &#128225;). Napake čitalca vidne v oknu; "Zaključi iskanje"/X zanesljivo ustavita in dasta RFD v mirovanje.'},
@@ -3287,6 +3291,17 @@ function msDownload(){
   }catch(e){notify('Napaka prenosa','err');}
 }
 // ---- Quick Share (Nearby) ----
+// Uvoz baze iz prejete .json datoteke (npr. iz Quick Share / Download) — uporabi isti merge kot Quick Share sprejem
+function importDbFile(input){
+  var file=input.files&&input.files[0];if(!file){return;}
+  var r=new FileReader();
+  r.onload=function(e){
+    try{onSharedImport(file.name,e.target.result);}catch(err){notify('Napaka pri uvozu datoteke','err');}
+    input.value='';
+  };
+  r.onerror=function(){notify('Datoteke ni mogoče prebrati','err');input.value='';};
+  r.readAsText(file);
+}
 function quickShareDb(){
   var data=JSON.stringify(DB);
   if(_hasBridge()&&AndroidBridge.quickShare){
