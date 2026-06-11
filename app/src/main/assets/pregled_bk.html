@@ -1820,9 +1820,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:96,
+  build:97,
   date:'2026-06-11',
   history:[
+    {build:97,date:'2026-06-11',notes:'Locate Tag: barcode čitalec (DataWedge) se takoj onemogoči ob odprtju okna za lociranje in se ponovno vklopi ob zaprtju — preprečuje nenamerne skene med iskanjem.'},
     {build:96,date:'2026-06-11',notes:'Popravek Locate Tag: izklop DPO (sicer TagLocationing na RFD ne deluje) + samodejni rezervni način (navadni inventory + odstotek iz RSSI), da meter VEDNO reagira ob držanju triggerja. Ikona 📡 se zdaj pravilno prikaže (prej dobesedno &#128225;). Napake čitalca vidne v oknu; "Zaključi iskanje"/X zanesljivo ustavita in dasta RFD v mirovanje.'},
     {build:95,date:'2026-06-10',notes:'Locate Tag (kot 123RFID): v zavihku Roki gumb 📡 odpre seznam SN/EPC; 🏷️ ob EPC odpre lociranje. RFD2000 meri bližino (0–100%) samo med držanjem triggerja; ob spustu meritev miruje. Gumb "Zaključi iskanje" deaktivira čitalec.'},
     {build:94,date:'2026-06-10',notes:'EPC je v podrobnostih artikla zdaj VEDNO viden (zamaknjen pod SN), tudi na ozkem zaslonu. EPC se po zaključku seje NE briše več — ostane shranjen v zalogi (potrebno za Locate Tag). Začetna stran: "+ Začni pregled BK" (rumeno), "Sprejmi material" (sinje modro); gumbi za preklic seje so zdaj "Prekliči" in rdeči.'},
@@ -2994,6 +2995,7 @@ function openLocate(epc,gtin,lot,sn){
   $i('locateHint').textContent=t('locate_hold');
   closeMo('moLocateList');
   showMo('moLocate');
+  try{if(window.AndroidBridge&&AndroidBridge.disableDataWedge)AndroidBridge.disableDataWedge();}catch(e){}
   try{if(window.AndroidBridge&&AndroidBridge.startLocateTag)AndroidBridge.startLocateTag(epc);}catch(e){}
   setTimeout(function(){
     try{if(window.AndroidBridge&&AndroidBridge.isRfidConnected&&AndroidBridge.isRfidConnected())$i('locateStatus').textContent='📡 '+t('locate_connected');}catch(e){}
@@ -3009,6 +3011,7 @@ function onLocateUpdate(epc,proximity){
 function closeLocate(){
   _locateActive=false;_locateEpc=null;
   try{if(window.AndroidBridge&&AndroidBridge.stopLocateTag)AndroidBridge.stopLocateTag();}catch(e){}
+  try{if(window.AndroidBridge&&AndroidBridge.enableDataWedge)AndroidBridge.enableDataWedge();}catch(e){}
   closeMo('moLocate');
   notify(t('locate_closed'),'ok');
 }
