@@ -745,7 +745,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     <div class="mb">
       <div class="frow">
         <div class="fg"><label>GTIN (14 mest)</label><input type="text" id="gtinCode" maxlength="14" style="font-family:var(--mono)" inputmode="numeric"></div>
-        <div class="fg"><label>Tip</label><select id="gtinTypeVal"><option value="control">Kontrola</option><option value="calibrator">Kalibrator</option><option value="reagent-bio">Reagenti Bio</option><option value="reagent-imuno">Reagenti IMUNO</option><option value="consumable">Potrošni material</option></select></div>
+        <div class="fg"><label>Tip</label><select id="gtinTypeVal" onchange="updateLotNotifyDefault()"><option value="control">Kontrola</option><option value="calibrator">Kalibrator</option><option value="reagent-bio">Reagenti Bio</option><option value="reagent-imuno">Reagenti IMUNO</option><option value="consumable">Potrošni material</option></select></div>
       </div>
       <div class="fg"><label>Naziv</label><input type="text" id="gtinName"></div>
       <div class="frow">
@@ -1849,9 +1849,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:103,
+  build:104,
   date:'2026-06-13',
   history:[
+    {build:104,date:'2026-06-13',notes:'Privzeto lotNotify=false za potrošni material: pri dodajanju novega GTIN-a tipa "Potrošni material" se checkbox "Opozorilo ob novem lotu" samodejno odkljuca. Ob menjavi tipa v modalu se privzeta vrednost posodobi (velja samo za nove GTIN-e, ne za urejanje obstoječih).'},
     {build:103,date:'2026-06-13',notes:'lotNotify zastavica per GTIN: vsak GTIN ima checkbox "Opozorilo ob novem lotu" (privzeto vklopljeno). Ko je izklopljeno, se nov lot tiho shrani v DB.lots[] — brez modalnega opozorila med skeniranjem IN brez vpisa v povzetek "Novi loti" ob zaključku seje. Hitri toggle 🔔/🔕 v tabeli GTIN-ov omogoča bulk urejanje brez odpiranja modalnega dialoga.'},
     {build:102,date:'2026-06-11',notes:'Sledenje porabi: gumb "Porabi" v podrobnostih artikla premakne artikel iz zaloge v "Poraba/history" log namesto čistega brisanja. Gumb "Vrni v zalogo" razveljavi porabo. Sinhronizacija (Quick Share + OneDrive) zdaj prenaša porabo med napravami — porabljeni artikel se po uvozu odstrani iz zaloge tudi na drugi napravi. Seje pri ponavljajočem syncu: nova skeniranja v obstoječi seji se zdaj pravilno dopolnijo (prej se je celotna seja preskočila). Ime izvožene datoteke vsebuje časovni žig (Pregled_BK_YYYYMMDD_HHMMSS.json).'},
     {build:101,date:'2026-06-11',notes:'Dovoljenje za shrambo: app ob zagonu zahteva dostop do datotek, da odpiranje prejete .json (file://) deluje tudi po brisanju podatkov. Ob neuspelem branju datoteke pokaže jasno napako (namesto tihega molka) in po odobritvi dovoljenja samodejno ponovi uvoz.'},
@@ -3151,6 +3152,9 @@ function toggleLotNotify(idx){
   g.lotNotify=(g.lotNotify===false);
   saveDB();renderGtins();
   notify((g.lotNotify?'🔔':'🔕')+' Lot opozorilo '+(g.lotNotify?'VKLOPLJENO':'IZKLOPLJENO')+' za '+g.name);
+}
+function updateLotNotifyDefault(){
+  if(editGI===null){$i('gtinLotNotify').checked=($i('gtinTypeVal').value!=='consumable');}
 }
 // ===== PACKAGE INSERTI (OneDrive dokumenti, vezani na GTIN; brez potrošnega materiala) =====
 function openPkgIns(){$i('pkgInsSrch').value='';renderPkgIns();showMo('moPkgIns');}
