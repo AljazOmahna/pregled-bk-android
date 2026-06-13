@@ -758,6 +758,10 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
         <div class="fg"><label>Ident</label><input type="text" id="gtinIdent" maxlength="30"></div>
       </div>
       <div class="fg" id="gtinPiWrap"><label>&#128196; Package insert (OneDrive povezava)</label><input type="text" id="gtinPiUrl" placeholder="https://... (OneDrive)"></div>
+      <div style="display:-webkit-flex;display:flex;align-items:center;gap:10px;padding:10px 0 2px">
+        <input type="checkbox" id="gtinLotNotify" style="width:20px;height:20px;flex-shrink:0">
+        <label for="gtinLotNotify" style="margin:0;font-size:13px;color:var(--text)">Opozorilo ob novem lotu</label>
+      </div>
     </div>
     <div class="mf">
       <button class="btn btn-g" onclick="closeMo('moGtin')">Prekliči</button>
@@ -1683,9 +1687,15 @@ function checkNewLot(gtin,lot,name,type,expiry){
   var exists=DB.lots.filter(function(l){return l.gtin===gtin&&l.lot===lot;})[0];
   if(exists){if(expiry&&!exists.expiry){exists.expiry=expiry;saveDB();}return;}
   DB.lots.push({gtin:gtin,lot:lot,name:name,type:type,expiry:expiry||'',firstReceivedAt:new Date().toISOString(),checked:false,checkedAt:null,evalDate:'',evalDoc:''});
-  if(sprejemActive)spNewLots.push({name:name,lot:lot,type:type});
-  saveDB();
-  showNewLotModal(name,lot,type);
+  var gr=DB.gtins.filter(function(g){return g.gtin===gtin;})[0];
+  var notify=(gr?gr.lotNotify:undefined)!==false;
+  if(notify){
+    if(sprejemActive)spNewLots.push({name:name,lot:lot,type:type});
+    saveDB();
+    showNewLotModal(name,lot,type);
+  }else{
+    saveDB();
+  }
 }
 function showNewLotModal(name,lot,type){
   var note=lotNote(type);
@@ -1839,9 +1849,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:102,
-  date:'2026-06-11',
+  build:103,
+  date:'2026-06-13',
   history:[
+    {build:103,date:'2026-06-13',notes:'lotNotify zastavica per GTIN: vsak GTIN ima checkbox "Opozorilo ob novem lotu" (privzeto vklopljeno). Ko je izklopljeno, se nov lot tiho shrani v DB.lots[] — brez modalnega opozorila med skeniranjem IN brez vpisa v povzetek "Novi loti" ob zaključku seje. Hitri toggle 🔔/🔕 v tabeli GTIN-ov omogoča bulk urejanje brez odpiranja modalnega dialoga.'},
     {build:102,date:'2026-06-11',notes:'Sledenje porabi: gumb "Porabi" v podrobnostih artikla premakne artikel iz zaloge v "Poraba/history" log namesto čistega brisanja. Gumb "Vrni v zalogo" razveljavi porabo. Sinhronizacija (Quick Share + OneDrive) zdaj prenaša porabo med napravami — porabljeni artikel se po uvozu odstrani iz zaloge tudi na drugi napravi. Seje pri ponavljajočem syncu: nova skeniranja v obstoječi seji se zdaj pravilno dopolnijo (prej se je celotna seja preskočila). Ime izvožene datoteke vsebuje časovni žig (Pregled_BK_YYYYMMDD_HHMMSS.json).'},
     {build:101,date:'2026-06-11',notes:'Dovoljenje za shrambo: app ob zagonu zahteva dostop do datotek, da odpiranje prejete .json (file://) deluje tudi po brisanju podatkov. Ob neuspelem branju datoteke pokaže jasno napako (namesto tihega molka) in po odobritvi dovoljenja samodejno ponovi uvoz.'},
     {build:100,date:'2026-06-11',notes:'Varnostno opozorilo pred uvozom: ob uvozu (Quick Share datoteka / OneDrive) se prikaže potrditev s povzetkom (št. sprejemov/lotov/GTIN + datum), in IZRECNO OPOZORILO, če so podatki v datoteki STAREJŠI od trenutnih — prepreči nenamerno nalaganje starih podatkov. Izvožene datoteke zdaj nosijo žig "ustvarjena" (exportedAt).'},
@@ -3105,6 +3116,7 @@ function renderGtins(){
       '<td><span class="badge b-gray">'+typeName(g.type)+'</span></td>'+
       '<td style="font-size:10px;color:var(--text2)">'+(g.analyser||'-')+'</td>'+
       '<td style="white-space:nowrap">'+
+      '<button class="btn btn-g btn-sm" onclick="toggleLotNotify('+ri+')" title="Lot opozorilo" style="padding:4px 7px;min-height:30px">'+(g.lotNotify!==false?'&#128276;':'&#128277;')+'</button> '+
       '<button class="btn btn-g btn-sm" onclick="openGtinMo('+ri+')" style="padding:4px 7px;min-height:30px">&#9998;</button> '+
       '<button class="btn btn-d btn-sm" onclick="delGtin('+ri+')" style="padding:4px 7px;min-height:30px">&#128465;</button></td></tr>';
   }).join('');
@@ -3112,8 +3124,8 @@ function renderGtins(){
 function openGtinMo(idx){
   editGI=idx!=null?idx:null;
   $i('gtinMoT').textContent=idx!=null?'Uredi GTIN':'Dodaj GTIN';
-  if(idx!=null){var g=DB.gtins[idx];$i('gtinCode').value=g.gtin;$i('gtinName').value=g.name;$i('gtinTypeVal').value=g.type;$i('gtinMfr').value=g.manufacturer||'';$i('gtinAnal').value=g.analyser||'';$i('gtinNote').value=g.note||'';$i('gtinCatalog').value=g.catalog||'';$i('gtinIdent').value=g.ident||'';$i('gtinPiUrl').value=g.piUrl||'';}
-  else{['gtinCode','gtinName','gtinMfr','gtinAnal','gtinNote','gtinCatalog','gtinIdent','gtinPiUrl'].forEach(function(id){$i(id).value='';});$i('gtinTypeVal').value='control';}
+  if(idx!=null){var g=DB.gtins[idx];$i('gtinCode').value=g.gtin;$i('gtinName').value=g.name;$i('gtinTypeVal').value=g.type;$i('gtinMfr').value=g.manufacturer||'';$i('gtinAnal').value=g.analyser||'';$i('gtinNote').value=g.note||'';$i('gtinCatalog').value=g.catalog||'';$i('gtinIdent').value=g.ident||'';$i('gtinPiUrl').value=g.piUrl||'';$i('gtinLotNotify').checked=(g.lotNotify!==false);}
+  else{['gtinCode','gtinName','gtinMfr','gtinAnal','gtinNote','gtinCatalog','gtinIdent','gtinPiUrl'].forEach(function(id){$i(id).value='';});$i('gtinTypeVal').value='control';$i('gtinLotNotify').checked=true;}
   $i('moGtin').classList.add('open');
 }
 function saveGtin(){
@@ -3123,7 +3135,7 @@ function saveGtin(){
   if(gtin.length!==14){notify('GTIN mora biti 14 mest','warn');return;}
   if(!validGtin(gtin)){notify('Neveljavna GTIN kontrolna številka','warn');return;}
   if(!name){notify('Vpišite naziv','warn');return;}
-  var obj={gtin:gtin,name:name,type:$i('gtinTypeVal').value,manufacturer:$i('gtinMfr').value.trim(),analyser:$i('gtinAnal').value.trim(),note:$i('gtinNote').value.trim(),catalog:$i('gtinCatalog').value.trim(),ident:$i('gtinIdent').value.trim()};
+  var obj={gtin:gtin,name:name,type:$i('gtinTypeVal').value,manufacturer:$i('gtinMfr').value.trim(),analyser:$i('gtinAnal').value.trim(),note:$i('gtinNote').value.trim(),catalog:$i('gtinCatalog').value.trim(),ident:$i('gtinIdent').value.trim(),lotNotify:$i('gtinLotNotify').checked};
   // Package insert: ohrani obstoječi timestamp, posodobi ga le ob spremembi povezave
   var piUrl=$i('gtinPiUrl').value.trim();
   var prev=editGI!=null?DB.gtins[editGI]:null;
@@ -3134,6 +3146,12 @@ function saveGtin(){
   saveDB();closeMo('moGtin');renderGtins();notify('GTIN shranjen','ok');
 }
 function delGtin(i){if(!confirm('Izbrisati GTIN?'))return;DB.gtins.splice(i,1);saveDB();renderGtins();notify('GTIN izbrisan');}
+function toggleLotNotify(idx){
+  var g=DB.gtins[idx];if(!g)return;
+  g.lotNotify=(g.lotNotify===false);
+  saveDB();renderGtins();
+  notify((g.lotNotify?'🔔':'🔕')+' Lot opozorilo '+(g.lotNotify?'VKLOPLJENO':'IZKLOPLJENO')+' za '+g.name);
+}
 // ===== PACKAGE INSERTI (OneDrive dokumenti, vezani na GTIN; brez potrošnega materiala) =====
 function openPkgIns(){$i('pkgInsSrch').value='';renderPkgIns();showMo('moPkgIns');}
 function renderPkgIns(){
