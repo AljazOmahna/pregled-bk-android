@@ -562,6 +562,28 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         }
 
         @JavascriptInterface
+        public void saveToDownloads(String filename, String content) {
+            mainHandler.post(() -> {
+                try {
+                    String name = (filename == null || filename.isEmpty()) ? "export.csv" : filename;
+                    java.io.File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                    if (!dir.exists()) dir.mkdirs();
+                    java.io.File f = new java.io.File(dir, name);
+                    try (java.io.FileOutputStream fos = new java.io.FileOutputStream(f);
+                         java.io.OutputStreamWriter w = new java.io.OutputStreamWriter(fos, "UTF-8")) {
+                        w.write(content == null ? "" : content);
+                    }
+                    sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(f)));
+                    runJs("if(typeof onSaveToDownloadsDone==='function')onSaveToDownloadsDone(" + jsStr(name) + ")");
+                    Toast.makeText(MainActivity.this, "Shranjeno: " + name, Toast.LENGTH_SHORT).show();
+                } catch (Throwable t) {
+                    Log.e(TAG, "saveToDownloads: " + t);
+                    runJs("if(typeof onSaveToDownloadsDone==='function')onSaveToDownloadsDone(null)");
+                }
+            });
+        }
+
+        @JavascriptInterface
         public void openUrl(String url) {
             if (url == null || !(url.startsWith("http://") || url.startsWith("https://"))) {
                 mainHandler.post(() -> Toast.makeText(MainActivity.this,

@@ -373,6 +373,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
   <div class="sec-hdr">
     <div class="sec-title">&#128230; Zaloga</div>
     <button class="btn btn-g btn-sm" onclick="exportInvCSV()">&#128196; CSV</button>
+    <button class="btn btn-a btn-sm" onclick="exportBkCSV()">&#128196; CSV BK</button>
   </div>
   <div class="stat-grid" id="invStats"></div>
   <div class="fr">
@@ -628,6 +629,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     <div class="card-title">&#128190; Izvoz podatkov</div>
     <div style="display:-webkit-flex;display:flex;gap:8px;-webkit-flex-wrap:wrap;flex-wrap:wrap">
       <button class="btn btn-a btn-sm" onclick="exportInvCSV()">&#128230; Zaloga CSV</button>
+      <button class="btn btn-a btn-sm" onclick="exportBkCSV()">&#128196; Zaloga BK CSV</button>
       <button class="btn btn-a btn-sm" onclick="exportExpCSV()">&#9888; Roki CSV</button>
       <button class="btn btn-a btn-sm" onclick="exportSessCSV()">&#128203; Seje CSV</button>
       <button class="btn btn-a btn-sm" onclick="exportGtinCSV()">&#127991; GTIN CSV</button>
@@ -1849,9 +1851,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:105,
-  date:'2026-06-13',
+  build:106,
+  date:'2026-06-14',
   history:[
+    {build:106,date:'2026-06-14',notes:'CSV izvoz popravljen: AndroidBridge.saveToDownloads() shrani datoteko v /sdcard/Download/ (prej blob URL ni deloval v Android WebView). Nov gumb "CSV BK" izvozi samo kalibratorje in kontrole (Naziv, Lot, Rok trajanja, Kos) urejeno po imenu — primerno za Excel. Gumb dodan v glavo zavihka Zaloga in v Več → Izvoz.'},
     {build:105,date:'2026-06-13',notes:'Popravek: "Ni RFID" opozorilo se ne prikaže več ob skeniranju Data Matrix kode (korak 1 sprejema). Opozorilo se prikaže šele ko je RFD2000 eksplicitno vklopljen (po kliku "Skeniraj RFID") in trigger sprostimo brez zajetega EPC. Dodano _spRfidArmed pogoj na oba (pressed + released) bloka v onRfidTriggerEvent().'},
     {build:104,date:'2026-06-13',notes:'Privzeto lotNotify=false za potrošni material: pri dodajanju novega GTIN-a tipa "Potrošni material" se checkbox "Opozorilo ob novem lotu" samodejno odkljuca. Ob menjavi tipa v modalu se privzeta vrednost posodobi (velja samo za nove GTIN-e, ne za urejanje obstoječih).'},
     {build:103,date:'2026-06-13',notes:'lotNotify zastavica per GTIN: vsak GTIN ima checkbox "Opozorilo ob novem lotu" (privzeto vklopljeno). Ko je izklopljeno, se nov lot tiho shrani v DB.lots[] — brez modalnega opozorila med skeniranjem IN brez vpisa v povzetek "Novi loti" ob zaključku seje. Hitri toggle 🔔/🔕 v tabeli GTIN-ov omogoča bulk urejanje brez odpiranja modalnega dialoga.'},
@@ -2727,8 +2730,7 @@ function exportUsedCSV(){
   if(!used.length){notify('Ni porabljenih','warn');return;}
   var rows=[['Naziv','GTIN','Lot','Serial','Rok izteka']];
   used.forEach(function(u){rows.push([u.name||'',u.gtin||'',u.lot||'',u.serial||'',fmtExp(u.expiry)]);});
-  dlCSV(csvB(rows),'Porabljeni_'+new Date().toISOString().slice(0,10)+'.csv');
-  notify('CSV izvozen','ok');
+  dlCSV(rows,'Porabljeni_'+new Date().toISOString().slice(0,10)+'.csv');
 }
 function cancelSession(){
   var sess=getActiveSess();
@@ -3271,30 +3273,48 @@ function delSess(id){
 }
 
 // ===== EXPORT =====
-function csvB(rows){
-  var csv=rows.map(function(r){return r.map(function(v){return '"'+String(v||'').replace(/"/g,'""')+'"';}).join(',');}).join('\n');
-  return new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+function csvStr(rows){
+  return '﻿'+rows.map(function(r){return r.map(function(v){return '"'+String(v===null||v===undefined?'':v).replace(/"/g,'""')+'"';}).join(',');}).join('\r\n');
 }
-function dlCSV(blob,name){var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();}
+function csvB(rows){return new Blob([csvStr(rows)],{type:'text/csv;charset=utf-8'});}
+function dlCSV(rows,name){
+  var str=csvStr(rows);
+  if(_hasBridge()&&AndroidBridge.saveToDownloads){
+    try{AndroidBridge.saveToDownloads(name,str);return;}catch(e){}
+  }
+  var blob=new Blob([str],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
+}
+function onSaveToDownloadsDone(name){
+  if(name)notify('Shranjeno v Prenosi: '+name,'ok');
+  else notify('Napaka pri shranjevanju CSV','err');
+}
 function exportInvCSV(){
   var rows=[['GTIN','Naziv','Tip','Lot','Rok izteka','Kos','Status']];
   DB.inventory.forEach(function(i){var d=daysLeft(i.expiry);var st=d<0?'Preteceno':d<=14?'<14 dni':d<=28?'<28 dni':'OK';rows.push([i.gtin,i.name,i.type,i.lot,fmtExp(i.expiry),i.qty,st]);});
-  dlCSV(csvB(rows),'Zaloga_'+new Date().toISOString().slice(0,10)+'.csv');notify('CSV izvozen','ok');
+  dlCSV(rows,'Zaloga_'+new Date().toISOString().slice(0,10)+'.csv');
+}
+function exportBkCSV(){
+  var items=DB.inventory.filter(function(i){return i.type==='calibrator'||i.type==='control';});
+  items=items.slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'sl')||(a.lot||'').localeCompare(b.lot||'sl');});
+  var rows=[['Naziv','Lot','Rok trajanja','Kos']];
+  items.forEach(function(i){rows.push([i.name||'',i.lot||'',fmtExp(i.expiry)||'',i.qty]);});
+  dlCSV(rows,'ZalogaBK_'+new Date().toISOString().slice(0,10)+'.csv');
 }
 function exportExpCSV(){
   var rows=[['GTIN','Naziv','Lot','Rok','Dni','Kos','Status']];
   DB.inventory.filter(function(i){return daysLeft(i.expiry)<=28;}).forEach(function(i){var d=daysLeft(i.expiry);rows.push([i.gtin,i.name,i.lot,fmtExp(i.expiry),d,i.qty,d<0?'Preteceno':d<=14?'<14d':'<28d']);});
-  dlCSV(csvB(rows),'RokiIzteka_'+new Date().toISOString().slice(0,10)+'.csv');notify('CSV izvozen','ok');
+  dlCSV(rows,'RokiIzteka_'+new Date().toISOString().slice(0,10)+'.csv');
 }
 function exportSessCSV(){
   var rows=[['Seja','Datum','Nacin','Koda','GTIN','Lot','Rok','Veljavno','Razlog']];
   DB.sessions.forEach(function(s){(s.items||[]).forEach(function(it){rows.push([s.name,new Date(s.started).toLocaleDateString('sl-SI'),s.mode,it.raw,it.gtin||'',it.lot||'',fmtExp(it.expiry),it.valid?'DA':'NE',it.reason||'']);});});
-  dlCSV(csvB(rows),'Seje_'+new Date().toISOString().slice(0,10)+'.csv');notify('CSV izvozen','ok');
+  dlCSV(rows,'Seje_'+new Date().toISOString().slice(0,10)+'.csv');
 }
 function exportGtinCSV(){
   var rows=[['GTIN','Naziv','Tip','Proizvajalec','Analizator','Opomba','Kataloska','Ident']];
   DB.gtins.forEach(function(g){rows.push([g.gtin,g.name,g.type,g.manufacturer,g.analyser,g.note,g.catalog||'',g.ident||'']);});
-  dlCSV(csvB(rows),'GTIN_'+new Date().toISOString().slice(0,10)+'.csv');notify('CSV izvozen','ok');
+  dlCSV(rows,'GTIN_'+new Date().toISOString().slice(0,10)+'.csv');
 }
 
 // ===== MODAL CLOSE =====
