@@ -920,6 +920,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
         <div id="spItemInfo" style="display:none;margin-top:10px;padding:10px;background:var(--gbg);border:1px solid var(--green);border-radius:8px">
           <div style="font-weight:700;font-size:13px;color:var(--text)" id="spItemName"></div>
           <div style="font-size:11px;color:var(--text3);margin-top:4px" id="spItemDetails"></div>
+          <button class="btn btn-g btn-sm" id="spClearBtn" onclick="spReset()" style="margin-top:8px;width:100%;-webkit-justify-content:center;justify-content:center">&#8635; Počisti vnos (nov artikel)</button>
         </div>
       </div>
       <div id="spStep2" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
@@ -927,6 +928,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
         <div style="display:-webkit-flex;display:flex;gap:8px;margin-bottom:6px">
           <button class="btn btn-a" id="spRfidScanBtn" style="flex:1;-webkit-justify-content:center;justify-content:center" onclick="spStartRfid()">&#128225; Skeniraj RFID</button>
         </div>
+        <button class="btn btn-g btn-sm" id="spManualBtn" onclick="confirmSprejemManual()" style="width:100%;-webkit-justify-content:center;justify-content:center;margin-bottom:6px;border-color:var(--orange);color:var(--orange)">&#10515; Sprejmi brez RFID/SN (ročno)</button>
         <div id="spRfidStatus" style="font-size:10px;color:var(--text3);margin-bottom:8px;text-align:center">Kliknite gumb nato pritisnite trigger na RFD2000</div>
         <div id="spRfidWait" style="padding:8px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--text3);text-align:center">Ni zajetega RFID</div>
         <div id="spRfidOk" style="display:none;padding:8px;background:var(--gbg);border:1px solid var(--green);border-radius:8px">
@@ -1876,9 +1878,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:109,
+  build:110,
   date:'2026-06-14',
   history:[
+    {build:110,date:'2026-06-14',notes:'Sprejem brez RFID/SN: nov gumb "Sprejmi brez RFID/SN (ročno)" za artikle brez oznake (RANDOX, kdaj Abbott) — generira nadomestno serijsko (MAN…), EPC prazen, qty+1. Nov gumb "Počisti vnos" zavrže trenutno skenirani artikel brez zapiranja okna sprejema. Pripravlja se tudi sprejem prek IMS tiskalnika (tisk RFID nalepke).'},
     {build:109,date:'2026-06-14',notes:'Operaterji: lokalni seznam (ime + 5-mestna matična) v Več → Operaterji. Ob kliku PDF BK se odpre dialog za vnos matične številke — app poišče ime in ga vpiše kot "Pripravil" v PDF. Datum pregleda dobije uro (HH:MM). Operaterji bodo v prihodnosti uvoženi iz BIO Alinity sinhronizacije.'},
     {build:108,date:'2026-06-14',notes:'Gumb "CSV BK" zamenjan s "PDF BK": generira PDF poročilo zaloge kontrol in kalibratorjev (pokončno, dva stolpca, glava z naslovom in KCLJ logom, noga s šiframi). Seznam iz baze GTIN — vsak definiran kontrola/kalibrator se izpiše, tudi brez zaloge (prazna prečrtana vrstica). Spojena celica imena čez vse lote, LOT + EXP.DATE (DD.MM.LLLL), količina desno. Datum pregleda na vrhu. Shrani v Prenose kot PregledBK_LLLL-MM-DD.pdf.'},
     {build:107,date:'2026-06-14',notes:'Popravek CSV izvoza: dodano WRITE_EXTERNAL_STORAGE dovoljenje (Android 8.1/API 27 ga zahteva za pisanje v Prenose). App ob zagonu zahteva tudi pisalni dostop; če ob izvozu dovoljenje manjka, ga vpraša in pokaže jasno navodilo namesto tihe napake.'},
@@ -2002,6 +2005,7 @@ var sprejemEpc=null;
 var spBarTmr=null;
 var _spEpcCands={}; // epc -> najmočnejši RSSI med trenutnim pritiskom triggerja
 var _spRfidArmed=false; // RFID skener aktiven? EPC se sprejme SAMO ko je true (podatki popolni)
+var _spManual=false; // ročni sprejem (brez RFID/SN) — sprosti EPC pogoj v confirmSprejem
 
 function openSprejem(){
   sprejemActive=true; sprejemStep=1; sprejemData=null; sprejemEpc=null; _spEpcCands={}; _spRfidArmed=false;
@@ -2026,7 +2030,7 @@ function spReset(){
   $i('spRfidWait').style.display='block';
   $i('spRfidOk').style.display='none';
   $i('spConfirmBtn').disabled=true;
-  var cb=$i('spCloseBtn');if(cb)cb.textContent='Zaključi sprejem';
+  var cb=$i('spCloseBtn');if(cb)cb.textContent=APP_SETTINGS.serialSprejem?'Zaključi sprejem':'Prekliči';
   setTimeout(function(){$i('spBarcodeInp').focus();},300);
 }
 function closeSprejem(){
@@ -2272,8 +2276,15 @@ function spManualEpc(){
   if(!/^[0-9A-F]{8,}$/.test(epc)){notify('Neveljaven EPC format','warn');return;}
   spCaptureEpc(epc);
 }
+function confirmSprejemManual(){
+  if(!sprejemData){notify('Najprej skenirajte barcode','warn');return;}
+  if(!sprejemData.lot||!sprejemData.expiry){notify('Manjka lot ali rok — skenirajte kodo','warn');return;}
+  if(!sprejemData.serial){sprejemData.serial='MAN'+Date.now();}
+  _spManual=true;
+  try{confirmSprejem();}finally{_spManual=false;}
+}
 function confirmSprejem(){
-  if(!sprejemData||!sprejemEpc){notify('Manjka barcode ali RFID','warn');return;}
+  if(!sprejemData||(!sprejemEpc&&!_spManual)){notify('Manjka barcode ali RFID','warn');return;}
   if(sprejemData.serial){
     var dupS=(DB.received||[]).filter(function(r){return r.serial===sprejemData.serial&&r.gtin===sprejemData.gtin&&r.status==='active';})[0];
     if(dupS){
