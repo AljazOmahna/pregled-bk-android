@@ -671,13 +671,26 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
 
 <!-- MODALS -->
 <div class="mo" id="moPdfSign">
-  <div class="mo-box" style="max-width:320px">
+  <div class="mo-box" style="max-width:300px">
     <div class="mo-title">&#128203; Pregled BK &mdash; PDF</div>
-    <p style="margin:8px 0 4px;font-size:13px">Vpišite svojo matično številko:</p>
-    <input type="tel" id="pdfSignId" maxlength="5" placeholder="12345"
-           style="width:100%;font-size:1.5em;text-align:center;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);box-sizing:border-box;margin-bottom:8px"
-           oninput="this.value=this.value.replace(/\D/g,'');onPdfSignIdInput()">
-    <div id="pdfSignName" style="min-height:1.4em;font-size:12px;color:var(--text3);margin-bottom:14px;text-align:center"></div>
+    <p style="margin:8px 0 6px;font-size:13px;text-align:center">Vpišite ali skenirajte matično številko:</p>
+    <input type="text" id="pdfSignId" maxlength="5" placeholder="• • • • •" readonly
+           style="width:100%;font-size:1.8em;letter-spacing:6px;text-align:center;padding:10px;border:2px solid var(--accent);border-radius:8px;background:var(--bg);color:var(--text);box-sizing:border-box;margin-bottom:6px;font-family:var(--mono)">
+    <div id="pdfSignName" style="min-height:1.5em;font-size:14px;font-weight:700;color:var(--text3);margin-bottom:10px;text-align:center"></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+      <button type="button" class="btn btn-g" onclick="pdfPad('1')" style="-webkit-justify-content:center;justify-content:center;font-size:1.3em;padding:12px 0">1</button>
+      <button type="button" class="btn btn-g" onclick="pdfPad('2')" style="-webkit-justify-content:center;justify-content:center;font-size:1.3em;padding:12px 0">2</button>
+      <button type="button" class="btn btn-g" onclick="pdfPad('3')" style="-webkit-justify-content:center;justify-content:center;font-size:1.3em;padding:12px 0">3</button>
+      <button type="button" class="btn btn-g" onclick="pdfPad('4')" style="-webkit-justify-content:center;justify-content:center;font-size:1.3em;padding:12px 0">4</button>
+      <button type="button" class="btn btn-g" onclick="pdfPad('5')" style="-webkit-justify-content:center;justify-content:center;font-size:1.3em;padding:12px 0">5</button>
+      <button type="button" class="btn btn-g" onclick="pdfPad('6')" style="-webkit-justify-content:center;justify-content:center;font-size:1.3em;padding:12px 0">6</button>
+      <button type="button" class="btn btn-g" onclick="pdfPad('7')" style="-webkit-justify-content:center;justify-content:center;font-size:1.3em;padding:12px 0">7</button>
+      <button type="button" class="btn btn-g" onclick="pdfPad('8')" style="-webkit-justify-content:center;justify-content:center;font-size:1.3em;padding:12px 0">8</button>
+      <button type="button" class="btn btn-g" onclick="pdfPad('9')" style="-webkit-justify-content:center;justify-content:center;font-size:1.3em;padding:12px 0">9</button>
+      <button type="button" class="btn btn-g" onclick="pdfPadClear()" style="-webkit-justify-content:center;justify-content:center;font-size:1.1em;padding:12px 0;color:var(--orange)">C</button>
+      <button type="button" class="btn btn-g" onclick="pdfPad('0')" style="-webkit-justify-content:center;justify-content:center;font-size:1.3em;padding:12px 0">0</button>
+      <button type="button" class="btn btn-g" onclick="pdfPadDel()" style="-webkit-justify-content:center;justify-content:center;font-size:1.3em;padding:12px 0">&#9003;</button>
+    </div>
     <div class="fr" style="-webkit-justify-content:flex-end;justify-content:flex-end;gap:8px">
       <button class="btn btn-g btn-sm" onclick="closePdfSign()">Prekliči</button>
       <button class="btn btn-a btn-sm" onclick="confirmPdfSign()">Generiraj PDF</button>
@@ -1081,6 +1094,140 @@ const BUILTIN_GTINS = [
   {gtin:'05055273217025',name:'HIL (Randox)',type:'control',manufacturer:'Randox',analyser:'Alinity c',note:'Hemoliza/Ikterija/Lipemija'},
   {gtin:'05055273203783',name:'HUM ASY L2 (Randox)',type:'control',manufacturer:'Randox',analyser:'Alinity i',note:'251128'},
   {gtin:'05055273203608',name:'HUM ASY L3 (Randox)',type:'control',manufacturer:'Randox',analyser:'Alinity i',note:'290428'}
+];
+
+// Vgrajen imenik operaterjev (matična št. + ime), vir: CS5100_Reagenti/employees.csv.
+// Seedan v DB.operators ob zagonu (manjkajoči po id). Kasneje nadomesti sinhronizacija z BIO Alinity.
+const BUILTIN_OPERATORS = [
+  {id:'51056',name:'NIKOLA ALEKSIĆ'},
+  {id:'35694',name:'MAJA ARSOV'},
+  {id:'40801',name:'KATJA BAHAR'},
+  {id:'51700',name:'BLAŽ BANDUR'},
+  {id:'29611',name:'BARBARA BAŠA CIGOJ'},
+  {id:'37559',name:'MAŠA TJAŠA BINTER'},
+  {id:'50533',name:'ANA BLAŽEVIČ ARKO'},
+  {id:'48043',name:'DOMEN BOMBEK'},
+  {id:'52609',name:'MARUŠA BOROVŠEK'},
+  {id:'29287',name:'ELIZABETA BOŽNAR ALIČ'},
+  {id:'24748',name:'MOJCA BRENČIČ'},
+  {id:'29836',name:'HERMINA BRODARIČ GRAŠIČ'},
+  {id:'52706',name:'MIHAELA BRODNIK'},
+  {id:'45381',name:'MIRIAM BUČINEL'},
+  {id:'47781',name:'JURE CANKAR'},
+  {id:'47782',name:'URŠKA CIGOJ'},
+  {id:'47536',name:'DANIJELA NELI COLE'},
+  {id:'37577',name:'DIANA CVIIČ'},
+  {id:'36033',name:'URŠKA ČEGOVNIK PRIMOŽIČ'},
+  {id:'22194',name:'DARKO ČERNE'},
+  {id:'29599',name:'MITJA DERENDA'},
+  {id:'39398',name:'JELENA DRAGOJEVIĆ'},
+  {id:'38988',name:'MARKO DRAGOJEVIĆ'},
+  {id:'20695',name:'VESNA MONIKA EINFALT'},
+  {id:'37276',name:'TEJA FABJAN'},
+  {id:'48536',name:'TJAŠA FEMC'},
+  {id:'29806',name:'PETRA FINDERLE'},
+  {id:'42116',name:'TINKARA FORTUNA'},
+  {id:'27324',name:'ALENKA FRANCE ŠTIGLIC'},
+  {id:'45913',name:'SVJETLANA GAJIĆ'},
+  {id:'42821',name:'SARA GOLOB'},
+  {id:'46957',name:'ŽIVA GOLOB'},
+  {id:'43198',name:'IRENA GRŽINA'},
+  {id:'11817',name:'RUŽA GUŽVIĆ'},
+  {id:'49998',name:'KATARINA HAFNER'},
+  {id:'24258',name:'NATAŠA HARISCH'},
+  {id:'29288',name:'KATARINA HROVATIN'},
+  {id:'38482',name:'MAJA IMAMOVIĆ'},
+  {id:'47290',name:'MOJCA IRŠIČ'},
+  {id:'11426',name:'DARJA JERAM'},
+  {id:'27289',name:'ALEŠ JERIN'},
+  {id:'37644',name:'MOJCA JURETIČ'},
+  {id:'27244',name:'SIMONA JUVAN'},
+  {id:'46819',name:'DANIJELA NELI KALIŠE'},
+  {id:'15727',name:'KARMEN KAPUN'},
+  {id:'39509',name:'KATARINA KLEŠNIK'},
+  {id:'19049',name:'MATEJA KMETIČ'},
+  {id:'19582',name:'ANDREJA KOBLAR'},
+  {id:'36292',name:'KSENJA KOLAR'},
+  {id:'17389',name:'DRAGANA KOPRIVNIKAR'},
+  {id:'17397',name:'VESNA KORADEJ'},
+  {id:'39240',name:'KLAVDIJA KOŠIR'},
+  {id:'47790',name:'MATIJA KOVAČEVIĆ'},
+  {id:'36417',name:'NATAŠA KRALJIČ'},
+  {id:'41705',name:'URŠKA KRAMBERGER'},
+  {id:'27273',name:'ANITA KRAPEŽ'},
+  {id:'17435',name:'MARTINA KRIVEC'},
+  {id:'36896',name:'KRISTINA KUMER'},
+  {id:'25604',name:'SANDRA LAMPIČ'},
+  {id:'46160',name:'JAKOB GAŠPER LAVRENČIČ'},
+  {id:'49053',name:'ŽIVA LAVRIČ'},
+  {id:'45512',name:'JASNA LOJK'},
+  {id:'46900',name:'BRANISLAV LUKIĆ'},
+  {id:'26917',name:'SILVIJA MACUH'},
+  {id:'19929',name:'NADA MAHKOVIC'},
+  {id:'42739',name:'JANJA MARC'},
+  {id:'40789',name:'ANAMARIJA MARKELJ'},
+  {id:'17954',name:'ROZALIJA MARS'},
+  {id:'36301',name:'VESNA MEDIĆ'},
+  {id:'20141',name:'MOJCA MEDVED'},
+  {id:'50512',name:'HANA MELKAMU'},
+  {id:'10301',name:'ZLATICA MERJASEC'},
+  {id:'16885',name:'HELENA MIKLAVC'},
+  {id:'44628',name:'MOJCA MLINAR'},
+  {id:'38733',name:'MATEJA MORE'},
+  {id:'27950',name:'KLEMEN NAGODE'},
+  {id:'24460',name:'VESNA NUHANOVIĆ'},
+  {id:'40349',name:'JASMINA OKRETIČ'},
+  {id:'43197',name:'ALJAŽ OMAHNA'},
+  {id:'16889',name:'TANJA OMERS'},
+  {id:'16984',name:'JOŠKO OSREDKAR'},
+  {id:'49761',name:'IZA OTOREPEC ČERNE'},
+  {id:'41527',name:'NINA PIŠKUR'},
+  {id:'37927',name:'SANDRA PLANINŠEK'},
+  {id:'47292',name:'JANA PLAVEC'},
+  {id:'49076',name:'TINA POLANC'},
+  {id:'27151',name:'MARJANA PRAH KRUMPAK'},
+  {id:'48105',name:'IRENA PRODAN ŽITNIK'},
+  {id:'39838',name:'ŽAN PUŠNIK'},
+  {id:'42087',name:'NEŽA RADOŠ'},
+  {id:'46651',name:'DOROTEJA RATKAJEC'},
+  {id:'37935',name:'MAIDA REKIĆ'},
+  {id:'42792',name:'NEŽA REMIC'},
+  {id:'44990',name:'KATJA ROKAVEC'},
+  {id:'44772',name:'AMELA SELIMAGIĆ'},
+  {id:'20604',name:'ALENKA SEŠEK BRIŠKI'},
+  {id:'14139',name:'STANISAVA SEVER'},
+  {id:'16163',name:'MILAN SKITEK'},
+  {id:'27641',name:'EMSUDA SMAJIĆ'},
+  {id:'37596',name:'MATEJ SOMRAK'},
+  {id:'20142',name:'SUZANA SRŠA'},
+  {id:'26812',name:'VANJA STRBAD'},
+  {id:'36437',name:'FRANKO STUDEN'},
+  {id:'48604',name:'TEO STUPAR'},
+  {id:'52657',name:'HANA SUCHY'},
+  {id:'47911',name:'LEJA ŠIMNOVEC'},
+  {id:'45831',name:'ALJAŽ ŠINKOVEC'},
+  {id:'47241',name:'KATARINA ŠKRABANJA'},
+  {id:'46731',name:'SARA ŠOŠTARIČ'},
+  {id:'35287',name:'NEJC ŠPENDAL'},
+  {id:'45380',name:'MAŠA ŠTEBIH'},
+  {id:'38758',name:'MAJA ŠTOK'},
+  {id:'38914',name:'ŠPELA ŠVAJGER'},
+  {id:'38891',name:'MEDINA TATAREVIĆ'},
+  {id:'38934',name:'ANKA TERGLAV'},
+  {id:'33370',name:'DARJA TKALEC'},
+  {id:'16118',name:'MOJCA-MARIJA TREVEN'},
+  {id:'39833',name:'KARMEN TRNJAK'},
+  {id:'16051',name:'VERA TROHA POLJANČIČ'},
+  {id:'29613',name:'KAROLINA VEBER'},
+  {id:'43766',name:'ALENKA VIDIC'},
+  {id:'25420',name:'KATJA VIDMAR'},
+  {id:'19980',name:'BREDA VRANKAR'},
+  {id:'22422',name:'MAJDA ZGONC'},
+  {id:'38895',name:'AJDA ŽAGER'},
+  {id:'37255',name:'MARKO ŽAVBI'},
+  {id:'47576',name:'AURELIJA ŽEKS'},
+  {id:'47730',name:'PATRICIJA ŽIBERT'},
+  {id:'36884',name:'ROZA MARJANA ŽNIDAR'}
 ];
 
 // ===== STATE =====
@@ -1878,9 +2025,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:110,
+  build:111,
   date:'2026-06-14',
   history:[
+    {build:111,date:'2026-06-14',notes:'PDF BK podpis: vgrajen imenik 129 operaterjev (matična + ime, vir CS5100). Dialog za matično ima zdaj številčnico (PIN-stil) namesto sistemske tipkovnice in sprejme tudi skeniranje črtne kode (priponka). Ime operaterja se izpiše sproti pred potrditvijo. Operaterji v Več → Operaterji prikažejo cel imenik (ročno dodajanje/brisanje še možno).'},
     {build:110,date:'2026-06-14',notes:'Sprejem brez RFID/SN: nov gumb "Sprejmi brez RFID/SN (ročno)" za artikle brez oznake (RANDOX, kdaj Abbott) — generira nadomestno serijsko (MAN…), EPC prazen, qty+1. Nov gumb "Počisti vnos" zavrže trenutno skenirani artikel brez zapiranja okna sprejema. Pripravlja se tudi sprejem prek IMS tiskalnika (tisk RFID nalepke).'},
     {build:109,date:'2026-06-14',notes:'Operaterji: lokalni seznam (ime + 5-mestna matična) v Več → Operaterji. Ob kliku PDF BK se odpre dialog za vnos matične številke — app poišče ime in ga vpiše kot "Pripravil" v PDF. Datum pregleda dobije uro (HH:MM). Operaterji bodo v prihodnosti uvoženi iz BIO Alinity sinhronizacije.'},
     {build:108,date:'2026-06-14',notes:'Gumb "CSV BK" zamenjan s "PDF BK": generira PDF poročilo zaloge kontrol in kalibratorjev (pokončno, dva stolpca, glava z naslovom in KCLJ logom, noga s šiframi). Seznam iz baze GTIN — vsak definiran kontrola/kalibrator se izpiše, tudi brez zaloge (prazna prečrtana vrstica). Spojena celica imena čez vse lote, LOT + EXP.DATE (DD.MM.LLLL), količina desno. Datum pregleda na vrhu. Shrani v Prenose kot PregledBK_LLLL-MM-DD.pdf.'},
@@ -2394,6 +2542,11 @@ function processRawScan(raw,rssi){
   if(_nl&&_nl.classList.contains('open')){notify(t('newlot_confirm'),'warn');return;}
   var _dbg='';for(var _ci=0;_ci<Math.min(raw.length,80);_ci++)_dbg+=raw.charCodeAt(_ci)+',';
   if(typeof AndroidBridge!=='undefined')try{AndroidBridge.log('SCAN_CHARS:'+_dbg);}catch(_e){}
+  // moPdfSign modal odprt → skeniranje vpiše matično številko
+  if($i('moPdfSign')&&$i('moPdfSign').classList.contains('open')){
+    pdfSignFromScan(raw.trim());
+    return;
+  }
   // moGtin modal odprt → skeniranje polni gtinCode input
   if($i('moGtin').classList.contains('open')){
     var gp=parseGS1(raw.trim());
@@ -3381,11 +3534,39 @@ function deleteOperator(id){
 
 // ===== PDF SIGN MODAL =====
 function openPdfSign(){
-  var el=$i('pdfSignId');if(el){el.value='';el.focus();}
-  var nm=$i('pdfSignName');if(nm)nm.textContent='';
+  var el=$i('pdfSignId');if(el)el.value='';
+  var nm=$i('pdfSignName');if(nm){nm.textContent='';}
+  // vklopi barcode skener (matična se lahko skenira); polje je readonly → ni sistemske tipkovnice
+  if(typeof AndroidBridge!=='undefined')try{AndroidBridge.enableDataWedge();}catch(e){}
   showMo('moPdfSign');
 }
 function closePdfSign(){closeMo('moPdfSign');}
+// številčnica (PIN-stil) — polje je readonly, vnos samo prek teh gumbov ali skenerja
+function pdfPad(d){
+  var el=$i('pdfSignId');if(!el)return;
+  if((el.value||'').length>=5)return;
+  el.value=(el.value||'')+d;
+  onPdfSignIdInput();
+}
+function pdfPadDel(){
+  var el=$i('pdfSignId');if(!el)return;
+  el.value=(el.value||'').slice(0,-1);
+  onPdfSignIdInput();
+}
+function pdfPadClear(){
+  var el=$i('pdfSignId');if(!el)return;
+  el.value='';
+  onPdfSignIdInput();
+}
+// skeniran niz (npr. iz priponke) → matična v polje (5 števk)
+function pdfSignFromScan(raw){
+  var digits=(raw||'').replace(/\D/g,'');
+  if(!digits)return;
+  var id=digits.length>5?digits.slice(-5):digits; // vzemi zadnjih 5 če je daljše
+  var el=$i('pdfSignId');if(!el)return;
+  el.value=id;
+  onPdfSignIdInput();
+}
 function onPdfSignIdInput(){
   var id=($i('pdfSignId').value||'').trim();
   var nm=$i('pdfSignName');if(!nm)return;
@@ -3807,6 +3988,15 @@ try {
     try { saveDB(); } catch(e2){ console.log('saveDB skip'); }
   }
 } catch(e){ console.log('autoload skip:', e); }
+// Seed imenika operaterjev — doda manjkajoče (po matični št.), ohrani ročno dodane
+try {
+  if(!DB.operators)DB.operators=[];
+  var _seeded=0;
+  BUILTIN_OPERATORS.forEach(function(o){
+    if(!DB.operators.some(function(x){return x.id===o.id;})){DB.operators.push({id:o.id,name:o.name});_seeded++;}
+  });
+  if(_seeded>0){try{saveDB();}catch(e3){}}
+} catch(e){ console.log('operator seed skip:', e); }
 try { updateBanner(); } catch(e){}
 try { updateStats(); } catch(e){}
 try { refreshSyncUI(); } catch(e){}
