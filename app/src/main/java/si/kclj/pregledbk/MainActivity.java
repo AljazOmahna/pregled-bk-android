@@ -597,6 +597,36 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         }
 
         @JavascriptInterface
+        public void savePdfToDownloads(String filename, String base64) {
+            mainHandler.post(() -> {
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                        && Build.VERSION.SDK_INT <= 28
+                        && checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                           != PackageManager.PERMISSION_GRANTED) {
+                        requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1001);
+                        runJs("if(typeof onSaveToDownloadsDone==='function')onSaveToDownloadsDone(null,'perm')");
+                        return;
+                    }
+                    String name = (filename == null || filename.isEmpty()) ? "export.pdf" : filename;
+                    byte[] bytes = android.util.Base64.decode(base64 == null ? "" : base64, android.util.Base64.DEFAULT);
+                    java.io.File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                    if (!dir.exists()) dir.mkdirs();
+                    java.io.File f = new java.io.File(dir, name);
+                    try (java.io.FileOutputStream fos = new java.io.FileOutputStream(f)) {
+                        fos.write(bytes);
+                    }
+                    sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(f)));
+                    runJs("if(typeof onSaveToDownloadsDone==='function')onSaveToDownloadsDone(" + jsStr(name) + ")");
+                    Toast.makeText(MainActivity.this, "Shranjeno: " + name, Toast.LENGTH_SHORT).show();
+                } catch (Throwable t) {
+                    Log.e(TAG, "savePdfToDownloads: " + t);
+                    runJs("if(typeof onSaveToDownloadsDone==='function')onSaveToDownloadsDone(null,'err')");
+                }
+            });
+        }
+
+        @JavascriptInterface
         public void openUrl(String url) {
             if (url == null || !(url.startsWith("http://") || url.startsWith("https://"))) {
                 mainHandler.post(() -> Toast.makeText(MainActivity.this,
