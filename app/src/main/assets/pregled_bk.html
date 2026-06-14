@@ -586,7 +586,8 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     <div class="fr" style="gap:6px;-webkit-flex-wrap:wrap;flex-wrap:wrap">
       <input type="text" id="opId" maxlength="5" placeholder="Mat. št. (5 mest)" style="width:120px" oninput="this.value=this.value.replace(/\D/g,'')">
       <input type="text" id="opName" placeholder="Ime Priimek" style="-webkit-flex:1;flex:1;min-width:120px">
-      <button class="btn btn-a btn-sm" onclick="addOperator()">+ Dodaj</button>
+      <button class="btn btn-a btn-sm" id="opAddBtn" onclick="addOperator()">+ Dodaj</button>
+      <button class="btn btn-g btn-sm" id="opCancelBtn" onclick="cancelEditOperator()" style="display:none">Prekliči</button>
     </div>
   </div>
   <div class="card">
@@ -2025,9 +2026,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:111,
+  build:112,
   date:'2026-06-14',
   history:[
+    {build:112,date:'2026-06-14',notes:'PDF BK: rok izteka obarvan kot v aplikaciji — pretečen rdeče, ≤14 dni oranžno, ≤28 dni rumeno (z legendo). Več → Operaterji: dodan gumb za urejanje (✎) obstoječega operaterja (matična + ime).'},
     {build:111,date:'2026-06-14',notes:'PDF BK podpis: vgrajen imenik 129 operaterjev (matična + ime, vir CS5100). Dialog za matično ima zdaj številčnico (PIN-stil) namesto sistemske tipkovnice in sprejme tudi skeniranje črtne kode (priponka). Ime operaterja se izpiše sproti pred potrditvijo. Operaterji v Več → Operaterji prikažejo cel imenik (ročno dodajanje/brisanje še možno).'},
     {build:110,date:'2026-06-14',notes:'Sprejem brez RFID/SN: nov gumb "Sprejmi brez RFID/SN (ročno)" za artikle brez oznake (RANDOX, kdaj Abbott) — generira nadomestno serijsko (MAN…), EPC prazen, qty+1. Nov gumb "Počisti vnos" zavrže trenutno skenirani artikel brez zapiranja okna sprejema. Pripravlja se tudi sprejem prek IMS tiskalnika (tisk RFID nalepke).'},
     {build:109,date:'2026-06-14',notes:'Operaterji: lokalni seznam (ime + 5-mestna matična) v Več → Operaterji. Ob kliku PDF BK se odpre dialog za vnos matične številke — app poišče ime in ga vpiše kot "Pripravil" v PDF. Datum pregleda dobije uro (HH:MM). Operaterji bodo v prihodnosti uvoženi iz BIO Alinity sinhronizacije.'},
@@ -3508,26 +3510,54 @@ function renderOperators(){
     +'<thead><tr><th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--border)">Mat. št.</th>'
     +'<th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--border)">Ime Priimek</th>'
     +'<th style="padding:4px;border-bottom:1px solid var(--border)"></th></tr></thead><tbody>'
-    +ops.map(function(o){return '<tr><td style="padding:4px 6px;font-family:var(--mono)">'+(o.id||'')+'</td>'
+    +ops.map(function(o){var oid=(o.id||'').replace(/'/g,"\\'");return '<tr><td style="padding:4px 6px;font-family:var(--mono)">'+(o.id||'')+'</td>'
       +'<td style="padding:4px 6px">'+(o.name||'')+'</td>'
-      +'<td style="padding:4px;text-align:center"><button class="btn btn-g btn-sm" style="padding:2px 8px;font-size:11px" onclick="deleteOperator(\''+o.id+'\')">&#128465;</button></td></tr>';}).join('')
+      +'<td style="padding:4px;text-align:center;white-space:nowrap">'
+        +'<button class="btn btn-g btn-sm" style="padding:2px 7px;font-size:11px;margin-right:3px" onclick="editOperator(\''+oid+'\')">&#9998;</button>'
+        +'<button class="btn btn-g btn-sm" style="padding:2px 7px;font-size:11px" onclick="deleteOperator(\''+oid+'\')">&#128465;</button></td></tr>';}).join('')
     +'</tbody></table>';
 }
+var _editOperatorId=null;
 function addOperator(){
   var id=($i('opId').value||'').trim();
   var name=($i('opName').value||'').trim();
   if(!/^\d{5}$/.test(id)){notify('Matična mora biti točno 5 številk','warn');return;}
   if(!name){notify('Ime Priimek je obvezno','warn');return;}
-  if((DB.operators||[]).find(function(o){return o.id===id;})){notify('Operater s to matično že obstaja','warn');return;}
   if(!DB.operators)DB.operators=[];
+  if(_editOperatorId){
+    // posodobitev obstoječega: nova matična se ne sme prekrivati z drugim operaterjem
+    if(id!==_editOperatorId&&DB.operators.find(function(o){return o.id===id;})){notify('Operater s to matično že obstaja','warn');return;}
+    var op=DB.operators.find(function(o){return o.id===_editOperatorId;});
+    if(op){op.id=id;op.name=name;}
+    saveDB();cancelEditOperator();renderOperators();
+    notify('Operater '+name+' posodobljen','ok');
+    return;
+  }
+  if(DB.operators.find(function(o){return o.id===id;})){notify('Operater s to matično že obstaja','warn');return;}
   DB.operators.push({id:id,name:name});
   saveDB();
   $i('opId').value='';$i('opName').value='';
   renderOperators();
   notify('Operater '+name+' dodan','ok');
 }
+function editOperator(id){
+  var op=(DB.operators||[]).find(function(o){return o.id===id;});
+  if(!op)return;
+  _editOperatorId=id;
+  $i('opId').value=op.id;$i('opName').value=op.name;
+  var b=$i('opAddBtn');if(b)b.textContent='Shrani';
+  var c=$i('opCancelBtn');if(c)c.style.display='';
+  $i('opName').focus();
+}
+function cancelEditOperator(){
+  _editOperatorId=null;
+  $i('opId').value='';$i('opName').value='';
+  var b=$i('opAddBtn');if(b)b.textContent='+ Dodaj';
+  var c=$i('opCancelBtn');if(c)c.style.display='none';
+}
 function deleteOperator(id){
   if(!DB.operators)return;
+  if(_editOperatorId===id)cancelEditOperator();
   DB.operators=DB.operators.filter(function(o){return o.id!==id;});
   saveDB();renderOperators();
 }
@@ -3614,13 +3644,22 @@ function _bkHeader(label,bg){return {h:1.3,node:{
     {text:'LOT + EXP.DATE',bold:true,fontSize:7.5,fillColor:bg},
     {text:'KOL',bold:true,fontSize:7.5,alignment:'center',fillColor:bg}]]},
   layout:_pdfGrid,margin:[0,0,0,0]}};}
+// Barva roka izteka v PDF — usklajeno z appom: pretečen=rdeča, <=14d=oranžna, <=28d=rumena
+function _expColorPdf(expiry){
+  var d=daysLeft(expiry);
+  if(d<0)return {color:'#c00000',bold:true};
+  if(d<=14)return {color:'#e8730c',bold:true};
+  if(d<=28)return {color:'#b8860b',bold:true};
+  return {color:'#555',bold:false};
+}
 function _bkProduct(p){
   var body=[];
   if(p.lots.length){
     p.lots.forEach(function(l,idx){
+      var ec=_expColorPdf(l.expiry);
       body.push([
         idx===0?{text:p.name,bold:true,fontSize:7.5,alignment:'center',rowSpan:p.lots.length,fillColor:'#f7f7f7'}:{},
-        {text:[{text:l.lot||'',fontSize:7.5},{text:'  '+fmtExpDot(l.expiry),fontSize:7.5,color:'#555'}]},
+        {text:[{text:l.lot||'',fontSize:7.5},{text:'  '+fmtExpDot(l.expiry),fontSize:7.5,color:ec.color,bold:ec.bold}]},
         {text:(l.qty==null?'':String(l.qty)),bold:true,fontSize:8,alignment:'center'}
       ]);
     });
@@ -3666,7 +3705,11 @@ function _doExportBkPDF(operatorName){
     ]};},
     content:[
       {text:'Pregled zaloge kontrol in kalibratorjev:  '+today,bold:true,fontSize:9.5,margin:[0,0,0,2]},
-      {text:'Pripravil: '+(operatorName||''),fontSize:9,margin:[0,0,0,6],color:operatorName?'#000':'#aaa'},
+      {text:'Pripravil: '+(operatorName||''),fontSize:9,margin:[0,0,0,3],color:operatorName?'#000':'#aaa'},
+      {text:[{text:'Rok izteka: ',fontSize:7.5,color:'#555'},
+             {text:'pretečen',fontSize:7.5,color:'#c00000',bold:true},{text:'  •  ',fontSize:7.5,color:'#555'},
+             {text:'≤14 dni',fontSize:7.5,color:'#e8730c',bold:true},{text:'  •  ',fontSize:7.5,color:'#555'},
+             {text:'≤28 dni',fontSize:7.5,color:'#b8860b',bold:true}],margin:[0,0,0,6]},
       {columns:[{stack:left,width:'*'},{text:'',width:10},{stack:right,width:'*'}],columnGap:0}
     ],
     defaultStyle:{font:'Roboto',fontSize:8}
