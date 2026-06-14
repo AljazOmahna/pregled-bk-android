@@ -121,9 +121,14 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         setupDataWedgeProfile();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE}, 1001);
-            }
+            java.util.List<String> need = new java.util.ArrayList<>();
+            if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
+                need.add(android.Manifest.permission.READ_EXTERNAL_STORAGE);
+            if (Build.VERSION.SDK_INT <= 28
+                && checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
+                need.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            if (!need.isEmpty())
+                requestPermissions(need.toArray(new String[0]), 1001);
         }
 
         try {
@@ -565,6 +570,14 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         public void saveToDownloads(String filename, String content) {
             mainHandler.post(() -> {
                 try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                        && Build.VERSION.SDK_INT <= 28
+                        && checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                           != PackageManager.PERMISSION_GRANTED) {
+                        requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1001);
+                        runJs("if(typeof onSaveToDownloadsDone==='function')onSaveToDownloadsDone(null,'perm')");
+                        return;
+                    }
                     String name = (filename == null || filename.isEmpty()) ? "export.csv" : filename;
                     java.io.File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
                     if (!dir.exists()) dir.mkdirs();
@@ -578,7 +591,7 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
                     Toast.makeText(MainActivity.this, "Shranjeno: " + name, Toast.LENGTH_SHORT).show();
                 } catch (Throwable t) {
                     Log.e(TAG, "saveToDownloads: " + t);
-                    runJs("if(typeof onSaveToDownloadsDone==='function')onSaveToDownloadsDone(null)");
+                    runJs("if(typeof onSaveToDownloadsDone==='function')onSaveToDownloadsDone(null,'err')");
                 }
             });
         }

@@ -1851,9 +1851,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:106,
+  build:107,
   date:'2026-06-14',
   history:[
+    {build:107,date:'2026-06-14',notes:'Popravek CSV izvoza: dodano WRITE_EXTERNAL_STORAGE dovoljenje (Android 8.1/API 27 ga zahteva za pisanje v Prenose). App ob zagonu zahteva tudi pisalni dostop; če ob izvozu dovoljenje manjka, ga vpraša in pokaže jasno navodilo namesto tihe napake.'},
     {build:106,date:'2026-06-14',notes:'CSV izvoz popravljen: AndroidBridge.saveToDownloads() shrani datoteko v /sdcard/Download/ (prej blob URL ni deloval v Android WebView). Nov gumb "CSV BK" izvozi samo kalibratorje in kontrole (Naziv, Lot, Rok trajanja, Kos) urejeno po imenu — primerno za Excel. Gumb dodan v glavo zavihka Zaloga in v Več → Izvoz.'},
     {build:105,date:'2026-06-13',notes:'Popravek: "Ni RFID" opozorilo se ne prikaže več ob skeniranju Data Matrix kode (korak 1 sprejema). Opozorilo se prikaže šele ko je RFD2000 eksplicitno vklopljen (po kliku "Skeniraj RFID") in trigger sprostimo brez zajetega EPC. Dodano _spRfidArmed pogoj na oba (pressed + released) bloka v onRfidTriggerEvent().'},
     {build:104,date:'2026-06-13',notes:'Privzeto lotNotify=false za potrošni material: pri dodajanju novega GTIN-a tipa "Potrošni material" se checkbox "Opozorilo ob novem lotu" samodejno odkljuca. Ob menjavi tipa v modalu se privzeta vrednost posodobi (velja samo za nove GTIN-e, ne za urejanje obstoječih).'},
@@ -3285,8 +3286,9 @@ function dlCSV(rows,name){
   var blob=new Blob([str],{type:'text/csv;charset=utf-8'});
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
 }
-function onSaveToDownloadsDone(name){
+function onSaveToDownloadsDone(name,reason){
   if(name)notify('Shranjeno v Prenosi: '+name,'ok');
+  else if(reason==='perm')notify('Dovoli dostop do datotek, nato znova klikni izvoz','warn');
   else notify('Napaka pri shranjevanju CSV','err');
 }
 function exportInvCSV(){
