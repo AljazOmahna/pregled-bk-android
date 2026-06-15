@@ -582,13 +582,9 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
   </div>
   <div class="card" id="card-operators">
     <div class="card-title">&#128100; Operaterji</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Operaterji se urejajo v aplikaciji <b>BIO Alinity</b> in se sinhronizirajo prek OneDrive. Tu so samo za izpis podpisa na PDF.</div>
     <div id="opList" style="margin-bottom:8px"></div>
-    <div class="fr" style="gap:6px;-webkit-flex-wrap:wrap;flex-wrap:wrap">
-      <input type="text" id="opId" maxlength="5" placeholder="Mat. št. (5 mest)" style="width:120px" oninput="this.value=this.value.replace(/\D/g,'')">
-      <input type="text" id="opName" placeholder="Ime Priimek" style="-webkit-flex:1;flex:1;min-width:120px">
-      <button class="btn btn-a btn-sm" id="opAddBtn" onclick="addOperator()">+ Dodaj</button>
-      <button class="btn btn-g btn-sm" id="opCancelBtn" onclick="cancelEditOperator()" style="display:none">Prekliči</button>
-    </div>
+    <button class="btn btn-a btn-sm" onclick="msDownloadOperators()" style="width:100%;-webkit-justify-content:center;justify-content:center">&#11015;&#65039; Osveži iz OneDrive</button>
   </div>
   <div class="card">
     <div class="card-title">&#9729;&#65039; Sinhronizacija (OneDrive)</div>
@@ -3506,16 +3502,13 @@ function lookupOperator(id){
 function renderOperators(){
   var el=$i('opList');if(!el)return;
   var ops=DB.operators||[];
-  if(!ops.length){el.innerHTML='<div style="font-size:12px;color:var(--text3);padding:4px 0">Ni dodanih operaterjev.</div>';return;}
-  el.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:12px">'
+  if(!ops.length){el.innerHTML='<div style="font-size:12px;color:var(--text3);padding:4px 0">Imenik prazen — osvežite iz OneDrive.</div>';return;}
+  el.innerHTML='<div style="font-size:11px;color:var(--text3);margin-bottom:4px">Registriranih: '+ops.length+'</div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:12px">'
     +'<thead><tr><th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--border)">Mat. št.</th>'
-    +'<th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--border)">Ime Priimek</th>'
-    +'<th style="padding:4px;border-bottom:1px solid var(--border)"></th></tr></thead><tbody>'
-    +ops.map(function(o){var oid=(o.id||'').replace(/'/g,"\\'");return '<tr><td style="padding:4px 6px;font-family:var(--mono)">'+(o.id||'')+'</td>'
-      +'<td style="padding:4px 6px">'+(o.name||'')+'</td>'
-      +'<td style="padding:4px;text-align:center;white-space:nowrap">'
-        +'<button class="btn btn-g btn-sm" style="padding:2px 7px;font-size:11px;margin-right:3px" onclick="editOperator(\''+oid+'\')">&#9998;</button>'
-        +'<button class="btn btn-g btn-sm" style="padding:2px 7px;font-size:11px" onclick="deleteOperator(\''+oid+'\')">&#128465;</button></td></tr>';}).join('')
+    +'<th style="text-align:left;padding:4px 6px;border-bottom:1px solid var(--border)">Ime Priimek</th></tr></thead><tbody>'
+    +ops.map(function(o){return '<tr><td style="padding:4px 6px;font-family:var(--mono)">'+(o.id||'')+'</td>'
+      +'<td style="padding:4px 6px">'+(o.name||'')+'</td></tr>';}).join('')
     +'</tbody></table>';
 }
 var _editOperatorId=null;
@@ -3806,7 +3799,14 @@ function msDownload(){
   try{
     notify('Prenašam iz OneDrive…','ok');
     AndroidBridge.msDownload();
+    // ob prenosu zaloge osveži tudi imenik operaterjev (vir: BIO Alinity)
+    if(AndroidBridge.msDownloadOperators)AndroidBridge.msDownloadOperators();
   }catch(e){notify('Napaka prenosa','err');}
+}
+function msDownloadOperators(){
+  if(!_hasBridge()){notify('Samo na napravi','warn');return;}
+  try{notify('Prenašam operaterje…','ok');AndroidBridge.msDownloadOperators();}
+  catch(e){notify('Napaka prenosa operaterjev','err');}
 }
 // ---- Quick Share (Nearby) ----
 // Uvoz baze iz prejete .json datoteke (npr. iz Quick Share / Download) — uporabi isti merge kot Quick Share sprejem
@@ -3906,6 +3906,21 @@ function onMsError(msg){
 function onMsUploadDone(ok,msg){
   notify(msg||(ok?'Naloženo':'Napaka'),ok?'ok':'err');
   refreshSyncUI();
+}
+// Imenik operaterjev iz BIO Alinity (DigiLab/operators.json) — zamenja lokalni DB.operators
+function onMsOperatorsDownloaded(json,msg){
+  if(json===null||json===undefined||json===''){notify(msg||'Ni operaterjev v OneDrive','warn');return;}
+  try{
+    var arr=JSON.parse(json);
+    if(!Array.isArray(arr)){notify('Neveljaven imenik operaterjev','err');return;}
+    DB.operators=arr.map(function(o){
+      var nm=(o.name||((o.first||'')+' '+(o.last||''))).trim();
+      return {id:String(o.id||''),name:nm};
+    }).filter(function(o){return o.id;});
+    saveDB();
+    if(typeof renderOperators==='function')renderOperators();
+    notify('Operaterji posodobljeni: '+DB.operators.length,'ok');
+  }catch(e){notify('Napaka pri branju operaterjev','err');}
 }
 function onMsDownloadDone(json,msg){
   if(json===null||json===undefined||json===''){

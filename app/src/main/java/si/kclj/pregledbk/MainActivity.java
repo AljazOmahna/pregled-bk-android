@@ -412,6 +412,9 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
             @Override public void downloadDone(String jsonOrNull, String msg) {
                 runJs("onMsDownloadDone(" + jsStr(jsonOrNull) + "," + jsStr(msg) + ")");
             }
+            @Override public void operatorsDone(String jsonOrNull, String msg) {
+                runJs("if(typeof onMsOperatorsDownloaded==='function')onMsOperatorsDownloaded(" + jsStr(jsonOrNull) + "," + jsStr(msg) + ")");
+            }
         };
     }
 
@@ -709,6 +712,11 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         @JavascriptInterface
         public void msDownload() {
             if (graphSync != null) graphSync.download(graphCb());
+        }
+
+        @JavascriptInterface
+        public void msDownloadOperators() {
+            if (graphSync != null) graphSync.downloadOperators(graphCb());
         }
     }
 }

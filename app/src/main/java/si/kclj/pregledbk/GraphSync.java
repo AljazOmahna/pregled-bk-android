@@ -43,6 +43,8 @@ public class GraphSync {
     private static final String SCOPE = "offline_access Files.ReadWrite User.Read";
     // Mapa DigiLab v OneDrive — isti ključ kot BIO Alinity tablica (pregledBK_db.json)
     private static final String FILE_PATH = "/me/drive/root:/DigiLab/pregledBK_db.json";
+    // Imenik operaterjev — vir resnice je BIO Alinity (samo bere se sem)
+    private static final String OPERATORS_PATH = "/me/drive/root:/DigiLab/operators.json";
 
     private static final String PREFS = "ms_auth";
     private static final String K_REFRESH = "refresh_token";
@@ -58,6 +60,7 @@ public class GraphSync {
         void error(String msg);
         void uploadDone(boolean ok, String msg);
         void downloadDone(String jsonOrNull, String msg); // jsonOrNull == null ob 404 (se ni nalozeno)
+        void operatorsDone(String jsonOrNull, String msg); // imenik operaterjev iz BIO Alinity
     }
 
     private final Context ctx;
@@ -255,6 +258,29 @@ public class GraphSync {
             } catch (Throwable t) {
                 Log.e(TAG, "download: " + t);
                 cb.downloadDone(null, t.getMessage());
+            }
+        });
+    }
+
+    /** Prenese imenik operaterjev (DigiLab/operators.json) — samo bere; vir resnice je BIO Alinity. */
+    public void downloadOperators(final Cb cb) {
+        exec.execute(() -> {
+            try {
+                String at = freshAccessToken();
+                if (at == null) { cb.operatorsDone(null, "Niste prijavljeni"); return; }
+                String url = "https://graph.microsoft.com/v1.0" + OPERATORS_PATH + ":/content";
+                String[] r = httpGetRaw(url, at);
+                int code = Integer.parseInt(r[0]);
+                if (code == 200) {
+                    cb.operatorsDone(r[1], "ok");
+                } else if (code == 404) {
+                    cb.operatorsDone(null, "Imenika operaterjev še ni v OneDrive");
+                } else {
+                    cb.operatorsDone(null, "Napaka prenosa operaterjev (" + code + ")");
+                }
+            } catch (Throwable t) {
+                Log.e(TAG, "downloadOperators: " + t);
+                cb.operatorsDone(null, t.getMessage());
             }
         });
     }
