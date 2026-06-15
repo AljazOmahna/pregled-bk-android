@@ -2026,9 +2026,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:112,
+  build:113,
   date:'2026-06-14',
   history:[
+    {build:113,date:'2026-06-14',notes:'Quick Share / sinhronizacija: združevanje zaloge zdaj druži ENOTE po EPC (pravi unikat RFID; če EPC manjka, po SN), iz njih pa izpelje serijske/EPC/količino. Prej se units[] pri prekrivajočem lotu ni združil — enote pošiljatelja so se izgubile iz prikaza, čeprav je qty narasel. Zdaj: brez izgubljenih ali podvojenih kosov, dva različna kosa z istim SN a različnim EPC ostaneta ločena. Preverjeno na pravih bazah (209+31 = 240 enot, 0 izgub, 0 dvojnikov).'},
     {build:112,date:'2026-06-14',notes:'PDF BK: rok izteka obarvan kot v aplikaciji — pretečen rdeče, ≤14 dni oranžno, ≤28 dni rumeno (z legendo). Več → Operaterji: dodan gumb za urejanje (✎) obstoječega operaterja (matična + ime).'},
     {build:111,date:'2026-06-14',notes:'PDF BK podpis: vgrajen imenik 129 operaterjev (matična + ime, vir CS5100). Dialog za matično ima zdaj številčnico (PIN-stil) namesto sistemske tipkovnice in sprejme tudi skeniranje črtne kode (priponka). Ime operaterja se izpiše sproti pred potrditvijo. Operaterji v Več → Operaterji prikažejo cel imenik (ročno dodajanje/brisanje še možno).'},
     {build:110,date:'2026-06-14',notes:'Sprejem brez RFID/SN: nov gumb "Sprejmi brez RFID/SN (ročno)" za artikle brez oznake (RANDOX, kdaj Abbott) — generira nadomestno serijsko (MAN…), EPC prazen, qty+1. Nov gumb "Počisti vnos" zavrže trenutno skenirani artikel brez zapiranja okna sprejema. Pripravlja se tudi sprejem prek IMS tiskalnika (tisk RFID nalepke).'},
@@ -3953,22 +3954,48 @@ function mergeDB(cloud){
       if(!ls.closed&&s.closed)ls.closed=s.closed;
     }
   });
-  // Inventory — union po gtin+lot; serije/EPC kot mnozice; qty preracunan
+  // Inventory — union po gtin+lot; ENOTE združimo po EPC (ali SN, če EPC manjka),
+  // nato iz enot izpeljemo serials/rfidEpcs/qty. Tako se isti fizični kos (isti EPC)
+  // nikoli ne podvoji, dva različna kosa z istim SN (a različnim EPC) pa se ohranita.
   if(!DB.inventory)DB.inventory=[];
   function invKey(i){return (i.gtin||'')+'|'+(i.lot||'');}
+  // enote artikla: uporabi units[], sicer izpelji iz serials/rfidEpcs po indeksu
+  function _units(it){
+    if(it.units&&it.units.length)return it.units.map(function(u){return {sn:u.sn||'',epc:u.epc||''};});
+    var sns=(it.serials||[]),eps=(it.rfidEpcs||[]),n=Math.max(sns.length,eps.length),o=[];
+    for(var i=0;i<n;i++)o.push({sn:sns[i]||'',epc:eps[i]||''});
+    return o;
+  }
+  // identiteta enote: EPC (pravi unikat RFID), sicer SN
+  function _unitKey(u){return u.epc?('e:'+u.epc):(u.sn?('s:'+u.sn):'');}
+  // iz enot izpelji serials/rfidEpcs/qty in jih zapiši nazaj v artikel
+  function _applyUnits(it,units){
+    it.units=units;
+    it.serials=units.map(function(u){return u.sn;}).filter(Boolean);
+    it.rfidEpcs=units.map(function(u){return u.epc;}).filter(Boolean);
+    it.qty=units.length||it.qty||0;
+  }
   var invMap={};DB.inventory.forEach(function(i){invMap[invKey(i)]=i;});
   (cloud.inventory||[]).forEach(function(ci){
     if(!ci)return;
     var k=invKey(ci),li=invMap[k];
     if(!li){
+      var u0=_units(ci);if(u0.length)_applyUnits(ci,u0);   // normaliziraj nov artikel
       DB.inventory.push(ci);invMap[k]=ci;stats.inventory++;
     }else{
-      li.serials=_arrUnion(li.serials,ci.serials);
-      li.rfidEpcs=_arrUnion(li.rfidEpcs,ci.rfidEpcs);
-      if(li.serials&&li.serials.length)li.qty=li.serials.length;
-      else if(li.rfidEpcs&&li.rfidEpcs.length)li.qty=li.rfidEpcs.length;
-      else li.qty=Math.max(li.qty||0,ci.qty||0);
+      // združi enote obeh naprav po EPC||SN (brez dvojnikov, brez izgub)
+      var seen={},merged=[];
+      _units(li).concat(_units(ci)).forEach(function(u){
+        var uk=_unitKey(u);
+        if(!uk){merged.push(u);return;}                    // brez SN in EPC — pusti
+        if(seen[uk]){var ex=seen[uk];if(!ex.sn&&u.sn)ex.sn=u.sn;if(!ex.epc&&u.epc)ex.epc=u.epc;return;}
+        seen[uk]=u;merged.push(u);
+      });
+      if(merged.length)_applyUnits(li,merged);
+      else li.qty=Math.max(li.qty||0,ci.qty||0);            // ročni vnos brez enot
       if(!li.expiry&&ci.expiry)li.expiry=ci.expiry;
+      if(!li.name&&ci.name)li.name=ci.name;
+      if(!li.type&&ci.type)li.type=ci.type;
     }
   });
   // Loti — union po gtin+lot; ohrani ovrednotenje z obeh naprav
