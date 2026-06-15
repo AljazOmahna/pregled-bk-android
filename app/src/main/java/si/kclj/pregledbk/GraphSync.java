@@ -33,14 +33,14 @@ public class GraphSync {
 
     private static final String TAG = "PregledBK.Graph";
 
-    // Privzeti tenant = kclj.si  (lahko prepise nastavitev)
-    private static final String DEFAULT_TENANT = "59ac58db-e485-4520-aa8b-4ae22d6534e6";
-    // Privzeti javni client ID = "Microsoft Graph Command Line Tools" (public client, device code, multi-tenant)
-    private static final String DEFAULT_CLIENT = "14d82eec-204b-4c2f-b7e8-296a70dab67e";
+    // common = sprejme osebne + org MS račune (za test z Hotmail; zamenjaj s kclj tenant ko pride odobritev)
+    private static final String DEFAULT_TENANT = "common";
+    // BIO Alinity Sync app registration (82b539ce-...) — ista registracija za tablico in Zebro
+    private static final String DEFAULT_CLIENT = "82b539ce-e064-4643-a0df-41dde15b39a4";
 
     private static final String SCOPE = "offline_access Files.ReadWrite User.Read";
-    // Mapa + datoteka v OneDrive korenu uporabnika
-    private static final String FILE_PATH = "/me/drive/root:/PregledBK/pregledbk_data.json";
+    // Mapa DigiLab v OneDrive — isti ključ kot BIO Alinity tablica (pregledBK_db.json)
+    private static final String FILE_PATH = "/me/drive/root:/DigiLab/pregledBK_db.json";
 
     private static final String PREFS = "ms_auth";
     private static final String K_REFRESH = "refresh_token";
