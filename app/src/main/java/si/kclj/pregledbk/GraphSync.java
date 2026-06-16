@@ -128,7 +128,7 @@ public class GraphSync {
                 JSONObject j = new JSONObject(resp);
                 String deviceCode = j.getString("device_code");
                 String userCode = j.getString("user_code");
-                String verUri = j.optString("verification_uri", "https://microsoft.com/devicelogin");
+                String verUri = j.optString("verification_uri", "https://microsoft.com/link");
                 String message = j.optString("message", "");
                 int interval = j.optInt("interval", 5);
                 int expiresIn = j.optInt("expires_in", 900);
