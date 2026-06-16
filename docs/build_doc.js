@@ -7,8 +7,8 @@ const {
 } = require("docx");
 
 // ===== nastavljivo ob vsaki nadgradnji =====
-const BUILD = "113";
-const DATE = "15.6.2026";
+const BUILD = "114";
+const DATE = "16.6.2026";
 const SHOTS = path.join(__dirname, "shots");
 
 function img(file, w) {
@@ -265,7 +265,8 @@ const doc = new Document({
           new TableRow({ tableHeader: true, children: [
             cell("Build", 900, "1F3864", true), cell("Datum", 1500, "1F3864", true), cell("Spremembe", 6960, "1F3864", true),
           ]}),
-          histRow("113", DATE, "Quick Share / sinhronizacija: združevanje zaloge po EPC (pravi unikat RFID) — brez izgubljenih ali podvojenih kosov."),
+          histRow("114", DATE, "OneDrive: device-code za osebne (Hotmail) račune prek tenant “consumers” → koda na microsoft.com/link. Operaterji: samo branje iz OneDrive."),
+          histRow("113", "15.6.2026", "Quick Share / sinhronizacija: združevanje zaloge po EPC (pravi unikat RFID) — brez izgubljenih ali podvojenih kosov."),
           histRow("112", "14.6.2026", "PDF BK: barvni roki izteka (rdeče/oranžno/rumeno) z legendo. Operaterji: gumb za urejanje (✎)."),
           histRow("111", "14.6.2026", "Vgrajen imenik 129 operaterjev. PDF dialog: številčnica (PIN) + skeniranje matične; izpis imena."),
           histRow("110", "14.6.2026", "Sprejem brez RFID/SN (ročno) za artikle brez oznake. Gumb “Počisti vnos”."),

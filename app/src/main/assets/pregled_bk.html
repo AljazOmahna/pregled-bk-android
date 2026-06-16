@@ -2022,9 +2022,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:113,
-  date:'2026-06-14',
+  build:114,
+  date:'2026-06-16',
   history:[
+    {build:114,date:'2026-06-16',notes:'OneDrive sinhronizacija: device-code flow zdaj uporablja tenant "consumers" za osebne (Hotmail) račune — koda se vpiše na microsoft.com/link (prej "common"/devicelogin je pri osebnih računih obvisel in vrnil napako). Operaterji: imenik se bere (samo branje) iz OneDrive (vir BIO Alinity). Ti popravki so bili prej že v viru pod oznako 113, a brez dviga verzije — zato je nameščeni 113 APK deloval brez njih.'},
     {build:113,date:'2026-06-14',notes:'Quick Share / sinhronizacija: združevanje zaloge zdaj druži ENOTE po EPC (pravi unikat RFID; če EPC manjka, po SN), iz njih pa izpelje serijske/EPC/količino. Prej se units[] pri prekrivajočem lotu ni združil — enote pošiljatelja so se izgubile iz prikaza, čeprav je qty narasel. Zdaj: brez izgubljenih ali podvojenih kosov, dva različna kosa z istim SN a različnim EPC ostaneta ločena. Preverjeno na pravih bazah (209+31 = 240 enot, 0 izgub, 0 dvojnikov).'},
     {build:112,date:'2026-06-14',notes:'PDF BK: rok izteka obarvan kot v aplikaciji — pretečen rdeče, ≤14 dni oranžno, ≤28 dni rumeno (z legendo). Več → Operaterji: dodan gumb za urejanje (✎) obstoječega operaterja (matična + ime).'},
     {build:111,date:'2026-06-14',notes:'PDF BK podpis: vgrajen imenik 129 operaterjev (matična + ime, vir CS5100). Dialog za matično ima zdaj številčnico (PIN-stil) namesto sistemske tipkovnice in sprejme tudi skeniranje črtne kode (priponka). Ime operaterja se izpiše sproti pred potrditvijo. Operaterji v Več → Operaterji prikažejo cel imenik (ročno dodajanje/brisanje še možno).'},
