@@ -2022,9 +2022,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:115,
+  build:116,
   date:'2026-06-16',
   history:[
+    {build:116,date:'2026-06-16',notes:'GraphSync: upload/download/downloadOperators samodejno prekine aktivno signIn polling zanko (cancelLogin=true) pred izvajanjem — odpravlja zamrznitev prenosov, ko je executor zaseden s potekajočo prijavo.'},
     {build:115,date:'2026-06-16',notes:'Operaterji: drsnik (max 180px) s sticky glavo — dolg imenik ne raztegne kartice. Prijava OneDrive: koda prikazana v posameznih poljih (ABCD-EFGH), URL popravljen na microsoft.com/link, opis posodobljen na "8-mestno kodo".'},
     {build:114,date:'2026-06-16',notes:'OneDrive sinhronizacija: device-code flow zdaj uporablja tenant "consumers" za osebne (Hotmail) račune — koda se vpiše na microsoft.com/link (prej "common"/devicelogin je pri osebnih računih obvisel in vrnil napako). Operaterji: imenik se bere (samo branje) iz OneDrive (vir BIO Alinity). Ti popravki so bili prej že v viru pod oznako 113, a brez dviga verzije — zato je nameščeni 113 APK deloval brez njih.'},
     {build:113,date:'2026-06-14',notes:'Quick Share / sinhronizacija: združevanje zaloge zdaj druži ENOTE po EPC (pravi unikat RFID; če EPC manjka, po SN), iz njih pa izpelje serijske/EPC/količino. Prej se units[] pri prekrivajočem lotu ni združil — enote pošiljatelja so se izgubile iz prikaza, čeprav je qty narasel. Zdaj: brez izgubljenih ali podvojenih kosov, dva različna kosa z istim SN a različnim EPC ostaneta ločena. Preverjeno na pravih bazah (209+31 = 240 enot, 0 izgub, 0 dvojnikov).'},

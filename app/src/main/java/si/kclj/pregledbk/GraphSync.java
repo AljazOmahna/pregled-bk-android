@@ -219,7 +219,9 @@ public class GraphSync {
     // ---------- UPLOAD / DOWNLOAD ----------
 
     public void upload(final String json, final Cb cb) {
+        cancelLogin = true; // prekini morebitno aktivno signIn polling zanko
         exec.execute(() -> {
+            cancelLogin = false;
             try {
                 String at = freshAccessToken();
                 if (at == null) { cb.uploadDone(false, "Niste prijavljeni"); return; }
@@ -240,7 +242,9 @@ public class GraphSync {
     }
 
     public void download(final Cb cb) {
+        cancelLogin = true; // prekini morebitno aktivno signIn polling zanko
         exec.execute(() -> {
+            cancelLogin = false;
             try {
                 String at = freshAccessToken();
                 if (at == null) { cb.downloadDone(null, "Niste prijavljeni"); return; }
@@ -264,7 +268,9 @@ public class GraphSync {
 
     /** Prenese imenik operaterjev (DigiLab/operators.json) — samo bere; vir resnice je BIO Alinity. */
     public void downloadOperators(final Cb cb) {
+        cancelLogin = true; // prekini morebitno aktivno signIn polling zanko
         exec.execute(() -> {
+            cancelLogin = false;
             try {
                 String at = freshAccessToken();
                 if (at == null) { cb.operatorsDone(null, "Niste prijavljeni"); return; }
