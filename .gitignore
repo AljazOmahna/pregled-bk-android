@@ -8,3 +8,6 @@
 .externalNativeBuild
 .cxx
 *.apk
+
+# Odstranjen stari sistem navodil (zlit v docs/); ostane le lokalni node_modules
+/navodila/
