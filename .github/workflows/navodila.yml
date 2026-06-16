@@ -1,11 +1,14 @@
 name: Navodila (Word)
 
-# Samodejno (re)generira Word navodila ob spremembi vira navodil ali aplikacije.
+# Samodejno (re)generira Word navodila (docs/PregledBK_Navodila.docx) ob spremembi
+# gradbenega skripta, posnetkov ali aplikacije. Posnetki so pravi zajemi z Zebre,
+# že shranjeni v docs/shots/ — zato v CI ni potreben brskalnik/zajem.
 on:
   push:
     branches: [ main ]
     paths:
-      - 'navodila/**'
+      - 'docs/build_doc.js'
+      - 'docs/shots/**'
       - 'app/src/main/assets/pregled_bk.html'
   workflow_dispatch:
 
@@ -19,43 +22,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Namesti odvisnosti
-        run: |
-          python -m pip install --upgrade pip
-          pip install python-docx
-          cd navodila
-          npm install puppeteer-core
-
-      - name: Namesti Chromium za zajem zaslonov
-        uses: browser-actions/setup-chrome@v1
-        id: chrome
-
-      - name: Zajem zaslonov iz aplikacije (best-effort)
-        continue-on-error: true
-        env:
-          PUPPETEER_EXECUTABLE_PATH: ${{ steps.chrome.outputs.chrome-path }}
-        run: |
-          cd navodila
-          node capture_screens.js
+        run: npm install docx
 
       - name: Generiraj Word navodila
-        run: |
-          cd navodila
-          python generate_navodila.py
+        run: node docs/build_doc.js docs
 
       - name: Naloži navodila kot artifact
         uses: actions/upload-artifact@v4
         with:
           name: Navodila_PregledBK
-          path: navodila/Navodila_PregledBK.docx
+          path: docs/PregledBK_Navodila.docx
           retention-days: 90

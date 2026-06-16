@@ -7,8 +7,8 @@ const {
 } = require("docx");
 
 // ===== nastavljivo ob vsaki nadgradnji =====
-const BUILD = "112";
-const DATE = "14.6.2026";
+const BUILD = "113";
+const DATE = "15.6.2026";
 const SHOTS = path.join(__dirname, "shots");
 
 function img(file, w) {
@@ -133,6 +133,12 @@ const doc = new Document({
 
       // 2 NAVIGACIJA
       h1("2. Osnovna navigacija"),
+      p("Glava na vrhu vsakega zaslona prikazuje ime aplikacije, tri števce, desno zgoraj pa dva preklopna gumba:"),
+      li(null, [b("KOS "), tx("– skupno število kosov v zalogi.")]),
+      li(null, [new TextRun({ text: "EXP ", bold: true, color: "C00000" }), tx("– število artiklov s pretečenim rokom (rdeče).")]),
+      li(null, [b("14D "), tx("– število artiklov, ki potečejo v 14 dneh.")]),
+      li(null, [b("RFID "), tx("– vklop/izklop branja RFID oznak.")]),
+      li(null, [b("BC "), tx("– način črtne kode (barcode).")]),
       p("Na dnu zaslona je vrstica s šestimi zavihki:"),
       li(null, [b("Sken. "), tx("– začetni zaslon (seje, sprejem materiala)")]),
       li(null, [b("Zaloga "), tx("– trenutna zaloga, izvoz CSV in PDF BK")]),
@@ -187,6 +193,7 @@ const doc = new Document({
       li(null, [new TextRun({ text: "Pretek ", bold: true, color: "C00000" }), tx("– rok je že potekel (rdeče).")]),
       li(null, [new TextRun({ text: "14 dni ", bold: true, color: "E8730C" }), tx("– poteče v 14 dneh (oranžno).")]),
       li(null, [new TextRun({ text: "28 dni ", bold: true, color: "B8860B" }), tx("– poteče v 28 dneh (rumeno).")]),
+      li(null, [new TextRun({ text: "Daljši rok ", bold: true, color: "2E7D32" }), tx("– več kot 28 dni do izteka (zeleno).")]),
 
       // 8 GTIN
       h1("8. GTIN baza"),
@@ -221,7 +228,12 @@ const doc = new Document({
       h2("11.1 Nastavitve"),
       img("07_vec_top.png"),
       caption("Zavihek Več – nastavitve"),
-      p("Temni način, serijski sprejem, jezik (SL/EN/HR-SR) in moč RFID za sprejem ter MultiRFID."),
+      li(null, [b("Temni način "), tx("– temno ozadje za delo v slabši svetlobi.")]),
+      li(null, [b("Serijski sprejem "), tx("– okno sprejema ostane odprto za zaporedni vnos več artiklov.")]),
+      li(null, [b("Jezik / Language "), tx("– SL / EN / HR-SR.")]),
+      li(null, [b("Moč RFID – Sprejem materiala (dBm): "), tx("priporočeno 0–3 dBm (manjši doseg = manj tujih oznak). Gumb “Test” preveri trenutno moč.")]),
+      li(null, [b("Izbira RFID oznake pri sprejemu: "), tx("prag in dominanca poskrbita, da se zajame le najbližja (prava) oznaka.")]),
+      li(null, [b("Moč RFID – MultiRFID (dBm): "), tx("priporočeno 15–30 dBm za množično branje pri sejah inventure.")]),
       h2("11.2 Sinhronizacija med napravama"),
       li(null, [b("Quick Share "), tx("– deljenje zaloge neposredno z bližnjo Zebro.")]),
       li(null, [b("OneDrive "), tx("– prijava z računom @kclj.si, nalaganje in združevanje podatkov.")]),
@@ -229,12 +241,23 @@ const doc = new Document({
       h2("11.3 Izvoz podatkov"),
       p("Zaloga CSV, Zaloga BK PDF, Roki CSV, Seje CSV, GTIN CSV."),
 
-      // 12 NAMESTITEV
-      h1("12. Namestitev in posodobitve"),
+      // 12 POGOSTA VPRAŠANJA
+      h1("12. Pogosta vprašanja"),
+      p([b("Kako zaključim sejo inventure?")]),
+      p("Med aktivno sejo v zavihku Sken. izberite zaključek seje – skenirani artikli se zapišejo v zalogo."),
+      p([b("Zakaj se zajame napačna RFID oznaka?")]),
+      p("Zmanjšajte moč RFID za sprejem (Več → Moč RFID – Sprejem materiala) na 0–3 dBm in oznako prislonite tik ob čitalnik."),
+      p([b("Sprejeti artikel nima RFID oznake – kaj zdaj?")]),
+      p([tx("Uporabite "), b("“Sprejmi brez RFID/SN (ročno)”"), tx(" (poglavje 4.2); aplikacija ustvari nadomestno serijsko številko (MAN…), količina se vseeno poveča za 1.")]),
+      p([b("Kje najdem PDF poročilo?")]),
+      p([tx("V mapi Prenosi (Downloads) na Zebri, z imenom "), b("PregledBK_LLLL-MM-DD.pdf"), tx(".")]),
+
+      // 13 NAMESTITEV
+      h1("13. Namestitev in posodobitve"),
       p("Aplikacija se gradi samodejno na GitHub Actions (CI). Nova različica (APK) se prenese iz artefaktov in namesti na Zebro prek ADB (install -r, ohrani podatke). Trenutna različica: Build " + BUILD + "."),
 
-      // 13 ZGODOVINA
-      h1("13. Zgodovina različic"),
+      // 14 ZGODOVINA
+      h1("14. Zgodovina različic"),
       new Table({
         width: { size: 9360, type: WidthType.DXA },
         columnWidths: [900, 1500, 6960],
@@ -242,11 +265,12 @@ const doc = new Document({
           new TableRow({ tableHeader: true, children: [
             cell("Build", 900, "1F3864", true), cell("Datum", 1500, "1F3864", true), cell("Spremembe", 6960, "1F3864", true),
           ]}),
-          histRow("112", DATE, "PDF BK: barvni roki izteka (rdeče/oranžno/rumeno) z legendo. Operaterji: gumb za urejanje (✎)."),
-          histRow("111", DATE, "Vgrajen imenik 129 operaterjev. PDF dialog: številčnica (PIN) + skeniranje matične; izpis imena."),
-          histRow("110", DATE, "Sprejem brez RFID/SN (ročno) za artikle brez oznake. Gumb “Počisti vnos”."),
-          histRow("109", DATE, "Operaterji + podpis PDF (matična → ime “Pripravil”). Datum pregleda z uro."),
-          histRow("108", DATE, "Gumb PDF BK: tedensko PDF poročilo zaloge kontrol in kalibratorjev."),
+          histRow("113", DATE, "Quick Share / sinhronizacija: združevanje zaloge po EPC (pravi unikat RFID) — brez izgubljenih ali podvojenih kosov."),
+          histRow("112", "14.6.2026", "PDF BK: barvni roki izteka (rdeče/oranžno/rumeno) z legendo. Operaterji: gumb za urejanje (✎)."),
+          histRow("111", "14.6.2026", "Vgrajen imenik 129 operaterjev. PDF dialog: številčnica (PIN) + skeniranje matične; izpis imena."),
+          histRow("110", "14.6.2026", "Sprejem brez RFID/SN (ročno) za artikle brez oznake. Gumb “Počisti vnos”."),
+          histRow("109", "14.6.2026", "Operaterji + podpis PDF (matična → ime “Pripravil”). Datum pregleda z uro."),
+          histRow("108", "14.6.2026", "Gumb PDF BK: tedensko PDF poročilo zaloge kontrol in kalibratorjev."),
         ],
       }),
       new Paragraph({ spacing: { before: 200 }, children: [new TextRun({ text: "Dokument se posodablja ob vsaki nadgradnji aplikacije (zadnja: Build " + BUILD + ", " + DATE + ").", italics: true, size: 18, color: "888888" })] }),
