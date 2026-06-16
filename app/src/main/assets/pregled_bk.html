@@ -2022,9 +2022,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:116,
-  date:'2026-06-16',
+  build:117,
+  date:'2026-06-17',
   history:[
+    {build:117,date:'2026-06-17',notes:'_reconcileInvFromLatestSession: post-seji sprejeti kosi gradijo units[{sn,epc}] direktno iz DB.received.rfidEpc — odpravlja krhkost prevUnits lookupa in preskakovanje kosov brez SN a z EPC. Dedup po EPC||SN, enako kot mergeDB.'},
     {build:116,date:'2026-06-16',notes:'GraphSync: upload/download/downloadOperators samodejno prekine aktivno signIn polling zanko (cancelLogin=true) pred izvajanjem — odpravlja zamrznitev prenosov, ko je executor zaseden s potekajočo prijavo.'},
     {build:115,date:'2026-06-16',notes:'Operaterji: drsnik (max 180px) s sticky glavo — dolg imenik ne raztegne kartice. Prijava OneDrive: koda prikazana v posameznih poljih (ABCD-EFGH), URL popravljen na microsoft.com/link, opis posodobljen na "8-mestno kodo".'},
     {build:114,date:'2026-06-16',notes:'OneDrive sinhronizacija: device-code flow zdaj uporablja tenant "consumers" za osebne (Hotmail) račune — koda se vpiše na microsoft.com/link (prej "common"/devicelogin je pri osebnih računih obvisel in vrnil napako). Operaterji: imenik se bere (samo branje) iz OneDrive (vir BIO Alinity). Ti popravki so bili prej že v viru pod oznako 113, a brez dviga verzije — zato je nameščeni 113 APK deloval brez njih.'},
@@ -4098,19 +4099,30 @@ function _reconcileInvFromLatestSession(db){
     if(si.expiry)e.expiry=si.expiry;
     if(si.dt&&(!e.lastScan||si.dt>e.lastScan))e.lastScan=si.dt;
   });
-  // sprejemi PO zaprtju popisa = nova zaloga, ki je popis še ni zajel — ohrani (po serijski)
+  // sprejemi PO zaprtju popisa = nova zaloga, ki je popis še ni zajel — ohrani (po EPC||SN)
   var closedAt=sess.closed;
   (db.received||[]).forEach(function(r){
-    if(!r||r.status!=='active'||!r.serial||!r.receivedAt||r.receivedAt<=closedAt)return;
+    if(!r||r.status!=='active'||!r.receivedAt||r.receivedAt<=closedAt)return;
+    var sn=r.serial||'';
+    var epc=r.rfidEpc||'';
+    if(!sn&&!epc)return; // brez identitete preskoči
     var k=(r.gtin||'')+'|'+(r.lot||'');
-    if(!invMap[k])invMap[k]={gtin:r.gtin,lot:r.lot||'',expiry:r.expiry||'',qty:0,name:r.name,type:r.type,serials:[],lastScan:r.receivedAt};
+    if(!invMap[k])invMap[k]={gtin:r.gtin,lot:r.lot||'',expiry:r.expiry||'',qty:0,
+      name:r.name,type:r.type,serials:[],units:[],lastScan:r.receivedAt};
     var e=invMap[k];
-    if(e.serials.indexOf(r.serial)>=0)return; // že zajeto v popisu
-    e.serials.push(r.serial);e.qty++;
+    if(!e.units)e.units=[];
+    // dedup po EPC (kadar obstaja) ali SN — enako kot mergeDB
+    var dup=e.units.some(function(u){return (epc&&u.epc===epc)||(sn&&u.sn===sn);});
+    if(dup)return;
+    e.units.push({sn:sn,epc:epc});
+    if(sn&&e.serials.indexOf(sn)<0)e.serials.push(sn);
+    e.qty++;
+    if(r.expiry&&!e.expiry)e.expiry=r.expiry;
   });
   var newInv=Object.keys(invMap).map(function(k){return invMap[k];});
-  // ohrani SN→EPC povezave (Locate Tag)
+  // ohrani SN→EPC povezave (Locate Tag) — preskoči artikle ki so units[] že dobili iz received
   newInv.forEach(function(it){
+    if(it.units&&it.units.length)return; // units že postavljeni direktno iz received
     var pu=prevUnits[(it.gtin||'')+'|'+(it.lot||'')];
     if(pu&&pu.length&&it.serials&&it.serials.length){
       it.units=it.serials.map(function(sn){var f=pu.filter(function(u){return u.sn===sn;})[0];return {sn:sn,epc:f?f.epc:''};});
