@@ -2022,9 +2022,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:117,
+  build:118,
   date:'2026-06-17',
   history:[
+    {build:118,date:'2026-06-17',notes:'PDF BK: po shranitvi v Prenose se PDF samodejno naloži v OneDrive mapo DigiLab/Pregled_BK_PDF/ (samo kadar je OneDrive prijava aktivna). Nov AndroidBridge.msPdfUpload + GraphSync.uploadPdf (binarni PUT z application/pdf).'},
     {build:117,date:'2026-06-17',notes:'_reconcileInvFromLatestSession: post-seji sprejeti kosi gradijo units[{sn,epc}] direktno iz DB.received.rfidEpc — odpravlja krhkost prevUnits lookupa in preskakovanje kosov brez SN a z EPC. Dedup po EPC||SN, enako kot mergeDB.'},
     {build:116,date:'2026-06-16',notes:'GraphSync: upload/download/downloadOperators samodejno prekine aktivno signIn polling zanko (cancelLogin=true) pred izvajanjem — odpravlja zamrznitev prenosov, ko je executor zaseden s potekajočo prijavo.'},
     {build:115,date:'2026-06-16',notes:'Operaterji: drsnik (max 180px) s sticky glavo — dolg imenik ne raztegne kartice. Prijava OneDrive: koda prikazana v posameznih poljih (ABCD-EFGH), URL popravljen na microsoft.com/link, opis posodobljen na "8-mestno kodo".'},
@@ -3719,7 +3720,13 @@ function _doExportBkPDF(operatorName){
   try{
     var pdf=pdfMake.createPdf(doc);
     if(_hasBridge()&&AndroidBridge.savePdfToDownloads){
-      pdf.getBase64(function(b64){try{AndroidBridge.savePdfToDownloads(fname,b64);}catch(e){notify('Napaka PDF','err');}});
+      pdf.getBase64(function(b64){
+        try{AndroidBridge.savePdfToDownloads(fname,b64);}catch(e){notify('Napaka PDF','err');}
+        if(typeof AndroidBridge.msPdfUpload==='function'&&AndroidBridge.msIsSignedIn()){
+          try{AndroidBridge.msPdfUpload(fname,b64);notify('Nalagam PDF v OneDrive…','ok');}
+          catch(e){notify('Napaka PDF OneDrive','err');}
+        }
+      });
     }else{pdf.download(fname);}
   }catch(e){notify('Napaka pri pripravi PDF','err');}
 }

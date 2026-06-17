@@ -718,5 +718,10 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         public void msDownloadOperators() {
             if (graphSync != null) graphSync.downloadOperators(graphCb());
         }
+
+        @JavascriptInterface
+        public void msPdfUpload(String filename, String base64) {
+            if (graphSync != null) graphSync.uploadPdf(filename, base64, graphCb());
+        }
     }
 }

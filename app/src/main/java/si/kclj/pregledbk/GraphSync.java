@@ -353,6 +353,46 @@ public class GraphSync {
         return new String[]{ String.valueOf(code), resp };
     }
 
+    private String[] httpPutBytes(String urlStr, String bearer, byte[] body, String contentType) throws Exception {
+        HttpURLConnection c = (HttpURLConnection) new URL(urlStr).openConnection();
+        c.setConnectTimeout(20000);
+        c.setReadTimeout(60000);
+        c.setRequestMethod("PUT");
+        c.setRequestProperty("Authorization", "Bearer " + bearer);
+        c.setRequestProperty("Content-Type", contentType);
+        c.setDoOutput(true);
+        try (OutputStream os = c.getOutputStream()) { os.write(body); }
+        int code = c.getResponseCode();
+        String resp = readStream(code < 400 ? c.getInputStream() : c.getErrorStream());
+        c.disconnect();
+        return new String[]{ String.valueOf(code), resp };
+    }
+
+    public void uploadPdf(final String filename, final String base64, final Cb cb) {
+        cancelLogin = true;
+        exec.execute(() -> {
+            cancelLogin = false;
+            try {
+                String at = freshAccessToken();
+                if (at == null) { cb.uploadDone(false, "Niste prijavljeni"); return; }
+                byte[] bytes = android.util.Base64.decode(base64 == null ? "" : base64, android.util.Base64.DEFAULT);
+                String safe = (filename == null || filename.isEmpty()) ? "PregledBK.pdf"
+                            : filename.replaceAll("[^a-zA-Z0-9_\\-.]", "_");
+                String url = "https://graph.microsoft.com/v1.0/me/drive/root:/DigiLab/Pregled_BK_PDF/" + safe + ":/content";
+                String[] r = httpPutBytes(url, at, bytes, "application/pdf");
+                int code = Integer.parseInt(r[0]);
+                if (code == 200 || code == 201) {
+                    cb.uploadDone(true, "PDF naložen v OneDrive");
+                } else {
+                    cb.uploadDone(false, "Napaka PDF nalaganja (" + code + ")");
+                }
+            } catch (Throwable t) {
+                Log.e(TAG, "uploadPdf: " + t);
+                cb.uploadDone(false, t.getMessage());
+            }
+        });
+    }
+
     private static String readStream(InputStream is) throws Exception {
         if (is == null) return "";
         StringBuilder sb = new StringBuilder();
