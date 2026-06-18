@@ -1949,6 +1949,12 @@ function setMode(m){
   if(bar)bar.style.display=(m==='rfid'?'block':'none');
   var sta=$i('rfidStagingArea');
   if(sta&&m!=='rfid')sta.style.display='none';
+  if(typeof AndroidBridge!=='undefined'){
+    try{
+      if(m==='rfid'){AndroidBridge.disableDataWedge();setStatusBc(false);}
+      else{AndroidBridge.enableDataWedge();setStatusBc(true);}
+    }catch(e){}
+  }
   focusScan();
 }
 function focusScan(){
@@ -2032,10 +2038,11 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:120,
-  date:'2026-06-20',
+  build:121,
+  date:'2026-06-18',
   history:[
-    {build:120,date:'2026-06-20',notes:'BT pariranje po MAC: nov gumb "Pari po MAC" v Več → RFID tiskalnik kliče AndroidBridge.btPairPrinter(mac) → ZebraPrint.pairDevice() → createBond(). Deluje brez Discoverable načina (dovolj je BT ON na tiskalniku). Nov ZPL/DataMatrix scan: setMode() samodejno vklopi DataWedge pri QR/barcode seji; EPC enrichment iz DB.received po GTIN+SN pri BC skeniranju.'},
+    {build:121,date:'2026-06-18',notes:'MVP-2 tiskalnik: ZPL predloga 300dpi 60×35mm (^PW708 ^LL413) + GS1 DataMatrix (FNC1 _1D) + linearni Code128 + human-readable; posodobljen testni tisk za kalibracijo. QR/DataMatrix seja: setMode() samodejno vklopi/ugasne DataWedge (ne le posodobi UI); EPC enrichment iz DB.received po GTIN+SN pri BC skeniranju; rfidEpc shranjeno v session item.'},
+    {build:120,date:'2026-06-20',notes:'BT pariranje po MAC: nov gumb "Pari po MAC" v Več → RFID tiskalnik kliče AndroidBridge.btPairPrinter(mac) → ZebraPrint.pairDevice() → createBond(). Deluje brez Discoverable načina (dovolj je BT ON na tiskalniku).'},
     {build:119,date:'2026-06-17',notes:'RFID tiskalnik (MVP-1): Bluetooth povezava z Zebra ZT610R (SPP, brez SDK). V Več → RFID tiskalnik: Poišči tiskalnike (seznam seznanjenih BT naprav) + Testni tisk (besedilo+barcode za kalibracijo pozicij/DPI). Nov ZebraPrint.java + AndroidBridge.btListPrinters/printZpl. Privzeti MAC 60:77:71:B6:60:0C. Sledi: GS1 DataMatrix + SGTIN-96 EPC zapis.'},
     {build:118,date:'2026-06-17',notes:'PDF BK: po shranitvi v Prenose se PDF samodejno naloži v OneDrive mapo DigiLab/Pregled_BK_PDF/ (samo kadar je OneDrive prijava aktivna). Nov AndroidBridge.msPdfUpload + GraphSync.uploadPdf (binarni PUT z application/pdf).'},
     {build:117,date:'2026-06-17',notes:'_reconcileInvFromLatestSession: post-seji sprejeti kosi gradijo units[{sn,epc}] direktno iz DB.received.rfidEpc — odpravlja krhkost prevUnits lookupa in preskakovanje kosov brez SN a z EPC. Dedup po EPC||SN, enako kot mergeDB.'},
@@ -2646,6 +2653,12 @@ function processRawScan(raw,rssi){
   var fromRfid=!!(p&&p.gtin);
   if(!p||!p.gtin)p=parseGS1(raw);
   if(!p.gtin){rejectScan(sess,raw,'Ni GTIN kode v nizu');return;}
+  if(p.serial&&!p.rfidEpc){
+    var _rec=(DB.received||[]).filter(function(r){
+      return r.status==='active'&&r.gtin===p.gtin&&r.serial===p.serial&&r.rfidEpc;
+    })[0];
+    if(_rec)p.rfidEpc=_rec.rfidEpc;
+  }
   if(!validGtin(p.gtin)){rejectScan(sess,raw,'Neveljavna GTIN: '+p.gtin);return;}
   var gr=DB.gtins.filter(function(g){return g.gtin===p.gtin;})[0];
   if(!gr){rejectScan(sess,raw,'GTIN '+p.gtin+' ni v bazi');return;}
@@ -2726,6 +2739,7 @@ function acceptScan(sess,raw,p,gr,fromRfid){
     showFb('Že v seji: '+gr.name+' #'+p.serial,'warn');flash('warn');return;
   }
   var item={raw:raw,gtin:p.gtin,lot:p.lot||'',expiry:p.expiry||'',serial:p.serial||'',
+    rfidEpc:p.rfidEpc||'',
     valid:true,dt:new Date().toISOString(),mode:scanMode,name:gr.name,type:gr.type,fromRfid:!!fromRfid};
   sess.items.push(item);sess.scanned=(sess.scanned||0)+1;
   saveDB();updateBanner();renderRecent(sess);
@@ -3532,11 +3546,18 @@ function prnPick(mac){if(mac){localStorage.setItem('pbk_printer_mac',mac);prnRef
 function buildTestZpl(){
   var d=new Date();
   var ts=d.toLocaleDateString('sl-SI')+' '+d.toLocaleTimeString('sl-SI',{hour:'2-digit',minute:'2-digit'});
-  return '^XA^CI28\n'
-    +'^FO30,30^A0N,40,40^FDPregled BK - TEST^FS\n'
-    +'^FO30,85^A0N,30,30^FD'+ts+'^FS\n'
-    +'^FO30,130^A0N,28,28^FDZT610R Bluetooth OK^FS\n'
-    +'^FO30,175^BY2,3,70^BCN,70,Y,N,N^FDPBK-TEST^FS\n'
+  // 300 dpi, 60×35 mm → 708×413 dots
+  return '^XA\n'
+    +'^CI28\n'
+    +'^PW708\n'
+    +'^LL413\n'
+    +'^FO18,12^A0N,40,40^FDPregled BK^FS\n'
+    +'^FO18,60^A0N,26,26^FD'+ts+'^FS\n'
+    +'^FO18,94^A0N,24,24^FD300dpi | 60x35mm | ZT610R BT^FS\n'
+    +'^FO18,132^BY2,2,65^BCN,65,Y,N,N^FDPBK-TEST^FS\n'
+    +'^FO530,12^FH_^BXN,5,200^FD_1D010380074020403721100005000522^FS\n'
+    +'^FO18,222^A0N,22,22^FDGTIN: 03800740204037^FS\n'
+    +'^FO18,252^A0N,22,22^FDSN: 100005000522^FS\n'
     +'^XZ';
 }
 function prnTest(){
