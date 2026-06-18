@@ -754,5 +754,10 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         public void printZpl(String mac, String zpl) {
             if (zebraPrint != null) zebraPrint.printZpl(mac, zpl, printCb());
         }
+
+        @JavascriptInterface
+        public void btPairPrinter(String mac) {
+            if (zebraPrint != null) zebraPrint.pairDevice(mac, printCb());
+        }
     }
 }

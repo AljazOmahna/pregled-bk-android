@@ -38,6 +38,38 @@ public class ZebraPrint {
 
     public ZebraPrint(Context ctx) { /* brez stanja — adapter pridobimo ob klicu */ }
 
+    /**
+     * Sproži pariranje z napravo po MAC. Deluje tudi brez Discoverable načina —
+     * dovolj je, da ima tiskalnik vklopljen BT. Rezultat pride prek printResult().
+     */
+    public void pairDevice(final String mac, final Cb cb) {
+        exec.execute(() -> {
+            try {
+                BluetoothAdapter ad = BluetoothAdapter.getDefaultAdapter();
+                if (ad == null) { cb.printResult(false, "Naprava nima Bluetooth"); return; }
+                if (!ad.isEnabled()) { cb.printResult(false, "Vklopite Bluetooth"); return; }
+                if (mac == null || mac.isEmpty()) { cb.printResult(false, "Manjka MAC naslov"); return; }
+                BluetoothDevice dev = ad.getRemoteDevice(mac);
+                if (dev.getBondState() == BluetoothDevice.BOND_BONDED) {
+                    cb.printResult(true, "Tiskalnik je že seznanjen");
+                    return;
+                }
+                boolean started = dev.createBond();
+                if (started) {
+                    cb.printResult(true, "Pariranje začeto — potrdite na tiskalniku (PIN: 0000)");
+                } else {
+                    cb.printResult(false, "Pariranje ni uspelo — preverite BT na tiskalniku");
+                }
+            } catch (SecurityException se) {
+                Log.e(TAG, "pairDevice perm: " + se);
+                cb.printResult(false, "Manjka dovoljenje za Bluetooth");
+            } catch (Throwable t) {
+                Log.e(TAG, "pairDevice: " + t);
+                cb.printResult(false, "Napaka pariranja: " + t.getMessage());
+            }
+        });
+    }
+
     /** Vrne seznam seznanjenih (bonded) BT naprav kot JSON [{name, mac}]. */
     public void listPrinters(final Cb cb) {
         exec.execute(() -> {

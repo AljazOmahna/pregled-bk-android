@@ -647,6 +647,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     <select id="prnSelect" onchange="prnPick(this.value)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);margin-bottom:8px;box-sizing:border-box"></select>
     <div style="display:-webkit-flex;display:flex;gap:8px;-webkit-flex-wrap:wrap;flex-wrap:wrap">
       <button class="btn btn-g btn-sm" onclick="prnScan()">&#128260; Poišči tiskalnike</button>
+      <button class="btn btn-sm" style="background:rgba(56,189,248,.15);border:1px solid var(--accent);color:var(--accent)" onclick="prnPair()">&#128279; Pari po MAC</button>
       <button class="btn btn-a btn-sm" onclick="prnTest()">&#129534; Testni tisk</button>
     </div>
   </div>
@@ -2031,9 +2032,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:119,
-  date:'2026-06-17',
+  build:120,
+  date:'2026-06-20',
   history:[
+    {build:120,date:'2026-06-20',notes:'BT pariranje po MAC: nov gumb "Pari po MAC" v Več → RFID tiskalnik kliče AndroidBridge.btPairPrinter(mac) → ZebraPrint.pairDevice() → createBond(). Deluje brez Discoverable načina (dovolj je BT ON na tiskalniku). Nov ZPL/DataMatrix scan: setMode() samodejno vklopi DataWedge pri QR/barcode seji; EPC enrichment iz DB.received po GTIN+SN pri BC skeniranju.'},
     {build:119,date:'2026-06-17',notes:'RFID tiskalnik (MVP-1): Bluetooth povezava z Zebra ZT610R (SPP, brez SDK). V Več → RFID tiskalnik: Poišči tiskalnike (seznam seznanjenih BT naprav) + Testni tisk (besedilo+barcode za kalibracijo pozicij/DPI). Nov ZebraPrint.java + AndroidBridge.btListPrinters/printZpl. Privzeti MAC 60:77:71:B6:60:0C. Sledi: GS1 DataMatrix + SGTIN-96 EPC zapis.'},
     {build:118,date:'2026-06-17',notes:'PDF BK: po shranitvi v Prenose se PDF samodejno naloži v OneDrive mapo DigiLab/Pregled_BK_PDF/ (samo kadar je OneDrive prijava aktivna). Nov AndroidBridge.msPdfUpload + GraphSync.uploadPdf (binarni PUT z application/pdf).'},
     {build:117,date:'2026-06-17',notes:'_reconcileInvFromLatestSession: post-seji sprejeti kosi gradijo units[{sn,epc}] direktno iz DB.received.rfidEpc — odpravlja krhkost prevUnits lookupa in preskakovanje kosov brez SN a z EPC. Dedup po EPC||SN, enako kot mergeDB.'},
@@ -3544,6 +3546,12 @@ function prnTest(){
   try{AndroidBridge.printZpl(mac,buildTestZpl());}catch(e){notify('Napaka tiska','err');}
 }
 function onPrintResult(ok,msg){notify(msg||(ok?'Natisnjeno':'Napaka tiska'),ok?'ok':'err');}
+function prnPair(){
+  if(!prnHasBridge()){notify('Samo na napravi','warn');return;}
+  var mac=prnMac();
+  notify('Parim '+mac+'…','ok');
+  try{AndroidBridge.btPairPrinter(mac);}catch(e){notify('Napaka pariranja','err');}
+}
 function exportInvCSV(){
   var rows=[['GTIN','Naziv','Tip','Lot','Rok izteka','Kos','Status']];
   DB.inventory.forEach(function(i){var d=daysLeft(i.expiry);var st=d<0?'Preteceno':d<=14?'<14 dni':d<=28?'<28 dni':'OK';rows.push([i.gtin,i.name,i.type,i.lot,fmtExp(i.expiry),i.qty,st]);});
