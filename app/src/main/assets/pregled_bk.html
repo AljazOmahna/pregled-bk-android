@@ -2038,9 +2038,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:122,
+  build:123,
   date:'2026-06-18',
   history:[
+    {build:123,date:'2026-06-18',notes:'ZPL layout po Abbott vzorcu: y+200 offset (tiskalna cona y=200..600), LN+LOT levo zgoraj, GS1 DataMatrix (^BXN,4,200 + FNC1 _1D) desno zgoraj, Code128 barcode + human-readable (01)/(21). Testni tisk s pravimi koordinatami za 300dpi 60×35mm.'},
     {build:122,date:'2026-06-18',notes:'Kalibracijski testni tisk: markerji na vsakih 100 dot v X in Y (^PW800 ^LL1100) za določitev dejanske dimenzije nalepke.'},
     {build:121,date:'2026-06-18',notes:'MVP-2 tiskalnik: ZPL predloga 300dpi 60×35mm (^PW708 ^LL413) + GS1 DataMatrix (FNC1 _1D) + linearni Code128 + human-readable; posodobljen testni tisk za kalibracijo. QR/DataMatrix seja: setMode() samodejno vklopi/ugasne DataWedge (ne le posodobi UI); EPC enrichment iz DB.received po GTIN+SN pri BC skeniranju; rfidEpc shranjeno v session item.'},
     {build:120,date:'2026-06-20',notes:'BT pariranje po MAC: nov gumb "Pari po MAC" v Več → RFID tiskalnik kliče AndroidBridge.btPairPrinter(mac) → ZebraPrint.pairDevice() → createBond(). Deluje brez Discoverable načina (dovolj je BT ON na tiskalniku).'},
@@ -3545,28 +3546,24 @@ function onBtPrinters(json){
 }
 function prnPick(mac){if(mac){localStorage.setItem('pbk_printer_mac',mac);prnRefreshStatus();notify('Tiskalnik izbran','ok');}}
 function buildTestZpl(){
-  // Kalibracijski tisk: markerji na vsakih 100 dot v X in Y
-  // Da ugotovimo pravo dimenzijo nalepke (PW in LL)
+  // 300 dpi, 60×35 mm = 708×413 dots
+  // Tiskalnik ima ~200 dot offset (y=200 = zgornji rob nalepke)
+  // Tiskalna cona: y=200..600 (400 dots ≈ 34 mm), x=0..708
   return '^XA\n'
     +'^CI28\n'
-    +'^PW800\n'
-    +'^LL1100\n'
-    +'^FO5,5^GB790,1090,3^FS\n'
-    +'^FO15,15^A0N,26,26^FDy=15^FS\n'
-    +'^FO15,100^A0N,26,26^FDy=100^FS\n'
-    +'^FO15,200^A0N,26,26^FDy=200^FS\n'
-    +'^FO15,300^A0N,26,26^FDy=300^FS\n'
-    +'^FO15,400^A0N,26,26^FDy=400^FS\n'
-    +'^FO15,500^A0N,26,26^FDy=500^FS\n'
-    +'^FO15,600^A0N,26,26^FDy=600^FS\n'
-    +'^FO15,700^A0N,26,26^FDy=700^FS\n'
-    +'^FO15,800^A0N,26,26^FDy=800^FS\n'
-    +'^FO15,900^A0N,26,26^FDy=900^FS\n'
-    +'^FO15,1000^A0N,26,26^FDy=1000^FS\n'
-    +'^FO200,15^A0N,26,26^FDx=200^FS\n'
-    +'^FO400,15^A0N,26,26^FDx=400^FS\n'
-    +'^FO600,15^A0N,26,26^FDx=600^FS\n'
-    +'^FO15,50^A0N,22,22^FD300dpi KALIBRACIJA^FS\n'
+    +'^PW708\n'
+    +'^LL700\n'
+    // LN — zgornji levi kot
+    +'^FO15,207^A0N,40,40^FDLN: 8P6901^FS\n'
+    // LOT
+    +'^FO15,254^A0N,32,32^FDLOT: 96691UN25^FS\n'
+    // GS1 DataMatrix — zgornji desni kot (FNC1 = _1D, AI 01+21)
+    +'^FO528,205^FH_^BXN,4,200^FD_1D010038074012169321100005033142^FS\n'
+    // Linearni Code128 barcode — cela širina
+    +'^FO15,300^BY2,2,78^BCN,78,N,N,N^FD00380740121693^FS\n'
+    // Human-readable GTIN in SN
+    +'^FO15,388^A0N,26,26^FD(01) 0 038074 012169 3^FS\n'
+    +'^FO15,420^A0N,26,26^FD(21) 100005033142^FS\n'
     +'^XZ';
 }
 function prnTest(){
