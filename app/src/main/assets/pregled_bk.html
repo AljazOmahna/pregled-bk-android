@@ -948,6 +948,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
         <div style="display:-webkit-flex;display:flex;gap:8px;margin-bottom:6px">
           <button class="btn btn-a" id="spRfidScanBtn" style="flex:1;-webkit-justify-content:center;justify-content:center" onclick="spStartRfid()">&#128225; Skeniraj RFID</button>
         </div>
+        <button class="btn btn-sm" id="spGenRfidBtn" onclick="spGenRfidLabel()" style="width:100%;-webkit-justify-content:center;justify-content:center;margin-bottom:6px;background:rgba(56,189,248,.15);border:1px solid var(--accent);color:var(--accent)">&#127991; Generiraj RFID nalepko</button>
         <button class="btn btn-g btn-sm" id="spManualBtn" onclick="confirmSprejemManual()" style="width:100%;-webkit-justify-content:center;justify-content:center;margin-bottom:6px;border-color:var(--orange);color:var(--orange)">&#10515; Sprejmi brez RFID/SN (ročno)</button>
         <div id="spRfidStatus" style="font-size:10px;color:var(--text3);margin-bottom:8px;text-align:center">Kliknite gumb nato pritisnite trigger na RFD2000</div>
         <div id="spRfidWait" style="padding:8px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--text3);text-align:center">Ni zajetega RFID</div>
@@ -1472,6 +1473,21 @@ function parseGS1(raw){
 function calcGtinCheck(base13){
   var sum=0;for(var i=0;i<13;i++)sum+=parseInt(base13[i])*(i%2===0?3:1);
   return ((10-(sum%10))%10).toString();
+}
+function genKcljEpc(n){
+  // SGTIN-96, partition 5 (L=7 digits CP, K=6 digits IR, M=24 bits, N=20 bits)
+  // Interni prefiks 9900000 — GS1-reserved za interno rabo, ne kolizira z Abbott (Abbott EPC ≠ SGTIN)
+  var bin='00110000'                        // header 0x30
+    +'011'                                   // filter 3 (pharma)
+    +'101'                                   // partition 5
+    +(9900000).toString(2).padStart(24,'0')  // CP 9900000 (24 bits)
+    +(1).toString(2).padStart(20,'0')        // IR 000001 (20 bits)
+    +(n).toString(2).padStart(38,'0');       // serial n (38 bits) → skupaj 96 bits
+  var hex='';for(var i=0;i<96;i+=4)hex+=parseInt(bin.substr(i,4),2).toString(16);
+  hex=hex.toUpperCase();
+  var v=parseSGTIN96(hex);
+  if(!v||parseInt(v.serial)!==n)throw new Error('EPC round-trip napaka za n='+n);
+  return hex;
 }
 function parseSGTIN96(hex){
   // SGTIN-96: 96 bits = 24 hex chars, header 0x30
@@ -2038,9 +2054,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:125,
+  build:126,
   date:'2026-06-18',
   history:[
+    {build:126,date:'2026-06-18',notes:'genKcljEpc(): SGTIN-96 z internim prefiksom 9900000 (partition 5, round-trip self-test). Nov gumb "Generiraj RFID nalepko" med Skeniraj RFID in Sprejmi brez RFID — generira EPC, poveže s skeniranim DataMatrix (GTIN+LOT+SN), shrani v sprejem in natisne nalepko. buildLabelZpl() za parametrizirani tisk. Tisk +20y navzdol.'},
     {build:125,date:'2026-06-18',notes:'ZPL večji fonti: LN 50pt, LOT 40pt, HR 30pt; barcode y=332.'},
     {build:124,date:'2026-06-18',notes:'ZPL pozicije: vse +25y navzdol, +20x v desno; DataMatrix modul 5 (večji, x=548); barcode y=325; HR y=410/442.'},
     {build:123,date:'2026-06-18',notes:'ZPL layout po Abbott vzorcu: y+200 offset (tiskalna cona y=200..600), LN+LOT levo zgoraj, GS1 DataMatrix (^BXN,4,200 + FNC1 _1D) desno zgoraj, Code128 barcode + human-readable (01)/(21). Testni tisk s pravimi koordinatami za 300dpi 60×35mm.'},
@@ -2457,6 +2474,36 @@ function confirmSprejemManual(){
   if(!sprejemData.serial){sprejemData.serial='MAN'+Date.now();}
   _spManual=true;
   try{confirmSprejem();}finally{_spManual=false;}
+}
+function spGenRfidLabel(){
+  if(!sprejemData){notify('Najprej skenirajte barcode','warn');return;}
+  if(!sprejemData.lot||!sprejemData.expiry){notify('Manjka lot ali rok','warn');return;}
+  // SN: iz skeniranega DataMatrix ali generirani GEN+timestamp
+  if(!sprejemData.serial){sprejemData.serial='GEN'+Date.now();}
+  // Generiraj interni KCLJ EPC
+  if(!DB.kcljEpcSerial)DB.kcljEpcSerial=1;
+  var epc;
+  try{epc=genKcljEpc(DB.kcljEpcSerial);}catch(e){notify('Napaka EPC: '+e.message,'err');return;}
+  DB.kcljEpcSerial++;
+  // Shrani v sprejem
+  var prevEpc=sprejemEpc;
+  sprejemEpc=epc;
+  _spManual=true;
+  try{confirmSprejem();}catch(e){sprejemEpc=prevEpc;_spManual=false;notify('Napaka sprejema','err');return;}
+  _spManual=false;
+  // Pokaži generirani EPC in ponudi tisk
+  notify('EPC: '+epc.slice(0,12)+'…','ok');
+  if(prnHasBridge()&&prnMac()){
+    var gr=DB.gtins.filter(function(g){return g.gtin===sprejemData.gtin;})[0]||{};
+    var zpl=buildLabelZpl({
+      ln:sprejemData.catalog||sprejemData.gtin,
+      lot:sprejemData.lot,
+      gtin14:sprejemData.gtin,
+      serial:sprejemData.serial,
+      epcHex:epc
+    });
+    try{AndroidBridge.printZpl(prnMac(),zpl);}catch(e){notify('Napaka tiska nalepke','err');}
+  }
 }
 function confirmSprejem(){
   if(!sprejemData||(!sprejemEpc&&!_spManual)){notify('Manjka barcode ali RFID','warn');return;}
@@ -3547,6 +3594,25 @@ function onBtPrinters(json){
   notify('Najdenih naprav: '+arr.length,'ok');
 }
 function prnPick(mac){if(mac){localStorage.setItem('pbk_printer_mac',mac);prnRefreshStatus();notify('Tiskalnik izbran','ok');}}
+function buildLabelZpl(p){
+  // p = {ln, lot, gtin14 (14 cif.), serial, epcHex (24 hex, opcijsko)}
+  // 300 dpi, 60×35 mm; tiskalna cona y=200..600 (offset 200 dots)
+  var g=p.gtin14||'';
+  var gHr='('+g.slice(0,2)+') '+g.slice(2,9)+' '+g.slice(9,15)+' '+g.slice(15);
+  var dm='_1D01'+g+'21'+(p.serial||'');
+  return '^XA\n'
+    +'^CI28\n'
+    +'^PW708\n'
+    +'^LL700\n'
+    +(p.epcHex?'^RS8,,,3\n^RFW,H^FD'+p.epcHex+'^FS\n':'')
+    +'^FO35,248^A0N,50,50^FDLN: '+(p.ln||'')+'  ^FS\n'
+    +'^FO35,305^A0N,40,40^FDLOT: '+(p.lot||'')+'  ^FS\n'
+    +'^FO548,245^FH_^BXN,5,200^FD'+dm+'^FS\n'
+    +'^FO35,352^BY2,2,72^BCN,72,N,N,N^FD'+g+'^FS\n'
+    +'^FO35,434^A0N,30,30^FD'+gHr+'^FS\n'
+    +'^FO35,470^A0N,30,30^FD(21) '+(p.serial||'')+'  ^FS\n'
+    +'^XZ';
+}
 function buildTestZpl(){
   // 300 dpi, 60×35 mm = 708×413 dots
   // Tiskalnik ima ~200 dot offset (y=200 = zgornji rob nalepke)
@@ -3556,16 +3622,16 @@ function buildTestZpl(){
     +'^PW708\n'
     +'^LL700\n'
     // LN — levo, nekoliko nižje in bolj desno
-    +'^FO35,228^A0N,50,50^FDLN: 8P6901^FS\n'
+    +'^FO35,248^A0N,50,50^FDLN: 8P6901^FS\n'
     // LOT
-    +'^FO35,285^A0N,40,40^FDLOT: 96691UN25^FS\n'
+    +'^FO35,305^A0N,40,40^FDLOT: 96691UN25^FS\n'
     // GS1 DataMatrix — desni kot, modul 5 (večji), FNC1 = _1D
-    +'^FO548,225^FH_^BXN,5,200^FD_1D010038074012169321100005033142^FS\n'
+    +'^FO548,245^FH_^BXN,5,200^FD_1D010038074012169321100005033142^FS\n'
     // Linearni Code128 barcode
-    +'^FO35,332^BY2,2,72^BCN,72,N,N,N^FD00380740121693^FS\n'
+    +'^FO35,352^BY2,2,72^BCN,72,N,N,N^FD00380740121693^FS\n'
     // Human-readable GTIN in SN
-    +'^FO35,414^A0N,30,30^FD(01) 0 038074 012169 3^FS\n'
-    +'^FO35,450^A0N,30,30^FD(21) 100005033142^FS\n'
+    +'^FO35,434^A0N,30,30^FD(01) 0 038074 012169 3^FS\n'
+    +'^FO35,470^A0N,30,30^FD(21) 100005033142^FS\n'
     +'^XZ';
 }
 function prnTest(){
