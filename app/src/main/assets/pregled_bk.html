@@ -2038,9 +2038,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:124,
+  build:125,
   date:'2026-06-18',
   history:[
+    {build:125,date:'2026-06-18',notes:'ZPL večji fonti: LN 50pt, LOT 40pt, HR 30pt; barcode y=332.'},
     {build:124,date:'2026-06-18',notes:'ZPL pozicije: vse +25y navzdol, +20x v desno; DataMatrix modul 5 (večji, x=548); barcode y=325; HR y=410/442.'},
     {build:123,date:'2026-06-18',notes:'ZPL layout po Abbott vzorcu: y+200 offset (tiskalna cona y=200..600), LN+LOT levo zgoraj, GS1 DataMatrix (^BXN,4,200 + FNC1 _1D) desno zgoraj, Code128 barcode + human-readable (01)/(21). Testni tisk s pravimi koordinatami za 300dpi 60×35mm.'},
     {build:122,date:'2026-06-18',notes:'Kalibracijski testni tisk: markerji na vsakih 100 dot v X in Y (^PW800 ^LL1100) za določitev dejanske dimenzije nalepke.'},
@@ -3555,16 +3556,16 @@ function buildTestZpl(){
     +'^PW708\n'
     +'^LL700\n'
     // LN — levo, nekoliko nižje in bolj desno
-    +'^FO35,232^A0N,40,40^FDLN: 8P6901^FS\n'
+    +'^FO35,228^A0N,50,50^FDLN: 8P6901^FS\n'
     // LOT
-    +'^FO35,279^A0N,32,32^FDLOT: 96691UN25^FS\n'
+    +'^FO35,285^A0N,40,40^FDLOT: 96691UN25^FS\n'
     // GS1 DataMatrix — desni kot, modul 5 (večji), FNC1 = _1D
     +'^FO548,225^FH_^BXN,5,200^FD_1D010038074012169321100005033142^FS\n'
     // Linearni Code128 barcode
-    +'^FO35,325^BY2,2,75^BCN,75,N,N,N^FD00380740121693^FS\n'
+    +'^FO35,332^BY2,2,72^BCN,72,N,N,N^FD00380740121693^FS\n'
     // Human-readable GTIN in SN
-    +'^FO35,410^A0N,26,26^FD(01) 0 038074 012169 3^FS\n'
-    +'^FO35,442^A0N,26,26^FD(21) 100005033142^FS\n'
+    +'^FO35,414^A0N,30,30^FD(01) 0 038074 012169 3^FS\n'
+    +'^FO35,450^A0N,30,30^FD(21) 100005033142^FS\n'
     +'^XZ';
 }
 function prnTest(){
