@@ -51,6 +51,7 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private ValueCallback<Uri[]> filePathCallback;
     private GraphSync graphSync;
+    private ZebraPrint zebraPrint;
     private BroadcastReceiver dwReceiver;
     private boolean pageReady = false;
     private String pendingSharedName = null;
@@ -98,6 +99,7 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         });
         webView.addJavascriptInterface(new JsBridge(), "AndroidBridge");
         graphSync = new GraphSync(this);
+        zebraPrint = new ZebraPrint(this);
         webView.loadUrl("file:///android_asset/pregled_bk.html");
 
         ensureStoragePermission();
@@ -127,6 +129,13 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
             if (Build.VERSION.SDK_INT <= 28
                 && checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
                 need.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            // Android 12+ (API 31): Bluetooth tiskanje rabi runtime dovoljenji
+            if (Build.VERSION.SDK_INT >= 31) {
+                if (checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED)
+                    need.add(android.Manifest.permission.BLUETOOTH_CONNECT);
+                if (checkSelfPermission(android.Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED)
+                    need.add(android.Manifest.permission.BLUETOOTH_SCAN);
+            }
             if (!need.isEmpty())
                 requestPermissions(need.toArray(new String[0]), 1001);
         }
@@ -414,6 +423,17 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
             }
             @Override public void operatorsDone(String jsonOrNull, String msg) {
                 runJs("if(typeof onMsOperatorsDownloaded==='function')onMsOperatorsDownloaded(" + jsStr(jsonOrNull) + "," + jsStr(msg) + ")");
+            }
+        };
+    }
+
+    private ZebraPrint.Cb printCb() {
+        return new ZebraPrint.Cb() {
+            @Override public void printResult(boolean ok, String msg) {
+                runJs("if(typeof onPrintResult==='function')onPrintResult(" + ok + "," + jsStr(msg) + ")");
+            }
+            @Override public void printers(String jsonArray) {
+                runJs("if(typeof onBtPrinters==='function')onBtPrinters(" + jsStr(jsonArray) + ")");
             }
         };
     }
@@ -722,6 +742,17 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         @JavascriptInterface
         public void msPdfUpload(String filename, String base64) {
             if (graphSync != null) graphSync.uploadPdf(filename, base64, graphCb());
+        }
+
+        // ---- Bluetooth tiskanje RFID nalepk (Zebra ZT610R) ----
+        @JavascriptInterface
+        public void btListPrinters() {
+            if (zebraPrint != null) zebraPrint.listPrinters(printCb());
+        }
+
+        @JavascriptInterface
+        public void printZpl(String mac, String zpl) {
+            if (zebraPrint != null) zebraPrint.printZpl(mac, zpl, printCb());
         }
     }
 }

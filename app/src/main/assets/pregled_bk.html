@@ -642,6 +642,15 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     </div>
   </div>
   <div class="card">
+    <div class="card-title">&#128424;&#65039; RFID tiskalnik (Zebra)</div>
+    <div id="prnStatus" style="font-size:12px;color:var(--text3);margin-bottom:8px">Tiskalnik ni izbran</div>
+    <select id="prnSelect" onchange="prnPick(this.value)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);margin-bottom:8px;box-sizing:border-box"></select>
+    <div style="display:-webkit-flex;display:flex;gap:8px;-webkit-flex-wrap:wrap;flex-wrap:wrap">
+      <button class="btn btn-g btn-sm" onclick="prnScan()">&#128260; Poišči tiskalnike</button>
+      <button class="btn btn-a btn-sm" onclick="prnTest()">&#129534; Testni tisk</button>
+    </div>
+  </div>
+  <div class="card">
     <div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:space-between;justify-content:space-between">
       <div class="card-title" style="margin-bottom:0">&#8505;&#65039; O aplikaciji</div>
       <button class="btn btn-g btn-sm" onclick="showMo('moInfo')">Podrobnosti</button>
@@ -1705,7 +1714,7 @@ function nav(page){
   if(page==='expiry')setExpTab('exp');
   if(page==='gtins')renderGtins();
   if(page==='overview')renderOverview();
-  if(page==='more'){renderSessions();renderOperators();}
+  if(page==='more'){renderSessions();renderOperators();prnRefreshStatus();}
   if(page==='scan'){updateBanner();setTimeout(focusScan,200);}
 }
 
@@ -2022,9 +2031,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:118,
+  build:119,
   date:'2026-06-17',
   history:[
+    {build:119,date:'2026-06-17',notes:'RFID tiskalnik (MVP-1): Bluetooth povezava z Zebra ZT610R (SPP, brez SDK). V Več → RFID tiskalnik: Poišči tiskalnike (seznam seznanjenih BT naprav) + Testni tisk (besedilo+barcode za kalibracijo pozicij/DPI). Nov ZebraPrint.java + AndroidBridge.btListPrinters/printZpl. Privzeti MAC 60:77:71:B6:60:0C. Sledi: GS1 DataMatrix + SGTIN-96 EPC zapis.'},
     {build:118,date:'2026-06-17',notes:'PDF BK: po shranitvi v Prenose se PDF samodejno naloži v OneDrive mapo DigiLab/Pregled_BK_PDF/ (samo kadar je OneDrive prijava aktivna). Nov AndroidBridge.msPdfUpload + GraphSync.uploadPdf (binarni PUT z application/pdf).'},
     {build:117,date:'2026-06-17',notes:'_reconcileInvFromLatestSession: post-seji sprejeti kosi gradijo units[{sn,epc}] direktno iz DB.received.rfidEpc — odpravlja krhkost prevUnits lookupa in preskakovanje kosov brez SN a z EPC. Dedup po EPC||SN, enako kot mergeDB.'},
     {build:116,date:'2026-06-16',notes:'GraphSync: upload/download/downloadOperators samodejno prekine aktivno signIn polling zanko (cancelLogin=true) pred izvajanjem — odpravlja zamrznitev prenosov, ko je executor zaseden s potekajočo prijavo.'},
@@ -3486,6 +3496,54 @@ function onSaveToDownloadsDone(name,reason){
   else if(reason==='perm')notify('Dovoli dostop do datotek, nato znova klikni izvoz','warn');
   else notify('Napaka pri shranjevanju datoteke','err');
 }
+
+// ===== RFID TISKALNIK (Zebra ZT610R prek Bluetooth) =====
+var PRN_DEFAULT_MAC='60:77:71:B6:60:0C';
+function prnMac(){return localStorage.getItem('pbk_printer_mac')||PRN_DEFAULT_MAC;}
+function prnHasBridge(){return typeof AndroidBridge!=='undefined'&&AndroidBridge&&typeof AndroidBridge.printZpl==='function';}
+function prnRefreshStatus(){
+  var el=$i('prnStatus');if(!el)return;
+  var m=prnMac();
+  el.textContent=m?('Izbrani tiskalnik: '+m):'Tiskalnik ni izbran';
+}
+function prnScan(){
+  if(!prnHasBridge()){notify('Samo na napravi','warn');return;}
+  notify('Iščem seznanjene tiskalnike…','ok');
+  try{AndroidBridge.btListPrinters();}catch(e){notify('Napaka iskanja tiskalnikov','err');}
+}
+function onBtPrinters(json){
+  var arr=[];try{arr=JSON.parse(json||'[]');}catch(e){}
+  var sel=$i('prnSelect');if(!sel)return;
+  sel.innerHTML='';
+  if(!arr.length){
+    var o=document.createElement('option');o.value='';o.textContent='Ni seznanjenih naprav — seznani v Android nastavitvah';sel.appendChild(o);
+    notify('Ni seznanjenih BT naprav','warn');return;
+  }
+  var cur=prnMac();
+  arr.forEach(function(p){
+    var o=document.createElement('option');o.value=p.mac;o.textContent=(p.name||p.mac)+' ('+p.mac+')';
+    if(p.mac===cur)o.selected=true;sel.appendChild(o);
+  });
+  notify('Najdenih naprav: '+arr.length,'ok');
+}
+function prnPick(mac){if(mac){localStorage.setItem('pbk_printer_mac',mac);prnRefreshStatus();notify('Tiskalnik izbran','ok');}}
+function buildTestZpl(){
+  var d=new Date();
+  var ts=d.toLocaleDateString('sl-SI')+' '+d.toLocaleTimeString('sl-SI',{hour:'2-digit',minute:'2-digit'});
+  return '^XA^CI28\n'
+    +'^FO30,30^A0N,40,40^FDPregled BK - TEST^FS\n'
+    +'^FO30,85^A0N,30,30^FD'+ts+'^FS\n'
+    +'^FO30,130^A0N,28,28^FDZT610R Bluetooth OK^FS\n'
+    +'^FO30,175^BY2,3,70^BCN,70,Y,N,N^FDPBK-TEST^FS\n'
+    +'^XZ';
+}
+function prnTest(){
+  if(!prnHasBridge()){notify('Samo na napravi','warn');return;}
+  var mac=prnMac();if(!mac){notify('Najprej izberite tiskalnik','warn');return;}
+  notify('Pošiljam testni tisk…','ok');
+  try{AndroidBridge.printZpl(mac,buildTestZpl());}catch(e){notify('Napaka tiska','err');}
+}
+function onPrintResult(ok,msg){notify(msg||(ok?'Natisnjeno':'Napaka tiska'),ok?'ok':'err');}
 function exportInvCSV(){
   var rows=[['GTIN','Naziv','Tip','Lot','Rok izteka','Kos','Status']];
   DB.inventory.forEach(function(i){var d=daysLeft(i.expiry);var st=d<0?'Preteceno':d<=14?'<14 dni':d<=28?'<28 dni':'OK';rows.push([i.gtin,i.name,i.type,i.lot,fmtExp(i.expiry),i.qty,st]);});
