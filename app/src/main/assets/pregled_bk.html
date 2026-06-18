@@ -2054,9 +2054,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:126,
+  build:127,
   date:'2026-06-18',
   history:[
+    {build:127,date:'2026-06-18',notes:'Popravek: spGenRfidLabel() shranjuje tiskovne podatke pred confirmSprejem() (ki resetira sprejemData=null → tiha napaka). Dodan notify "Tiskam nalepko…" in "Tiskalnik ni nastavljen" za lažje diagnosticiranje.'},
     {build:126,date:'2026-06-18',notes:'genKcljEpc(): SGTIN-96 z internim prefiksom 9900000 (partition 5, round-trip self-test). Nov gumb "Generiraj RFID nalepko" med Skeniraj RFID in Sprejmi brez RFID — generira EPC, poveže s skeniranim DataMatrix (GTIN+LOT+SN), shrani v sprejem in natisne nalepko. buildLabelZpl() za parametrizirani tisk. Tisk +20y navzdol.'},
     {build:125,date:'2026-06-18',notes:'ZPL večji fonti: LN 50pt, LOT 40pt, HR 30pt; barcode y=332.'},
     {build:124,date:'2026-06-18',notes:'ZPL pozicije: vse +25y navzdol, +20x v desno; DataMatrix modul 5 (večji, x=548); barcode y=325; HR y=410/442.'},
@@ -2478,31 +2479,31 @@ function confirmSprejemManual(){
 function spGenRfidLabel(){
   if(!sprejemData){notify('Najprej skenirajte barcode','warn');return;}
   if(!sprejemData.lot||!sprejemData.expiry){notify('Manjka lot ali rok','warn');return;}
-  // SN: iz skeniranega DataMatrix ali generirani GEN+timestamp
   if(!sprejemData.serial){sprejemData.serial='GEN'+Date.now();}
-  // Generiraj interni KCLJ EPC
   if(!DB.kcljEpcSerial)DB.kcljEpcSerial=1;
   var epc;
   try{epc=genKcljEpc(DB.kcljEpcSerial);}catch(e){notify('Napaka EPC: '+e.message,'err');return;}
   DB.kcljEpcSerial++;
-  // Shrani v sprejem
+  // Shrani tiskovne podatke PRED confirmSprejem (ki resetira sprejemData)
+  var pData={
+    ln:sprejemData.catalog||sprejemData.gtin,
+    lot:sprejemData.lot,
+    gtin14:sprejemData.gtin,
+    serial:sprejemData.serial,
+    epcHex:epc
+  };
   var prevEpc=sprejemEpc;
   sprejemEpc=epc;
   _spManual=true;
   try{confirmSprejem();}catch(e){sprejemEpc=prevEpc;_spManual=false;notify('Napaka sprejema','err');return;}
   _spManual=false;
-  // Pokaži generirani EPC in ponudi tisk
-  notify('EPC: '+epc.slice(0,12)+'…','ok');
+  notify('EPC: '+epc.slice(0,12)+'… shranjen','ok');
   if(prnHasBridge()&&prnMac()){
-    var gr=DB.gtins.filter(function(g){return g.gtin===sprejemData.gtin;})[0]||{};
-    var zpl=buildLabelZpl({
-      ln:sprejemData.catalog||sprejemData.gtin,
-      lot:sprejemData.lot,
-      gtin14:sprejemData.gtin,
-      serial:sprejemData.serial,
-      epcHex:epc
-    });
-    try{AndroidBridge.printZpl(prnMac(),zpl);}catch(e){notify('Napaka tiska nalepke','err');}
+    notify('Tiskam nalepko…','ok');
+    var zpl=buildLabelZpl(pData);
+    try{AndroidBridge.printZpl(prnMac(),zpl);}catch(e){notify('Napaka tiska: '+e.message,'err');}
+  }else{
+    notify('Tiskalnik ni nastavljen — nalepka ni natisnjena','warn');
   }
 }
 function confirmSprejem(){
