@@ -20,8 +20,8 @@ android {
         applicationId "si.kclj.pregledbk"
         minSdk 26
         targetSdk 34
-        versionCode 127
-        versionName "1.0.127"
+        versionCode 128
+        versionName "1.0.128"
     }
 
     buildTypes {

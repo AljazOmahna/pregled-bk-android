@@ -1052,8 +1052,12 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       </div>
       <div id="lotEvalNote" style="display:none;background:#e8f0ff;border:1px solid #3b82f6;border-radius:8px;padding:10px;font-size:11px;color:#1d4ed8;margin-bottom:10px"></div>
       <div class="fg"><label>Datum ovrednotenja</label><input type="date" id="lotEvalDate"></div>
-      <div class="fg"><label>Sklic na dokument (obvezno) *</label><input type="text" id="lotEvalDoc" placeholder="npr. OneDrive: Ovrednotenja/2026/..."></div>
-      <div style="font-size:10px;color:var(--text3)">&#128161; Dokument z ovrednotenjem je shranjen na OneDrive &mdash; tu vpiši ime/lokacijo dokumenta.</div>
+      <div class="fg"><label>Vpisano na analizatorje</label><div style="display:flex;gap:16px;flex-wrap:wrap;padding:4px 0">
+        <label style="display:flex;align-items:center;gap:6px;font-size:14px"><input type="checkbox" id="evalAL01" style="width:18px;height:18px"> AL01</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:14px"><input type="checkbox" id="evalAL02" style="width:18px;height:18px"> AL02</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:14px"><input type="checkbox" id="evalAL03" style="width:18px;height:18px"> AL03</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:14px"><input type="checkbox" id="evalAL04" style="width:18px;height:18px"> AL04</label>
+      </div></div>
     </div>
     <div class="mf">
       <button class="btn btn-g" onclick="closeMo('moLotEval')">Prekliči</button>
@@ -1855,18 +1859,16 @@ function openLotEval(gtin,lot){
   var nb=$i('lotEvalNote');
   if(note){nb.style.display='block';nb.innerHTML='&#9888; '+note;}else nb.style.display='none';
   $i('lotEvalDate').value=l.evalDate||new Date().toISOString().slice(0,10);
-  $i('lotEvalDoc').value=l.evalDoc||'';
+  var ea=l.evalAnalyzers||[];
+  ['AL01','AL02','AL03','AL04'].forEach(function(a){var el=$i('eval'+a);if(el)el.checked=ea.indexOf(a)>=0;});
   showMo('moLotEval');
-  setTimeout(function(){$i('lotEvalDoc').focus();},200);
 }
 function confirmLotEval(){
   if(!_lotEvalKey)return;
-  var doc=$i('lotEvalDoc').value.trim();
-  if(!doc){notify('Sklic na dokument je obvezen','warn');$i('lotEvalDoc').focus();return;}
   var l=(DB.lots||[]).filter(function(x){return x.gtin===_lotEvalKey.gtin&&x.lot===_lotEvalKey.lot;})[0];
   if(!l)return;
   l.evalDate=$i('lotEvalDate').value||new Date().toISOString().slice(0,10);
-  l.evalDoc=doc;
+  l.evalAnalyzers=['AL01','AL02','AL03','AL04'].filter(function(a){var el=$i('eval'+a);return el&&el.checked;});
   l.checked=true;
   l.checkedAt=new Date().toISOString();
   _lotEvalKey=null;
@@ -2054,9 +2056,10 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:127,
-  date:'2026-06-18',
+  build:128,
+  date:'2026-06-19',
   history:[
+    {build:128,date:'2026-06-19',notes:'Ovrednotenje lota kalibratorja: zamenjava "Sklic na dokument" s checkboxi AL01/AL02/AL03/AL04 (kateri analizatorji so bili kalibrirani). Shranjeno kot evalAnalyzers[].'},
     {build:127,date:'2026-06-18',notes:'Popravek: spGenRfidLabel() shranjuje tiskovne podatke pred confirmSprejem() (ki resetira sprejemData=null → tiha napaka). Dodan notify "Tiskam nalepko…" in "Tiskalnik ni nastavljen" za lažje diagnosticiranje.'},
     {build:126,date:'2026-06-18',notes:'genKcljEpc(): SGTIN-96 z internim prefiksom 9900000 (partition 5, round-trip self-test). Nov gumb "Generiraj RFID nalepko" med Skeniraj RFID in Sprejmi brez RFID — generira EPC, poveže s skeniranim DataMatrix (GTIN+LOT+SN), shrani v sprejem in natisne nalepko. buildLabelZpl() za parametrizirani tisk. Tisk +20y navzdol.'},
     {build:125,date:'2026-06-18',notes:'ZPL večji fonti: LN 50pt, LOT 40pt, HR 30pt; barcode y=332.'},
