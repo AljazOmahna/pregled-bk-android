@@ -368,6 +368,32 @@ public class GraphSync {
         return new String[]{ String.valueOf(code), resp };
     }
 
+    public void uploadFile(final String subfolder, final String filename, final String contentType, final byte[] data, final Cb cb) {
+        cancelLogin = true;
+        exec.execute(() -> {
+            cancelLogin = false;
+            try {
+                String at = freshAccessToken();
+                if (at == null) { cb.uploadDone(false, "Niste prijavljeni"); return; }
+                String safe = (filename == null || filename.isEmpty()) ? "file.bin"
+                            : filename.replaceAll("[^a-zA-Z0-9_\\-.]", "_");
+                String sf = (subfolder == null || subfolder.isEmpty()) ? ""
+                            : subfolder.replaceAll("[^a-zA-Z0-9_\\-]", "_") + "/";
+                String url = "https://graph.microsoft.com/v1.0/me/drive/root:/DigiLab/" + sf + safe + ":/content";
+                String[] r = httpPutBytes(url, at, data, contentType);
+                int code = Integer.parseInt(r[0]);
+                if (code == 200 || code == 201) {
+                    cb.uploadDone(true, "Datoteka naložena v OneDrive");
+                } else {
+                    cb.uploadDone(false, "Napaka nalaganja (" + code + ")");
+                }
+            } catch (Throwable t) {
+                Log.e(TAG, "uploadFile: " + t);
+                cb.uploadDone(false, t.getMessage());
+            }
+        });
+    }
+
     public void uploadPdf(final String filename, final String base64, final Cb cb) {
         cancelLogin = true;
         exec.execute(() -> {

@@ -744,6 +744,14 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
             if (graphSync != null) graphSync.uploadPdf(filename, base64, graphCb());
         }
 
+        @JavascriptInterface
+        public void msFileUpload(String subfolder, String filename, String contentType, String base64) {
+            if (graphSync != null) {
+                byte[] bytes = android.util.Base64.decode(base64 == null ? "" : base64, android.util.Base64.DEFAULT);
+                graphSync.uploadFile(subfolder, filename, contentType, bytes, graphCb());
+            }
+        }
+
         // ---- Bluetooth tiskanje RFID nalepk (Zebra ZT610R) ----
         @JavascriptInterface
         public void btListPrinters() {
