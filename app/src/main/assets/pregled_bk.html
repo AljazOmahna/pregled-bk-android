@@ -1876,26 +1876,37 @@ function confirmLotEval(){
   _lotEvalKey=null;
   saveDB();closeMo('moLotEval');renderLots();
   notify('Lot '+l.lot+' ovrednoten','ok');
-  msUploadLotLog();
+  msUploadLotLog(l.type);
 }
-function buildCalLotCsv(){
-  var rows=['﻿Ime;GTIN;Lot;Rok;Dodano;Ovrednoteno;Analizatorji'];
-  var calLots=(DB.lots||[]).filter(function(l){return l.type==='cal';});
-  calLots.sort(function(a,b){return (a.firstReceivedAt||'').localeCompare(b.firstReceivedAt||'');});
-  calLots.forEach(function(l){
-    rows.push([l.name||'',l.gtin||'',l.lot||'',l.expiry||'',
-      (l.firstReceivedAt||'').slice(0,10),l.evalDate||'',
-      (l.evalAnalyzers||[]).join(' ')
-    ].map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(';'));
+var _LOT_LOG_FILE={
+  'calibrator':'kalibratorji_loti.csv',
+  'reagent-bio':'reagenti_bio_loti.csv',
+  'reagent-imuno':'reagenti_imuno_loti.csv',
+  'control':'kontrole_loti.csv',
+  'consumable':'potrosni_material_loti.csv'
+};
+function buildLotCsv(type){
+  var isCalibrator=(type==='calibrator');
+  var header=isCalibrator?'﻿Ime;GTIN;Lot;Rok;Dodano;Ovrednoteno;Analizatorji':'﻿Ime;GTIN;Lot;Rok;Dodano;Ovrednoteno';
+  var rows=[header];
+  var filtered=(DB.lots||[]).filter(function(l){return l.type===type;});
+  filtered.sort(function(a,b){return (a.firstReceivedAt||'').localeCompare(b.firstReceivedAt||'');});
+  filtered.forEach(function(l){
+    var cols=[l.name||'',l.gtin||'',l.lot||'',l.expiry||'',
+      (l.firstReceivedAt||'').slice(0,10),l.evalDate||''];
+    if(isCalibrator)cols.push((l.evalAnalyzers||[]).join(' '));
+    rows.push(cols.map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(';'));
   });
   return rows.join('\r\n');
 }
-function msUploadLotLog(){
+function msUploadLotLog(type){
   if(typeof AndroidBridge==='undefined'||!AndroidBridge.msIsSignedIn||!AndroidBridge.msIsSignedIn())return;
   if(!AndroidBridge.msFileUpload)return;
-  var csv=buildCalLotCsv();
+  var fname=_LOT_LOG_FILE[type];
+  if(!fname)return;
+  var csv=buildLotCsv(type);
   var b64=btoa(unescape(encodeURIComponent(csv)));
-  try{AndroidBridge.msFileUpload('Lot-i','kalibratorji_loti.csv','text/csv;charset=utf-8',b64);}catch(e){}
+  try{AndroidBridge.msFileUpload('Lot-i',fname,'text/csv;charset=utf-8',b64);}catch(e){}
 }
 function clearLotEval(gtin,lot){
   var l=(DB.lots||[]).filter(function(x){return x.gtin===gtin&&x.lot===lot;})[0];
@@ -1915,11 +1926,11 @@ function checkNewLot(gtin,lot,name,type,expiry){
   if(notify){
     if(sprejemActive)spNewLots.push({name:name,lot:lot,type:type});
     saveDB();
-    if(type==='cal')msUploadLotLog();
+    msUploadLotLog(type);
     showNewLotModal(name,lot,type);
   }else{
     saveDB();
-    if(type==='cal')msUploadLotLog();
+    msUploadLotLog(type);
   }
 }
 function showNewLotModal(name,lot,type){
