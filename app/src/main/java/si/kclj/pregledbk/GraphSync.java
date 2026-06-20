@@ -61,6 +61,8 @@ public class GraphSync {
         void uploadDone(boolean ok, String msg);
         void downloadDone(String jsonOrNull, String msg); // jsonOrNull == null ob 404 (se ni nalozeno)
         void operatorsDone(String jsonOrNull, String msg); // imenik operaterjev iz BIO Alinity
+        void folderListed(String jsonOrNull, String msg);  // seznam datotek v mapi (children); null ob 404
+        void textFileDone(String jsonOrNull, String msg);  // vsebina poljubne tekstovne datoteke; null ob 404
     }
 
     private final Context ctx;
@@ -287,6 +289,59 @@ public class GraphSync {
             } catch (Throwable t) {
                 Log.e(TAG, "downloadOperators: " + t);
                 cb.operatorsDone(null, t.getMessage());
+            }
+        });
+    }
+
+    /** Listanje vsebine mape v DigiLab (children). relPath npr. "Salus_Dobavnice" (brez vodilne posevnice). */
+    public void listFolder(final String relPath, final Cb cb) {
+        cancelLogin = true;
+        exec.execute(() -> {
+            cancelLogin = false;
+            try {
+                String at = freshAccessToken();
+                if (at == null) { cb.folderListed(null, "Niste prijavljeni"); return; }
+                String rp = relPath == null ? "" : relPath.replaceAll("^/+", "");
+                String url = "https://graph.microsoft.com/v1.0/me/drive/root:/DigiLab/" + rp + ":/children"
+                        + "?$select=name,size,lastModifiedDateTime&$top=500";
+                String[] r = httpGetRaw(url, at);
+                int code = Integer.parseInt(r[0]);
+                if (code == 200) {
+                    cb.folderListed(r[1], "ok");
+                } else if (code == 404) {
+                    cb.folderListed(null, "Mape ni v OneDrive");
+                } else {
+                    cb.folderListed(null, "Napaka listanja (" + code + ")");
+                }
+            } catch (Throwable t) {
+                Log.e(TAG, "listFolder: " + t);
+                cb.folderListed(null, t.getMessage());
+            }
+        });
+    }
+
+    /** Branje poljubne tekstovne datoteke v DigiLab. relPath npr. "Salus_Dobavnice/x.salus.json". */
+    public void downloadTextFile(final String relPath, final Cb cb) {
+        cancelLogin = true;
+        exec.execute(() -> {
+            cancelLogin = false;
+            try {
+                String at = freshAccessToken();
+                if (at == null) { cb.textFileDone(null, "Niste prijavljeni"); return; }
+                String rp = relPath == null ? "" : relPath.replaceAll("^/+", "");
+                String url = "https://graph.microsoft.com/v1.0/me/drive/root:/DigiLab/" + rp + ":/content";
+                String[] r = httpGetRaw(url, at);
+                int code = Integer.parseInt(r[0]);
+                if (code == 200) {
+                    cb.textFileDone(r[1], "ok");
+                } else if (code == 404) {
+                    cb.textFileDone(null, "Datoteke ni v OneDrive");
+                } else {
+                    cb.textFileDone(null, "Napaka prenosa (" + code + ")");
+                }
+            } catch (Throwable t) {
+                Log.e(TAG, "downloadTextFile: " + t);
+                cb.textFileDone(null, t.getMessage());
             }
         });
     }

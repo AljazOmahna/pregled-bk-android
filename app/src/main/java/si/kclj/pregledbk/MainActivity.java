@@ -424,6 +424,12 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
             @Override public void operatorsDone(String jsonOrNull, String msg) {
                 runJs("if(typeof onMsOperatorsDownloaded==='function')onMsOperatorsDownloaded(" + jsStr(jsonOrNull) + "," + jsStr(msg) + ")");
             }
+            @Override public void folderListed(String jsonOrNull, String msg) {
+                runJs("if(typeof onMsFolderListed==='function')onMsFolderListed(" + jsStr(jsonOrNull) + "," + jsStr(msg) + ")");
+            }
+            @Override public void textFileDone(String jsonOrNull, String msg) {
+                runJs("if(typeof onMsTextFile==='function')onMsTextFile(" + jsStr(jsonOrNull) + "," + jsStr(msg) + ")");
+            }
         };
     }
 
@@ -750,6 +756,16 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
                 byte[] bytes = android.util.Base64.decode(base64 == null ? "" : base64, android.util.Base64.DEFAULT);
                 graphSync.uploadFile(subfolder, filename, contentType, bytes, graphCb());
             }
+        }
+
+        @JavascriptInterface
+        public void msListFolder(String relPath) {
+            if (graphSync != null) graphSync.listFolder(relPath, graphCb());
+        }
+
+        @JavascriptInterface
+        public void msDownloadText(String relPath) {
+            if (graphSync != null) graphSync.downloadTextFile(relPath, graphCb());
         }
 
         // ---- Bluetooth tiskanje RFID nalepk (Zebra ZT610R) ----
