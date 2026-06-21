@@ -950,6 +950,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
         <div id="spItemInfo" style="display:none;margin-top:10px;padding:10px;background:var(--gbg);border:1px solid var(--green);border-radius:8px">
           <div style="font-weight:700;font-size:13px;color:var(--text)" id="spItemName"></div>
           <div style="font-size:11px;color:var(--text3);margin-top:4px" id="spItemDetails"></div>
+          <div id="spExpiryWarn" style="display:none;margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border:1px solid var(--orange);border-radius:6px;font-size:11px;font-weight:700;color:var(--orange)"></div>
           <button class="btn btn-g btn-sm" id="spClearBtn" onclick="spReset()" style="margin-top:8px;width:100%;-webkit-justify-content:center;justify-content:center">&#8635; Počisti vnos (nov artikel)</button>
         </div>
       </div>
@@ -1858,6 +1859,7 @@ function _renderDelivCard(d,canConfirm){
   var totConf=items.reduce(function(s,it){return s+(it.confirmed||0);},0);
   var hasUnknown=items.some(function(it){return !it.matched;});
   var newLots=items.filter(function(it){return it.isNewLot;});
+  var nearExp=items.filter(function(it){return it.expiry&&daysLeft(it.expiry)<=90;});
   var pct=totExp?Math.round(totRec/totExp*100):0;
   var badge=d.status==='done'?'<span style="color:var(--green);font-weight:700">&#10003; Sprejeto</span>':
     d.status==='delno'?'<span style="color:var(--orange);font-weight:700">&#9696; Delno</span>':
@@ -1878,6 +1880,11 @@ function _renderDelivCard(d,canConfirm){
     h+='<span style="font-size:10px;color:var(--orange);line-height:1.4"><strong>'+newLots.length+' nov'+(newLots.length===1?' lot':(newLots.length===2?'a lota':' novi loti'))+'</strong> v tej dobavnici &mdash; ob sprejemu bo dodan v Lote za ovrednotenje.</span></div>';
   }
   if(hasUnknown&&canConfirm)h+='<div style="font-size:10px;color:var(--orange);margin-bottom:6px">&#9888; Nekateri GTIN niso v šifrantu</div>';
+  if(nearExp.length&&d.status!=='done'){
+    h+='<div style="display:-webkit-flex;display:flex;gap:6px;-webkit-align-items:flex-start;align-items:flex-start;background:rgba(245,158,11,.08);border:1px solid var(--orange);border-radius:7px;padding:7px 9px;margin-bottom:8px">';
+    h+='<span style="color:var(--orange);font-size:14px;-webkit-flex-shrink:0;flex-shrink:0">&#9888;</span>';
+    h+='<span style="font-size:10px;color:var(--orange);line-height:1.4"><strong>'+nearExp.length+' artikel'+(nearExp.length===1?'':'jev')+' z rokom izteka &lt; 3 mesece</strong> &mdash; preverite pred sprejemom.</span></div>';
+  }
   h+='<div style="font-size:11px;max-height:220px;overflow-y:auto;margin-bottom:8px">';
   items.forEach(function(it,idx){
     var expStr=it.expiry?(it.expiry.slice(0,2)+'.'+it.expiry.slice(2,4)+'.20'+it.expiry.slice(4)):'';
@@ -1885,13 +1892,16 @@ function _renderDelivCard(d,canConfirm){
     var rec=it.received||0, exp=it.qty||1, conf=it.confirmed||0;
     var full=rec>=exp, part=rec>0&&rec<exp;
     var ic=full?'<span style="color:var(--green)">&#10003;</span>':part?'<span style="color:var(--orange)">&#9696;</span>':'<span style="color:var(--text3)">&#9675;</span>';
+    var dl=it.expiry?daysLeft(it.expiry):9999;
+    var expCol=dl<0?'#dc2626':dl<=90?'var(--orange)':'var(--text3)';
+    var expWarn=dl<0?' &#10060;':dl<=90?' &#9888;':'';
     h+='<div style="display:-webkit-flex;display:flex;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);-webkit-align-items:center;align-items:center">';
     h+='<span style="min-width:16px;text-align:center;font-size:13px">'+ic+'</span>';
     h+='<div style="flex:1;min-width:0">';
     h+='<div style="font-size:11px;color:'+(it.matched?'var(--text)':'var(--orange)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(it.matched?'':'&#9888; ')+it.name;
     if(it.isNewLot)h+=' <span style="font-size:9px;font-weight:700;background:var(--orange);color:#fff;padding:1px 5px;border-radius:4px">NOV LOT</span>';
     h+='</div>';
-    h+='<div style="font-size:9px;color:var(--text3)">'+it.lot+(expStr?' &middot; '+expStr:'')+'</div>';
+    h+='<div style="font-size:9px;color:'+expCol+'">'+it.lot+(expStr?' &middot; '+expStr+expWarn:'')+'</div>';
     h+='</div>';
     if(canConfirm){
       h+='<div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:4px;-webkit-flex-shrink:0;flex-shrink:0">';
@@ -2498,6 +2508,7 @@ function openSprejem(){
   spNewLots=[];
   $i('spBarcodeInp').value='';
   $i('spItemInfo').style.display='none';
+  var _ew1=$i('spExpiryWarn');if(_ew1)_ew1.style.display='none';
   $i('spStep2').style.display='none';
   $i('spRfidWait').style.display='block';
   $i('spRfidOk').style.display='none';
@@ -2512,6 +2523,7 @@ function spReset(){
   sprejemStep=1;sprejemData=null;sprejemEpc=null;_spEpcCands={};_spRfidArmed=false;
   $i('spBarcodeInp').value='';
   $i('spItemInfo').style.display='none';
+  var _ew2=$i('spExpiryWarn');if(_ew2)_ew2.style.display='none';
   $i('spStep2').style.display='none';
   $i('spRfidWait').style.display='block';
   $i('spRfidOk').style.display='none';
@@ -2604,6 +2616,13 @@ function spUpdateItemInfo(){
   if(sprejemData.ident)det+=' | ID: '+sprejemData.ident;
   $i('spItemDetails').textContent=det;
   $i('spItemInfo').style.display='block';
+  var ew=$i('spExpiryWarn');
+  if(ew&&sprejemData.expiry){
+    var dl=daysLeft(sprejemData.expiry);
+    if(dl<0){ew.innerHTML='&#10060; Rok izteka je potekel!';ew.style.color='#dc2626';ew.style.display='block';}
+    else if(dl<=90){ew.innerHTML='&#9888; Rok izteka čez '+dl+' dni &mdash; manj kot 3 mesece!';ew.style.color='var(--orange)';ew.style.display='block';}
+    else{ew.style.display='none';}
+  }else if(ew){ew.style.display='none';}
   spUpdateRfidBtn();
 }
 function spCanScanRfid(){
