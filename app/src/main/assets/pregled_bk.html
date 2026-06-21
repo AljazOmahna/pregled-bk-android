@@ -2356,9 +2356,15 @@ function onScanKey(e){
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:128,
-  date:'2026-06-19',
+  build:134,
+  date:'2026-06-21',
   history:[
+    {build:134,date:'2026-06-21',notes:'BK PDF popravek: _bkProducts ne filtrira DB.inventory po i.type (tip v inventory je bil iz časa skeniranja — zastarel po spremembi tipa GTIN-a). Tip GTIN-a v DB.gtins je zdaj edini vir resnice. saveGtin() posodobi tip v DB.inventory ob vsaki spremembi. _reconcileInvFromLatestSession() gradi inventory s trenutnim tipom iz DB.gtins (ne zastarelim si.type).'},
+    {build:133,date:'2026-06-21',notes:'Opozorilo kratki rok izteka: moSprejem prikaže oranžno opozorilo ⚠ če je exp < 90 dni, rdeče ✗ če je potekel. V aktivnih dobavnicah: barvanje roka v vrstici + summary banner "N artiklov z rokom < 3 mesece".'},
+    {build:132,date:'2026-06-21',notes:'Dobavnice na ravni BIO Alinity: per-item +/– kontrole, progress bar, new-lot opozorilo ⚠, delta-based potrjevanje (samo δ med received in confirmed gre v inventory), status "delno". RFID navodila: drži trigger 5 s za vklop RFD2000.'},
+    {build:131,date:'2026-06-20',notes:'Dobavnice Salus: parseSalusText() razčleni besedilo dobavnice (sidecar PC most), UI za pregled predloga, potrditev v sprejem (DB.received + DB.lots).'},
+    {build:130,date:'2026-06-20',notes:'CSV logi za vse tipe lotov (reagent-bio, reagent-imuno, consumable) v OneDrive DigiLab/Lot-i/ — razširitev iz build 129.'},
+    {build:129,date:'2026-06-20',notes:'Kalibratorski loti: confirmLotEval() zahteva vse 4 analizatorje (AL01–AL04) pred zaključkom ovrednotenja. CSV log ovrednotenih lotov v OneDrive DigiLab/Lot-i/.'},
     {build:128,date:'2026-06-19',notes:'Ovrednotenje lota kalibratorja: zamenjava "Sklic na dokument" s checkboxi AL01/AL02/AL03/AL04 (kateri analizatorji so bili kalibrirani). Shranjeno kot evalAnalyzers[].'},
     {build:127,date:'2026-06-18',notes:'Popravek: spGenRfidLabel() shranjuje tiskovne podatke pred confirmSprejem() (ki resetira sprejemData=null → tiha napaka). Dodan notify "Tiskam nalepko…" in "Tiskalnik ni nastavljen" za lažje diagnosticiranje.'},
     {build:126,date:'2026-06-18',notes:'genKcljEpc(): SGTIN-96 z internim prefiksom 9900000 (partition 5, round-trip self-test). Nov gumb "Generiraj RFID nalepko" med Skeniraj RFID in Sprejmi brez RFID — generira EPC, poveže s skeniranim DataMatrix (GTIN+LOT+SN), shrani v sprejem in natisne nalepko. buildLabelZpl() za parametrizirani tisk. Tisk +20y navzdol.'},
@@ -3731,8 +3737,10 @@ function saveGtin(){
   var prev=editGI!=null?DB.gtins[editGI]:null;
   obj.piUrl=piUrl;
   obj.piUpdatedAt=prev&&prev.piUrl===piUrl?(prev.piUpdatedAt||''):(piUrl?new Date().toISOString():'');
-  if(editGI!=null)DB.gtins[editGI]=obj;
-  else{if(DB.gtins.filter(function(g){return g.gtin===gtin;}).length){notify('GTIN že obstaja','warn');return;}DB.gtins.push(obj);}
+  if(editGI!=null){
+    if(prev&&prev.type!==obj.type)(DB.inventory||[]).forEach(function(inv){if(inv.gtin===obj.gtin)inv.type=obj.type;});
+    DB.gtins[editGI]=obj;
+  }else{if(DB.gtins.filter(function(g){return g.gtin===gtin;}).length){notify('GTIN že obstaja','warn');return;}DB.gtins.push(obj);}
   saveDB();closeMo('moGtin');renderGtins();notify('GTIN shranjen','ok');
 }
 function delGtin(i){if(!confirm('Izbrisati GTIN?'))return;DB.gtins.splice(i,1);saveDB();renderGtins();notify('GTIN izbrisan');}
@@ -4108,7 +4116,7 @@ function _bkProducts(type){
   var gs=(DB.gtins||[]).filter(function(g){return g.type===type;});
   gs.sort(function(a,b){return (a.name||a.gtin||'').localeCompare(b.name||b.gtin||'','sl');});
   return gs.map(function(g){
-    var lots=(DB.inventory||[]).filter(function(i){return i.gtin===g.gtin&&i.type===type;});
+    var lots=(DB.inventory||[]).filter(function(i){return i.gtin===g.gtin;});
     lots.sort(function(a,b){return (a.expiry||'').localeCompare(b.expiry||'');});
     return {name:g.name||g.gtin,lots:lots};
   });
@@ -4575,6 +4583,7 @@ function _reconcileInvFromLatestSession(db){
   if(!closed.length)return; // brez zaprte seje zalogo pustimo pri miru
   closed.sort(function(a,b){return (b.closed||'').localeCompare(a.closed||'');});
   var sess=closed[0];
+  var gtinTypeMap={};(db.gtins||[]).forEach(function(g){if(g&&g.gtin)gtinTypeMap[g.gtin]=g.type;});
   var prevInv=(db.inventory||[]).slice();
   var scope=(sess.typeScope&&sess.typeScope.length)?sess.typeScope:null;
   var inScope=function(t){return !scope||scope.indexOf(t)>=0;};
@@ -4584,7 +4593,7 @@ function _reconcileInvFromLatestSession(db){
   if(scope)prevInv.forEach(function(pi){if(!inScope(pi.type))invMap[(pi.gtin||'')+'|'+(pi.lot||'')]=pi;});
   (sess.items||[]).filter(function(i){return i.valid!==false;}).forEach(function(si){
     var k=(si.gtin||'')+'|'+(si.lot||'');
-    if(!invMap[k])invMap[k]={gtin:si.gtin,lot:si.lot||'',expiry:si.expiry||'',qty:0,name:si.name,type:si.type,serials:[],lastScan:si.dt};
+    if(!invMap[k])invMap[k]={gtin:si.gtin,lot:si.lot||'',expiry:si.expiry||'',qty:0,name:si.name,type:gtinTypeMap[si.gtin]||si.type,serials:[],lastScan:si.dt};
     var e=invMap[k];e.qty++;
     if(si.serial&&e.serials.indexOf(si.serial)<0)e.serials.push(si.serial);
     if(si.expiry)e.expiry=si.expiry;
@@ -4599,7 +4608,7 @@ function _reconcileInvFromLatestSession(db){
     if(!sn&&!epc)return; // brez identitete preskoči
     var k=(r.gtin||'')+'|'+(r.lot||'');
     if(!invMap[k])invMap[k]={gtin:r.gtin,lot:r.lot||'',expiry:r.expiry||'',qty:0,
-      name:r.name,type:r.type,serials:[],units:[],lastScan:r.receivedAt};
+      name:r.name,type:gtinTypeMap[r.gtin]||r.type,serials:[],units:[],lastScan:r.receivedAt};
     var e=invMap[k];
     if(!e.units)e.units=[];
     // dedup po EPC (kadar obstaja) ali SN — enako kot mergeDB
