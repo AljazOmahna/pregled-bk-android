@@ -251,6 +251,8 @@ const doc = new Document({
       p([tx("Uporabite "), b("“Sprejmi brez RFID/SN (ročno)”"), tx(" (poglavje 4.2); aplikacija ustvari nadomestno serijsko številko (MAN…), količina se vseeno poveča za 1.")]),
       p([b("Kje najdem PDF poročilo?")]),
       p([tx("V mapi Prenosi (Downloads) na Zebri, z imenom "), b("PregledBK_LLLL-MM-DD.pdf"), tx(".")]),
+      p([b("RFID skener je ugasnjen – kako ga vključim?")]),
+      p("Pridrži trigger (rumeni gumb) na čitalcu RFD2000 5 sekund in se bo skener samodejno prižgal."),
 
       // 13 NAMESTITEV
       h1("13. Namestitev in posodobitve"),
