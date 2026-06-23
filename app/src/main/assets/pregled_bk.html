@@ -652,6 +652,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <button class="btn btn-a btn-sm" onclick="exportExpCSV()">&#9888; Roki CSV</button>
       <button class="btn btn-a btn-sm" onclick="exportSessCSV()">&#128203; Seje CSV</button>
       <button class="btn btn-a btn-sm" onclick="exportGtinCSV()">&#127991; GTIN CSV</button>
+      <button class="btn btn-a btn-sm" onclick="exportTraceabilityCsv()">&#128203; Sledljivost CSV (IVDR)</button>
     </div>
   </div>
   <div class="card">
@@ -816,6 +817,12 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
         <div class="fg"><label>Kataloška št. (AI 240)</label><input type="text" id="gtinCatalog" maxlength="30"></div>
         <div class="fg"><label>Ident</label><input type="text" id="gtinIdent" maxlength="30"></div>
       </div>
+      <div class="fg"><label>Razred tveganja (IVDR)</label><select id="gtinRisk">
+        <option value="">— ni določen —</option>
+        <option value="A">A (najnižje tveganje)</option>
+        <option value="B">B</option>
+        <option value="C">C</option>
+        <option value="D">D (najvišje tveganje)</option></select></div>
       <div class="fg" id="gtinPiWrap"><label>&#128196; Package insert (OneDrive povezava)</label><input type="text" id="gtinPiUrl" placeholder="https://... (OneDrive)"></div>
       <div style="display:-webkit-flex;display:flex;align-items:center;gap:10px;padding:10px 0 2px">
         <input type="checkbox" id="gtinLotNotify" style="width:20px;height:20px;flex-shrink:0">
@@ -948,6 +955,11 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
   <div class="modal">
     <div class="mh"><h3>&#128230; Sprejem materiala</h3><button class="mc" onclick="closeSprejem()">&#10005;</button></div>
     <div class="mb">
+      <div class="frow" style="margin-bottom:12px">
+        <div class="fg" style="margin:0"><label>Dobavitelj</label><input list="spSupList" id="spSupplier" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="npr. Salus"></div>
+        <div class="fg" style="margin:0"><label>Št. dobavnice</label><input id="spDeliv" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="npr. DOB26012345"></div>
+      </div>
+      <datalist id="spSupList"><option>Salus</option><option>Abbott</option><option>Mikro+Polo</option><option>Randox</option></datalist>
       <div id="spStep1">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:8px">&#9312; Barcode (QR / DataMatrix)</div>
         <input type="text" id="spBarcodeInp" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px" placeholder="Skenirajte QR/DataMatrix..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="none" oninput="spOnBarcodeInput()" onkeydown="spOnBarcodeKey(event)">
@@ -1673,6 +1685,12 @@ function startMultiRfid(){
 }
 function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function typeName(t){return {control:'Kontrola',calibrator:'Kalibrator','reagent-bio':'Reagenti Bio','reagent-imuno':'Reagenti IMUNO',consumable:'Potrošni material'}[t]||t;}
+// IVDR razred tveganja (Priloga VIII): A=najnižje … D=najvišje
+function riskBadge(rc){
+  if(!rc)return '<span class="badge b-gray" title="Razred tveganja IVDR ni določen">—</span>';
+  var col={A:'#64748b',B:'var(--accent)',C:'var(--orange)',D:'var(--red)'}[rc]||'#64748b';
+  return '<span class="badge" style="background:transparent;border:1px solid '+col+';color:'+col+'" title="IVDR razred tveganja '+rc+'">'+rc+'</span>';
+}
 function stopMultiRfid(){
   rfidMultiActive=false;
   if(typeof AndroidBridge!=='undefined'){try{AndroidBridge.stopRfidScan();}catch(e){}}
@@ -1969,6 +1987,7 @@ function confirmDelivery(id){
       DB.received.push({id:(Date.now()+added).toString(),gtin:it.gtin,name:it.name||'',
         type:type,lot:it.lot||'',expiry:it.expiry||'',serial:'',
         catalog:it.catalog||'',ident:'',rfidEpc:'',
+        supplier:d.supplier||'Salus',delivery:(d.file||'').replace('.pdf',''),
         receivedAt:new Date().toISOString(),status:'active',source:'salus'});
       added++;
     }
@@ -2744,9 +2763,10 @@ var NAROC_GTINS=[
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:138,
-  date:'2026-06-22',
+  build:139,
+  date:'2026-06-23',
   history:[
+    {build:139,date:'2026-06-23',notes:'IVDR skladnost (EU 2017/746): (1) razred tveganja A/B/C/D per GTIN (Priloga VIII) — ročno polje v GTIN obrazcu + barvna značka v seznamu; (2) sprejem materiala — lot in rok izteka OBVEZNA (razen potrošni material), dodani polji Dobavitelj in Št. dobavnice (predizpolnjena iz Salus dobavnice, ostaneta med serijskim skeniranjem); (3) navodila za uporabo (IFU) označena kot OBVEZNA za artikle razreda C/D brez povezave + povzetek manjkajočih; nov izvoz "Sledljivost CSV (IVDR)" — celotna evidenca prejema z UDI-DI, lotom, rokom, dobaviteljem, dobavnico in statusom (čl. 10).'},
     {build:138,date:'2026-06-22',notes:'Dopolnitev NAROC_GTINS iz DB backupa: 19 GTINov zapolnjenih (LIPID MULTI C CAL, URINE/CSF PROT CAL, BRAHMS PCT CAL, STAT CK-MB CAL + 15 potrošnih). Dodani Randox kontroli HUM ASY L2 in L3. Skupaj 380 vnosov, 123 z GTIN.'},
     {build:136,date:'2026-06-21',notes:'NAROC_GTINS posodobljen z GTIN iz 170 Salus dobavnic (102/378 artiklov). Vsi kalibratorji, kontrole in reagenti razen 4 kalibratorjev ki niso bili dobavljeni.'},
     {build:135,date:'2026-06-21',notes:'Uvoz GTIN knjižnice iz naročilnic (378 Abbott artiklov: 23 kalibratorjev, 10 kontrol, 36 reagentov Bio, 9 reagentov IMUNO, 300 potrošnih). Gumb "Preveri naročilnico" prikaže število novih/posodobljenih/obstoječih GTIN-ov, gumb "Uvozi naročilnico" izvede uvoz. Združevanje po ident (KCLJ 6-mestna šifra) in po kataloški številki (Abbott).'},
@@ -2903,6 +2923,8 @@ var _spManual=false; // ročni sprejem (brez RFID/SN) — sprosti EPC pogoj v co
 function openSprejem(){
   sprejemActive=true; sprejemStep=1; sprejemData=null; sprejemEpc=null; _spEpcCands={}; _spRfidArmed=false;
   spNewLots=[];
+  var _ss=$i('spSupplier');if(_ss)_ss.value='';
+  var _sd=$i('spDeliv');if(_sd)_sd.value='';
   $i('spBarcodeInp').value='';
   $i('spItemInfo').style.display='none';
   var _ew1=$i('spExpiryWarn');if(_ew1)_ew1.style.display='none';
@@ -3217,6 +3239,9 @@ function spGenRfidLabel(){
 }
 function confirmSprejem(){
   if(!sprejemData||(!sprejemEpc&&!_spManual)){notify('Manjka barcode ali RFID','warn');return;}
+  // IVDR sledljivost (čl. 10): lot + rok obvezna za vse razen potrošnega materiala
+  if(sprejemData.type!=='consumable'&&(!sprejemData.lot||!sprejemData.expiry)){
+    notify('IVDR: lot in rok izteka sta obvezna','warn');return;}
   if(sprejemData.serial){
     var dupS=(DB.received||[]).filter(function(r){return r.serial===sprejemData.serial&&r.gtin===sprejemData.gtin&&r.status==='active';})[0];
     if(dupS){
@@ -3231,6 +3256,8 @@ function confirmSprejem(){
     gtin:sprejemData.gtin, name:sprejemData.name, type:sprejemData.type,
     lot:sprejemData.lot, expiry:sprejemData.expiry, serial:sprejemData.serial,
     catalog:sprejemData.catalog, ident:sprejemData.ident,
+    supplier:($i('spSupplier')?$i('spSupplier').value.trim():''),
+    delivery:($i('spDeliv')?$i('spDeliv').value.trim():''),
     rfidEpc:sprejemEpc, receivedAt:new Date().toISOString(), status:'active'
   });
   // Posodobi zaloga (DB.inventory)
@@ -3268,7 +3295,8 @@ function renderReceived(){
     var dc=d<0?'var(--red)':d<=14?'var(--orange)':'var(--green)';
     var rfidShort=r.rfidEpc?r.rfidEpc.slice(0,8)+'…':'-';
     h+='<tr>';
-    h+='<td><div style="font-size:11px;font-weight:600">'+r.name+'</div><div class="gtin">'+r.gtin+'</div></td>';
+    var srcLine=[r.supplier,r.delivery].filter(function(x){return x;}).join(' · ');
+    h+='<td><div style="font-size:11px;font-weight:600">'+r.name+'</div><div class="gtin">'+r.gtin+'</div>'+(srcLine?'<div style="font-size:9px;color:var(--text3)">'+srcLine+'</div>':'')+'</td>';
     h+='<td class="lot-n">'+(r.lot||'-')+'</td>';
     h+='<td style="color:'+dc+'">'+fmtExp(r.expiry)+'</td>';
     h+='<td class="lot-n">'+(r.serial||'-')+'</td>';
@@ -4100,7 +4128,7 @@ function renderGtins(){
     return '<tr><td class="gtin" style="white-space:nowrap">'+g.gtin+'</td>'+
       '<td><div style="font-size:11px;font-weight:600">'+g.name+'</div>'+
       (g.note?'<div style="font-size:9px;color:var(--text3)">'+g.note+'</div>':'')+'</td>'+
-      '<td><span class="badge b-gray">'+typeName(g.type)+'</span></td>'+
+      '<td><span class="badge b-gray">'+typeName(g.type)+'</span> '+riskBadge(g.riskClass)+'</td>'+
       '<td style="font-size:10px;color:var(--text2)">'+(g.analyser||'-')+'</td>'+
       '<td style="white-space:nowrap">'+
       '<button class="btn btn-g btn-sm" onclick="toggleLotNotify('+ri+')" title="Lot opozorilo" style="padding:4px 7px;min-height:30px">'+(g.lotNotify!==false?'&#128276;':'&#128277;')+'</button> '+
@@ -4111,8 +4139,8 @@ function renderGtins(){
 function openGtinMo(idx){
   editGI=idx!=null?idx:null;
   $i('gtinMoT').textContent=idx!=null?'Uredi GTIN':'Dodaj GTIN';
-  if(idx!=null){var g=DB.gtins[idx];$i('gtinCode').value=g.gtin;$i('gtinName').value=g.name;$i('gtinTypeVal').value=g.type;$i('gtinMfr').value=g.manufacturer||'';$i('gtinAnal').value=g.analyser||'';$i('gtinNote').value=g.note||'';$i('gtinCatalog').value=g.catalog||'';$i('gtinIdent').value=g.ident||'';$i('gtinPiUrl').value=g.piUrl||'';$i('gtinLotNotify').checked=(g.lotNotify!==false);}
-  else{['gtinCode','gtinName','gtinMfr','gtinAnal','gtinNote','gtinCatalog','gtinIdent','gtinPiUrl'].forEach(function(id){$i(id).value='';});$i('gtinTypeVal').value='control';$i('gtinLotNotify').checked=true;}
+  if(idx!=null){var g=DB.gtins[idx];$i('gtinCode').value=g.gtin;$i('gtinName').value=g.name;$i('gtinTypeVal').value=g.type;$i('gtinMfr').value=g.manufacturer||'';$i('gtinAnal').value=g.analyser||'';$i('gtinNote').value=g.note||'';$i('gtinCatalog').value=g.catalog||'';$i('gtinIdent').value=g.ident||'';$i('gtinRisk').value=g.riskClass||'';$i('gtinPiUrl').value=g.piUrl||'';$i('gtinLotNotify').checked=(g.lotNotify!==false);}
+  else{['gtinCode','gtinName','gtinMfr','gtinAnal','gtinNote','gtinCatalog','gtinIdent','gtinRisk','gtinPiUrl'].forEach(function(id){$i(id).value='';});$i('gtinTypeVal').value='control';$i('gtinLotNotify').checked=true;}
   $i('moGtin').classList.add('open');
 }
 function saveGtin(){
@@ -4122,7 +4150,7 @@ function saveGtin(){
   if(gtin.length!==14){notify('GTIN mora biti 14 mest','warn');return;}
   if(!validGtin(gtin)){notify('Neveljavna GTIN kontrolna številka','warn');return;}
   if(!name){notify('Vpišite naziv','warn');return;}
-  var obj={gtin:gtin,name:name,type:$i('gtinTypeVal').value,manufacturer:$i('gtinMfr').value.trim(),analyser:$i('gtinAnal').value.trim(),note:$i('gtinNote').value.trim(),catalog:$i('gtinCatalog').value.trim(),ident:$i('gtinIdent').value.trim(),lotNotify:$i('gtinLotNotify').checked};
+  var obj={gtin:gtin,name:name,type:$i('gtinTypeVal').value,manufacturer:$i('gtinMfr').value.trim(),analyser:$i('gtinAnal').value.trim(),note:$i('gtinNote').value.trim(),catalog:$i('gtinCatalog').value.trim(),ident:$i('gtinIdent').value.trim(),riskClass:$i('gtinRisk').value,lotNotify:$i('gtinLotNotify').checked};
   // Package insert: ohrani obstoječi timestamp, posodobi ga le ob spremembi povezave
   var piUrl=$i('gtinPiUrl').value.trim();
   var prev=editGI!=null?DB.gtins[editGI]:null;
@@ -4182,6 +4210,15 @@ function renderPkgIns(){
     return true;
   });
   var h='';
+  // IVDR: navodila za uporabo (IFU) so obvezna za razred C in D
+  var cdMissing=(DB.gtins||[]).filter(function(g){
+    return EVAL_TYPES.indexOf(g.type)>=0&&(g.riskClass==='C'||g.riskClass==='D')&&!(g.piUrl&&g.piUrl.trim());
+  }).length;
+  if(cdMissing){
+    h+='<div style="display:-webkit-flex;display:flex;gap:6px;-webkit-align-items:center;align-items:center;padding:8px 10px;background:var(--rbg);border:1px solid var(--red);border-radius:8px;margin-bottom:10px">'+
+      '<span style="color:var(--red);font-size:14px">&#9888;</span>'+
+      '<span style="font-size:11px;color:var(--red);font-weight:700">'+cdMissing+' artikel'+(cdMissing===1?'':'(ov)')+' razreda C/D brez navodil za uporabo (IVDR obvezno)</span></div>';
+  }
   LOT_TYPE_ORDER.forEach(function(type){
     var tItems=items.filter(function(g){return g.type===type;});
     if(!tItems.length)return;
@@ -4190,12 +4227,15 @@ function renderPkgIns(){
       var ri=DB.gtins.indexOf(g);
       var has=!!(g.piUrl&&g.piUrl.trim());
       var updStr=g.piUpdatedAt?g.piUpdatedAt.slice(0,10):'';
-      h+='<div style="padding:8px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px'+(has?'':';background:var(--obg)')+'">';
+      var isCD=(g.riskClass==='C'||g.riskClass==='D');
+      var mandMiss=!has&&isCD; // manjka IFU pri C/D = kršitev IVDR
+      var bg=has?'':(mandMiss?';background:var(--rbg)':';background:var(--obg)');
+      h+='<div style="padding:8px;border:1px solid '+(mandMiss?'var(--red)':'var(--border)')+';border-radius:6px;margin-bottom:6px'+bg+'">';
       h+='<div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;gap:6px">';
       h+='<div style="-webkit-flex:1;flex:1">';
-      h+='<div style="font-size:11px;font-weight:600">'+g.name+'</div>';
-      h+='<div style="font-size:10px;color:'+(has?'var(--green)':'var(--orange)')+';margin-top:2px">'+
-        (has?'&#128279; povezava &middot; Zadnja sprememba: '+updStr:'&#9888; povezava manjka')+'</div>';
+      h+='<div style="font-size:11px;font-weight:600">'+g.name+' '+riskBadge(g.riskClass)+'</div>';
+      h+='<div style="font-size:10px;color:'+(has?'var(--green)':(mandMiss?'var(--red)':'var(--orange)'))+';margin-top:2px">'+
+        (has?'&#128279; povezava &middot; Zadnja sprememba: '+updStr:(mandMiss?'&#9888; IFU OBVEZNO (razred '+g.riskClass+')':'&#9888; povezava manjka'))+'</div>';
       h+='</div>';
       if(has)h+='<button class="btn btn-a btn-sm" onclick="openPiUrl('+ri+')" style="padding:5px 9px;min-height:32px">Odpri</button>';
       h+='<button class="btn btn-g btn-sm" onclick="closeMo(\'moPkgIns\');openGtinMo('+ri+')" style="padding:5px 8px;min-height:32px">&#9998;</button>';
@@ -4642,9 +4682,24 @@ function exportSessCSV(){
   dlCSV(rows,'Seje_'+new Date().toISOString().slice(0,10)+'.csv');
 }
 function exportGtinCSV(){
-  var rows=[['GTIN','Naziv','Tip','Proizvajalec','Analizator','Opomba','Kataloska','Ident']];
-  DB.gtins.forEach(function(g){rows.push([g.gtin,g.name,g.type,g.manufacturer,g.analyser,g.note,g.catalog||'',g.ident||'']);});
+  var rows=[['GTIN','Naziv','Tip','Proizvajalec','Analizator','Opomba','Kataloska','Ident','RazredTveganja']];
+  DB.gtins.forEach(function(g){rows.push([g.gtin,g.name,g.type,g.manufacturer,g.analyser,g.note,g.catalog||'',g.ident||'',g.riskClass||'']);});
   dlCSV(rows,'GTIN_'+new Date().toISOString().slice(0,10)+'.csv');
+}
+// IVDR sledljivost (čl. 10): celotna evidenca prejema z UDI, dobaviteljem in dobavnico
+function exportTraceabilityCsv(){
+  var riskByGtin={};(DB.gtins||[]).forEach(function(g){riskByGtin[g.gtin]=g.riskClass||'';});
+  var rows=[['Datum sprejema','UDI-DI (GTIN)','Naziv','Tip','Razred tveganja','LOT','Rok izteka','Serijska','Kataloska','Ident','Dobavitelj','St. dobavnice','Vir','Status']];
+  (DB.received||[]).forEach(function(r){
+    rows.push([
+      r.receivedAt?r.receivedAt.replace('T',' ').slice(0,19):'',
+      r.gtin||'', r.name||'', typeName(r.type)||r.type||'', riskByGtin[r.gtin]||'',
+      r.lot||'', fmtExp(r.expiry), r.serial||'', r.catalog||'', r.ident||'',
+      r.supplier||'', r.delivery||'', r.source||'rocno', r.status||''
+    ]);
+  });
+  if(rows.length<=1){notify('Ni evidence prejema za izvoz','warn');return;}
+  dlCSV(rows,'PregledBK_sledljivost_'+new Date().toISOString().slice(0,10)+'.csv');
 }
 
 // ===== MODAL CLOSE =====

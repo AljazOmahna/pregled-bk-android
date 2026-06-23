@@ -161,6 +161,8 @@ const doc = new Document({
       img("08_sprejem.png"),
       caption("Okno Sprejem materiala – korak 1 (skeniranje kode)"),
       h2("4.1 Običajni sprejem (z RFID)"),
+      p([b("Dobavitelj in št. dobavnice (IVDR): "), tx("na vrhu okna sprejema vpišite dobavitelja (npr. Salus) in številko dobavnice (npr. DOB26012345). Polji ostaneta zapolnjeni med zaporednim skeniranjem več artiklov iste dobavnice in se zapišeta v evidenco prejema za sledljivost. Pri sprejemu iz Salus dobavnice se predizpolnita samodejno.")]),
+      p([new TextRun({ text: "Lot in rok izteka sta obvezna ", bold: true, color: "C00000" }), tx("(razen za potrošni material) – sprejem brez njiju ni mogoč (zahteva IVDR, čl. 10).")]),
       num([b("Korak 1 – črtna koda: "), tx("skenirajte DataMatrix kodo na škatli. Aplikacija prepozna GTIN, lot, rok in serijsko številko.")]),
       num([b("Korak 2 – RFID: "), tx("kliknite “Skeniraj RFID” in pritisnite trigger na RFD2000 – zajame se najbližja RFID oznaka.")]),
       num([b("Potrdite "), tx("z gumbom “Sprejmi”. Artikel se doda v zalogo (količina +1).")]),
@@ -200,6 +202,7 @@ const doc = new Document({
       img("06_gtin.png"),
       caption("Zavihek GTIN – šifre izdelkov"),
       p([tx("Sprejmejo se samo kode, ki so v tej bazi. Nove Abbott GTIN podatke uvozite prek "), b("CSV"), tx(", posamezne pa dodate z gumbom "), b("+ GTIN"), tx(". Gumb “Package insert” odpre navodila izdelka (OneDrive).")]),
+      p([b("Razred tveganja (IVDR): "), tx("v obrazcu GTIN izberite razred tveganja po Prilogi VIII Uredbe (EU) 2017/746 – "), b("A"), tx(" (najnižje), "), b("B"), tx(", "), b("C"), tx(" ali "), b("D"), tx(" (najvišje). V seznamu GTIN je razred prikazan kot barvna značka poleg tipa. Razred vpliva na zahtevo po navodilih za uporabo (glej poglavje 12).")]),
 
       // 9 PDF BK
       h1("9. PDF BK – tedensko poročilo"),
@@ -239,10 +242,23 @@ const doc = new Document({
       li(null, [b("OneDrive "), tx("– prijava z računom @kclj.si, nalaganje in združevanje podatkov.")]),
       li(null, [b("Uvozi iz datoteke "), tx("– naloži prejeto .json datoteko.")]),
       h2("11.3 Izvoz podatkov"),
-      p("Zaloga CSV, Zaloga BK PDF, Roki CSV, Seje CSV, GTIN CSV."),
+      p("Zaloga CSV, Zaloga BK PDF, Roki CSV, Seje CSV, GTIN CSV in Sledljivost CSV (IVDR)."),
+      li(null, [b("Sledljivost CSV (IVDR): "), tx("celotna evidenca prejema z UDI-DI (GTIN), nazivom, razredom tveganja, lotom, rokom izteka, serijsko številko, dobaviteljem, številko dobavnice, virom in statusom – za izpolnjevanje obveznosti sledljivosti po čl. 10 Uredbe (EU) 2017/746.")]),
 
-      // 12 POGOSTA VPRAŠANJA
-      h1("12. Pogosta vprašanja"),
+      // 12 IVDR SKLADNOST
+      h1("12. IVDR skladnost (Uredba EU 2017/746)"),
+      p("Aplikacija podpira osnovne zahteve uredbe o in vitro diagnostičnih medicinskih pripomočkih za vodenje zaloge in sledljivost v laboratoriju:"),
+      h2("12.1 Razred tveganja"),
+      p([tx("Vsak izdelek (GTIN) ima lahko določen razred tveganja po Prilogi VIII ("), b("A–D"), tx("). Razred vnesete v obrazcu GTIN (poglavje 8) in je viden kot barvna značka v seznamu.")]),
+      h2("12.2 Obvezna polja pri sprejemu"),
+      p([tx("Pri sprejemu materiala sta "), b("lot in rok izteka obvezna"), tx(" (razen potrošni material), dodatno se beležita "), b("dobavitelj"), tx(" in "), b("številka dobavnice"), tx(" (poglavje 4.1).")]),
+      h2("12.3 Navodila za uporabo (IFU)"),
+      p([tx("Za izdelke "), b("razreda C in D"), tx(" so navodila za uporabo (package insert) obvezna. V oknu “Package insert” so taki izdelki brez povezave označeni "), new TextRun({ text: "rdeče", bold: true, color: "C00000" }), tx(", na vrhu pa je povzetek števila manjkajočih.")]),
+      h2("12.4 Sledljivost"),
+      p([tx("Izvoz "), b("Sledljivost CSV (IVDR)"), tx(" (Več → Izvoz) ustvari popolno evidenco prejema z UDI-DI, lotom, rokom, serijsko, dobaviteljem in dobavnico (poglavje 11.3).")]),
+
+      // 13 POGOSTA VPRAŠANJA
+      h1("13. Pogosta vprašanja"),
       p([b("Kako zaključim sejo inventure?")]),
       p("Med aktivno sejo v zavihku Sken. izberite zaključek seje – skenirani artikli se zapišejo v zalogo."),
       p([b("Zakaj se zajame napačna RFID oznaka?")]),
@@ -254,12 +270,12 @@ const doc = new Document({
       p([b("RFID skener je ugasnjen – kako ga vključim?")]),
       p("Pridrži trigger (rumeni gumb) na čitalcu RFD2000 5 sekund in se bo skener samodejno prižgal."),
 
-      // 13 NAMESTITEV
-      h1("13. Namestitev in posodobitve"),
+      // 14 NAMESTITEV
+      h1("14. Namestitev in posodobitve"),
       p("Aplikacija se gradi samodejno na GitHub Actions (CI). Nova različica (APK) se prenese iz artefaktov in namesti na Zebro prek ADB (install -r, ohrani podatke). Trenutna različica: Build " + BUILD + "."),
 
-      // 14 ZGODOVINA
-      h1("14. Zgodovina različic"),
+      // 15 ZGODOVINA
+      h1("15. Zgodovina različic"),
       new Table({
         width: { size: 9360, type: WidthType.DXA },
         columnWidths: [900, 1500, 6960],
@@ -267,7 +283,8 @@ const doc = new Document({
           new TableRow({ tableHeader: true, children: [
             cell("Build", 900, "1F3864", true), cell("Datum", 1500, "1F3864", true), cell("Spremembe", 6960, "1F3864", true),
           ]}),
-          histRow("114", DATE, "OneDrive: device-code za osebne (Hotmail) račune prek tenant “consumers” → koda na microsoft.com/link. Operaterji: samo branje iz OneDrive."),
+          histRow("139", DATE, "IVDR skladnost (EU 2017/746): razred tveganja A/B/C/D per GTIN, obvezna lot+rok pri sprejemu + dobavitelj in št. dobavnice, IFU obvezen za razred C/D, izvoz Sledljivost CSV (UDI, lot, rok, dobavitelj, dobavnica)."),
+          histRow("114", "16.6.2026", "OneDrive: device-code za osebne (Hotmail) račune prek tenant “consumers” → koda na microsoft.com/link. Operaterji: samo branje iz OneDrive."),
           histRow("113", "15.6.2026", "Quick Share / sinhronizacija: združevanje zaloge po EPC (pravi unikat RFID) — brez izgubljenih ali podvojenih kosov."),
           histRow("112", "14.6.2026", "PDF BK: barvni roki izteka (rdeče/oranžno/rumeno) z legendo. Operaterji: gumb za urejanje (✎)."),
           histRow("111", "14.6.2026", "Vgrajen imenik 129 operaterjev. PDF dialog: številčnica (PIN) + skeniranje matične; izpis imena."),
