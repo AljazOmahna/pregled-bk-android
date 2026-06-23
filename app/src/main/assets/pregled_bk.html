@@ -245,6 +245,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
   <div>
     <div class="hdr-logo">PREGLED BK</div>
     <div class="hdr-sub">Inventura kalibratorjev in kontrol</div>
+    <div id="currentOpLabel" style="font-size:9px;color:var(--text3);margin-top:1px"></div>
   </div>
   <div class="hdr-spacer"></div>
   <div class="hdr-stat-row">
@@ -597,7 +598,29 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     <div class="card-title">&#128100; Operaterji</div>
     <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Operaterji se urejajo v aplikaciji <b>BIO Alinity</b> in se sinhronizirajo prek OneDrive. Tu so samo za izpis podpisa na PDF.</div>
     <div id="opList" style="max-height:180px;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-bottom:8px"></div>
-    <button class="btn btn-a btn-sm" onclick="msDownloadOperators()" style="width:100%;-webkit-justify-content:center;justify-content:center">&#11015;&#65039; Osveži iz OneDrive</button>
+    <div style="display:-webkit-flex;display:flex;gap:8px;margin-bottom:8px">
+      <button class="btn btn-a btn-sm" onclick="msDownloadOperators()" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center">&#11015;&#65039; Osveži iz OneDrive</button>
+      <button class="btn btn-g btn-sm" onclick="openOperatorModal()" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center">&#128100; Zamenjaj operaterja</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">&#128203; Revizijska sled (ALCOA+)</div>
+    <div style="display:-webkit-flex;display:flex;gap:8px;margin-bottom:8px;-webkit-align-items:center;align-items:center">
+      <select id="auditFilter" onchange="renderAuditLog()" style="padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:11px;-webkit-flex:1;flex:1">
+        <option value="">Vse akcije</option>
+        <option value="sprejem">Sprejem</option>
+        <option value="zaloga">Zaloga</option>
+        <option value="lot">Loti</option>
+        <option value="gtin">GTIN</option>
+      </select>
+      <label style="font-size:11px;color:var(--text2);white-space:nowrap"><input type="checkbox" id="auditShowAll" onchange="renderAuditLog()"> Vse</label>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Čas</th><th>Operater</th><th>Akcija</th><th>ID</th><th>Podrobnosti</th></tr></thead>
+        <tbody id="auditBody"></tbody>
+      </table>
+    </div>
   </div>
   <div class="card">
     <div class="card-title">&#9729;&#65039; Sinhronizacija (OneDrive)</div>
@@ -653,6 +676,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <button class="btn btn-a btn-sm" onclick="exportSessCSV()">&#128203; Seje CSV</button>
       <button class="btn btn-a btn-sm" onclick="exportGtinCSV()">&#127991; GTIN CSV</button>
       <button class="btn btn-a btn-sm" onclick="exportTraceabilityCsv()">&#128203; Sledljivost CSV (IVDR)</button>
+      <button class="btn btn-a btn-sm" onclick="exportAuditCsv()">&#128196; Revizijska sled CSV</button>
     </div>
   </div>
   <div class="card">
@@ -716,6 +740,18 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     <div class="fr" style="-webkit-justify-content:flex-end;justify-content:flex-end;gap:8px">
       <button class="btn btn-g btn-sm" onclick="closePdfSign()">Prekliči</button>
       <button class="btn btn-a btn-sm" onclick="confirmPdfSign()">Generiraj PDF</button>
+    </div>
+  </div>
+</div>
+<div class="mo" id="moOperator">
+  <div class="modal">
+    <div class="mh"><h3>&#128100; Identifikacija operaterja</h3></div>
+    <div class="mb">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Izberite operaterja za to sejo. Vaše ime bo zabeleženo v revizijski sledi (ALCOA+).</div>
+      <div class="fg"><label>Operater</label><select id="opLoginSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)"></select></div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-a" onclick="confirmOperatorLogin()" style="-webkit-justify-content:center;justify-content:center;width:100%">&#10003; Potrdi</button>
     </div>
   </div>
 </div>
@@ -1270,7 +1306,8 @@ const BUILTIN_OPERATORS = [
 ];
 
 // ===== STATE =====
-var DB={gtins:[],inventory:[],sessions:[],activeSessionId:null,lastUsed:[],received:[],operators:[]};
+var DB={gtins:[],inventory:[],sessions:[],activeSessionId:null,lastUsed:[],received:[],operators:[],auditLog:[]};
+var currentOperator=null;
 function loadDB(){
   try{
     var s=localStorage.getItem('pbk_tc20');
@@ -1289,6 +1326,29 @@ function saveDB(){
   }catch(e){
     console.log('localStorage err:',e.message);
   }
+}
+function auditEntry(action,entityId,detail,before,after){
+  if(!DB.auditLog)DB.auditLog=[];
+  DB.auditLog.push({
+    id:Date.now().toString(),
+    ts:new Date().toISOString(),
+    opId:currentOperator?currentOperator.id:'—',
+    opName:currentOperator?currentOperator.name:'Sistem',
+    action:action,
+    entityId:entityId||'',
+    detail:detail||'',
+    before:before||null,
+    after:after||null
+  });
+  saveDB();
+}
+function formatUDI(gtin,lot,expiry,serial){
+  var g=(gtin||'');while(g.length<14)g='0'+g;
+  var s='(01)'+g;
+  if(lot)s+='(10)'+lot;
+  if(expiry)s+='(17)'+(expiry||'').replace(/-/g,'').slice(2,8);
+  if(serial)s+='(21)'+serial;
+  return s;
 }
 
 // ===== UTILS =====
@@ -2023,7 +2083,7 @@ function nav(page){
   if(page==='expiry')setExpTab('exp');
   if(page==='gtins')renderGtins();
   if(page==='overview')renderOverview();
-  if(page==='more'){renderSessions();renderOperators();prnRefreshStatus();}
+  if(page==='more'){renderSessions();renderOperators();prnRefreshStatus();renderAuditLog();}
   if(page==='scan'){updateBanner();setTimeout(focusScan,200);}
 }
 
@@ -2101,6 +2161,7 @@ function renderLots(){
         h+=' <span style="font-size:10px;color:var(--text3)">Rok: '+expStr+'</span>';
         h+=' <span style="font-size:10px;color:var(--text3)">Qty: '+qty+'</span>';
         h+='<br><span style="font-size:10px;color:var(--text3)">Sprejet: '+dateStr+'</span>';
+        if(l.gtin&&l.lot)h+='<br><span style="font-size:8px;color:var(--text3);font-family:var(--mono)">'+formatUDI(l.gtin,l.lot,l.expiry,'')+'</span>';
         h+='</div>';
         if(needsEval){
           if(!l.checked)h+='<button class="btn btn-a btn-sm" onclick="openLotEval(\''+l.gtin+'\',\''+l.lot.replace(/'/g,"\\'")+'\')" style="padding:5px 9px;min-height:32px;white-space:nowrap">&#128203; Ovrednoti</button>';
@@ -2133,7 +2194,8 @@ function toggleLotChecked(gtin,lot){
   if(EVAL_TYPES.indexOf(l.type)>=0&&!l.checked){openLotEval(gtin,lot);return;}
   l.checked=!l.checked;
   l.checkedAt=l.checked?new Date().toISOString():null;
-  saveDB();renderLots();
+  auditEntry('lot-check',l.gtin+'·'+l.lot,l.name+' '+(l.checked?'preverjen':'odprto'));
+  renderLots();
 }
 // ===== OVREDNOTENJE LOTA (datum + obvezen sklic na dokument) =====
 var _lotEvalKey=null; // {gtin,lot} ki se trenutno ovrednoti
@@ -2162,7 +2224,8 @@ function confirmLotEval(){
   l.checked=true;
   l.checkedAt=new Date().toISOString();
   _lotEvalKey=null;
-  saveDB();closeMo('moLotEval');renderLots();
+  auditEntry('lot-eval',l.gtin+'·'+l.lot,l.name+' evalDate:'+l.evalDate);
+  closeMo('moLotEval');renderLots();
   notify('Lot '+l.lot+' ovrednoten','ok');
   msUploadLotLog(l.type);
 }
@@ -2763,9 +2826,10 @@ var NAROC_GTINS=[
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:139,
-  date:'2026-06-23',
+  build:140,
+  date:'2026-06-24',
   history:[
+    {build:140,date:'2026-06-24',notes:'ALCOA+ revizijska sled: vsaka sprememba podatkov (sprejem, zaloga, loti, GTIN) se beleži z operaterjem, časom in podrobnostmi. Prijava operaterja ob zagonu aplikacije (modal; velja za sejo). Gumb "Zamenjaj operaterja" v Več → Operaterji. Revizijska sled prikazana v Več s filtrom po tipu akcije. Izvoz "Revizijska sled CSV". IVDR UDI prikaz v GS1 formatu (01)GTIN(10)LOT(17)EXPIRY v evidenci sprejema in lotih.'},
     {build:139,date:'2026-06-23',notes:'IVDR skladnost (EU 2017/746): (1) razred tveganja A/B/C/D per GTIN (Priloga VIII) — ročno polje v GTIN obrazcu + barvna značka v seznamu; (2) sprejem materiala — lot in rok izteka OBVEZNA (razen potrošni material), dodani polji Dobavitelj in Št. dobavnice (predizpolnjena iz Salus dobavnice, ostaneta med serijskim skeniranjem); (3) navodila za uporabo (IFU) označena kot OBVEZNA za artikle razreda C/D brez povezave + povzetek manjkajočih; nov izvoz "Sledljivost CSV (IVDR)" — celotna evidenca prejema z UDI-DI, lotom, rokom, dobaviteljem, dobavnico in statusom (čl. 10).'},
     {build:138,date:'2026-06-22',notes:'Dopolnitev NAROC_GTINS iz DB backupa: 19 GTINov zapolnjenih (LIPID MULTI C CAL, URINE/CSF PROT CAL, BRAHMS PCT CAL, STAT CK-MB CAL + 15 potrošnih). Dodani Randox kontroli HUM ASY L2 in L3. Skupaj 380 vnosov, 123 z GTIN.'},
     {build:136,date:'2026-06-21',notes:'NAROC_GTINS posodobljen z GTIN iz 170 Salus dobavnic (102/378 artiklov). Vsi kalibratorji, kontrole in reagenti razen 4 kalibratorjev ki niso bili dobavljeni.'},
@@ -3278,7 +3342,8 @@ function confirmSprejem(){
     newItem.units=[{sn:sprejemData.serial||'',epc:sprejemEpc||''}];
     DB.inventory.push(newItem);
   }
-  saveDB(); renderReceived(); renderInventory(); updateStats();
+  auditEntry('sprejem',sprejemData.gtin+'·'+(sprejemData.lot||''),sprejemData.name+' LOT '+(sprejemData.lot||'—'));
+  renderReceived(); renderInventory(); updateStats();
   checkNewLot(sprejemData.gtin,sprejemData.lot,sprejemData.name,sprejemData.type,sprejemData.expiry);
   notify('Sprejeto: '+sprejemData.name+(sprejemData.serial?' #'+sprejemData.serial:''),'ok');
   if(APP_SETTINGS.serialSprejem){spReset();}else{closeSprejem();}
@@ -3296,7 +3361,8 @@ function renderReceived(){
     var rfidShort=r.rfidEpc?r.rfidEpc.slice(0,8)+'…':'-';
     h+='<tr>';
     var srcLine=[r.supplier,r.delivery].filter(function(x){return x;}).join(' · ');
-    h+='<td><div style="font-size:11px;font-weight:600">'+r.name+'</div><div class="gtin">'+r.gtin+'</div>'+(srcLine?'<div style="font-size:9px;color:var(--text3)">'+srcLine+'</div>':'')+'</td>';
+    var _udi=(r.gtin&&r.lot)?formatUDI(r.gtin,r.lot,r.expiry,r.serial):'';
+    h+='<td><div style="font-size:11px;font-weight:600">'+r.name+'</div><div class="gtin">'+r.gtin+'</div>'+(srcLine?'<div style="font-size:9px;color:var(--text3)">'+srcLine+'</div>':'')+(_udi?'<div style="font-size:8px;color:var(--text3);font-family:var(--mono)">'+_udi+'</div>':'')+'</td>';
     h+='<td class="lot-n">'+(r.lot||'-')+'</td>';
     h+='<td style="color:'+dc+'">'+fmtExp(r.expiry)+'</td>';
     h+='<td class="lot-n">'+(r.serial||'-')+'</td>';
@@ -3881,8 +3947,10 @@ function showDetail(gtin,lot){
 }
 function removeItem(gtin,lot){
   if(!confirm('Odstraniti artikel?'))return;
+  var it=DB.inventory.filter(function(i){return i.gtin===gtin&&i.lot===lot;})[0];
   DB.inventory=DB.inventory.filter(function(i){return!(i.gtin===gtin&&i.lot===lot);});
-  saveDB();renderInventory();updateStats();notify('Artikel odstranjen');
+  auditEntry('zaloga-remove',gtin+'·'+lot,it?it.name:gtin);
+  renderInventory();updateStats();notify('Artikel odstranjen');
 }
 function consumeItem(gtin,lot){
   var it=DB.inventory.filter(function(i){return i.gtin===gtin&&i.lot===lot;})[0];
@@ -3893,7 +3961,8 @@ function consumeItem(gtin,lot){
     serials:(it.serials||[]).slice(),rfidEpcs:(it.rfidEpcs||[]).slice(),
     expiry:it.expiry||'',consumedAt:new Date().toISOString(),restoredAt:null});
   DB.inventory=DB.inventory.filter(function(i){return!(i.gtin===gtin&&i.lot===lot);});
-  saveDB();renderInventory();updateStats();
+  auditEntry('zaloga-consume',gtin+'·'+lot,(it.name||gtin)+' qty:'+(it.qty||1));
+  renderInventory();updateStats();
   try{closeMo('moItem');}catch(e){}
   notify('Artikel označen kot porabljen ✓');
 }
@@ -3984,11 +4053,13 @@ function saveQty(){
   if(!qtyKey)return;
   var it=DB.inventory.filter(function(i){return i.gtin===qtyKey.gtin&&i.lot===qtyKey.lot;})[0];
   if(!it){closeMo('moQty');return;}
+  var oldQty=it.qty;
   it.qty=qtyCur;
   if(!it.adjustments)it.adjustments=[];
   it.adjustments.push({dt:new Date().toISOString(),qty:qtyCur,reason:$i('qtyReason').value.trim()});
   if(it.qty<=0&&confirm('Količina je 0. Odstraniti?'))DB.inventory=DB.inventory.filter(function(i){return!(i.gtin===qtyKey.gtin&&i.lot===qtyKey.lot);});
-  saveDB();closeMo('moQty');renderOverview();renderInventory();updateStats();notify('Zaloga posodobljena','ok');
+  auditEntry('zaloga-qty',qtyKey.gtin+'·'+qtyKey.lot,'qty: '+oldQty+'→'+qtyCur,{qty:oldQty},{qty:qtyCur});
+  closeMo('moQty');renderOverview();renderInventory();updateStats();notify('Zaloga posodobljena','ok');
 }
 
 // ===== ALERTS =====
@@ -4159,10 +4230,11 @@ function saveGtin(){
   if(editGI!=null){
     if(prev&&prev.type!==obj.type)(DB.inventory||[]).forEach(function(inv){if(inv.gtin===obj.gtin)inv.type=obj.type;});
     DB.gtins[editGI]=obj;
-  }else{if(DB.gtins.filter(function(g){return g.gtin===gtin;}).length){notify('GTIN že obstaja','warn');return;}DB.gtins.push(obj);}
-  saveDB();closeMo('moGtin');renderGtins();notify('GTIN shranjen','ok');
+    auditEntry('gtin-edit',gtin,name);
+  }else{if(DB.gtins.filter(function(g){return g.gtin===gtin;}).length){notify('GTIN že obstaja','warn');return;}DB.gtins.push(obj);auditEntry('gtin-add',gtin,name);}
+  closeMo('moGtin');renderGtins();notify('GTIN shranjen','ok');
 }
-function delGtin(i){if(!confirm('Izbrisati GTIN?'))return;DB.gtins.splice(i,1);saveDB();renderGtins();notify('GTIN izbrisan');}
+function delGtin(i){if(!confirm('Izbrisati GTIN?'))return;var _g=DB.gtins[i];DB.gtins.splice(i,1);auditEntry('gtin-del',_g?_g.gtin:'',_g?_g.name:'');renderGtins();notify('GTIN izbrisan');}
 function importNarocGtins(doImport){
   var byIdent={};var byCatalog={};
   (DB.gtins||[]).forEach(function(g,i){
@@ -4686,6 +4758,64 @@ function exportGtinCSV(){
   DB.gtins.forEach(function(g){rows.push([g.gtin,g.name,g.type,g.manufacturer,g.analyser,g.note,g.catalog||'',g.ident||'',g.riskClass||'']);});
   dlCSV(rows,'GTIN_'+new Date().toISOString().slice(0,10)+'.csv');
 }
+// ===== ALCOA+ OPERATER LOGIN =====
+function openOperatorModal(){
+  var sel=$i('opLoginSel');if(!sel)return;
+  var ops=DB.operators||[];
+  sel.innerHTML=ops.length?ops.map(function(o){return '<option value="'+o.id+'">'+o.id+' – '+o.name+'</option>';}).join(''):'<option value="">— ni operaterjev —</option>';
+  showMo('moOperator');
+}
+function confirmOperatorLogin(){
+  var sel=$i('opLoginSel');if(!sel)return;
+  var id=sel.value;if(!id){notify('Izberite operaterja','warn');return;}
+  var op=(DB.operators||[]).filter(function(o){return o.id===id;})[0];
+  if(!op){notify('Operater ni najden','warn');return;}
+  currentOperator={id:op.id,name:op.name};
+  closeMo('moOperator');
+  var el=$i('currentOpLabel');if(el)el.textContent=op.name;
+  notify('Prijavljen: '+op.name,'ok');
+}
+
+// ===== ALCOA+ REVIZIJSKA SLED =====
+function renderAuditLog(){
+  var el=$i('auditBody');if(!el)return;
+  var filt=($i('auditFilter')?$i('auditFilter').value:'');
+  var showAll=($i('auditShowAll')?$i('auditShowAll').checked:false);
+  var logs=(DB.auditLog||[]).slice().reverse();
+  if(filt)logs=logs.filter(function(l){return l.action===filt||l.action.indexOf(filt)===0;});
+  var total=logs.length;
+  if(!showAll)logs=logs.slice(0,50);
+  var cols={
+    'sprejem':'var(--accent)','zaloga-consume':'var(--green)','zaloga-remove':'var(--red)',
+    'zaloga-qty':'var(--orange)','lot-eval':'var(--orange)','lot-check':'#3b82f6',
+    'gtin-add':'#94a3b8','gtin-edit':'#94a3b8','gtin-del':'var(--red)'
+  };
+  if(!logs.length){el.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Ni vnosov.</td></tr>';return;}
+  el.innerHTML=logs.map(function(l){
+    var c=cols[l.action]||'var(--text3)';
+    return '<tr>'+
+      '<td style="font-size:10px;white-space:nowrap;color:var(--text3)">'+(l.ts||'').slice(0,16).replace('T',' ')+'</td>'+
+      '<td style="font-size:11px">'+(l.opName||'—')+'</td>'+
+      '<td><span class="badge" style="background:transparent;border:1px solid '+c+';color:'+c+';font-size:9px">'+(l.action||'')+'</span></td>'+
+      '<td style="font-family:var(--mono);font-size:9px;word-break:break-all">'+(l.entityId||'')+'</td>'+
+      '<td style="font-size:10px;color:var(--text2)">'+(l.detail||'')+'</td>'+
+      '</tr>';
+  }).join('')+((!showAll&&total>50)?'<tr><td colspan="5" style="text-align:center;font-size:10px;color:var(--text3);padding:8px">Prikazano 50 od '+total+' vnosov</td></tr>':'');
+}
+function exportAuditCsv(){
+  var rows=[['Cas','Op.ID','Operater','Akcija','ID entitete','Podrobnosti','Pred','Po']];
+  (DB.auditLog||[]).slice().reverse().forEach(function(l){
+    rows.push([
+      (l.ts||'').replace('T',' ').slice(0,19),
+      l.opId||'',l.opName||'',l.action||'',l.entityId||'',l.detail||'',
+      l.before?JSON.stringify(l.before):'',
+      l.after?JSON.stringify(l.after):''
+    ]);
+  });
+  if(rows.length<=1){notify('Ni vnosov v revizijski sledi','warn');return;}
+  dlCSV(rows,'RevizijskaSled_'+new Date().toISOString().slice(0,10)+'.csv');
+}
+
 // IVDR sledljivost (čl. 10): celotna evidenca prejema z UDI, dobaviteljem in dobavnico
 function exportTraceabilityCsv(){
   var riskByGtin={};(DB.gtins||[]).forEach(function(g){riskByGtin[g.gtin]=g.riskClass||'';});
@@ -5131,6 +5261,8 @@ try { updateStats(); } catch(e){}
 try { refreshSyncUI(); } catch(e){}
 try { setMode('rfid'); } catch(e){}
 try { focusScan(); } catch(e){}
+// ALCOA+: prikaži login modal ob zagonu če obstajajo operaterji
+try { if((DB.operators||[]).length>0&&!currentOperator)openOperatorModal(); } catch(e){}
 // Show current file path
 try {
   var el=document.getElementById('filePathDisplay');
