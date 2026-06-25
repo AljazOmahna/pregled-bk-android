@@ -245,7 +245,6 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
   <div>
     <div class="hdr-logo">PREGLED BK</div>
     <div class="hdr-sub">Inventura kalibratorjev in kontrol</div>
-    <div id="currentOpLabel" style="font-size:9px;color:var(--text3);margin-top:1px"></div>
   </div>
   <div class="hdr-spacer"></div>
   <div class="hdr-stat-row">
@@ -751,8 +750,8 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
   <div class="modal">
     <div class="mh"><h3>&#128100; Identifikacija operaterja</h3></div>
     <div class="mb">
-      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Izberite operaterja za to sejo. Vaše ime bo zabeleženo v revizijski sledi (ALCOA+).</div>
-      <div class="fg"><label>Operater</label><select id="opLoginSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)"></select></div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Vnesite matično številko. Vaše ime bo zabeleženo v revizijski sledi (ALCOA+).</div>
+      <div class="fg"><label>Matična številka</label><input type="text" id="opLoginId" placeholder="Vpišite matično številko" onkeydown="if(event.key==='Enter')confirmOperatorLogin()" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px"></div>
     </div>
     <div class="mf">
       <button class="btn btn-a" onclick="confirmOperatorLogin()" style="-webkit-justify-content:center;justify-content:center;width:100%">&#10003; Potrdi</button>
@@ -1119,12 +1118,17 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       </div>
       <div id="lotEvalNote" style="display:none;background:#e8f0ff;border:1px solid #3b82f6;border-radius:8px;padding:10px;font-size:11px;color:#1d4ed8;margin-bottom:10px"></div>
       <div class="fg"><label>Datum ovrednotenja</label><input type="date" id="lotEvalDate"></div>
-      <div class="fg"><label>Vpisano na analizatorje</label><div style="display:flex;gap:16px;flex-wrap:wrap;padding:4px 0">
-        <label style="display:flex;align-items:center;gap:6px;font-size:14px"><input type="checkbox" id="evalAL01" style="width:18px;height:18px"> AL01</label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:14px"><input type="checkbox" id="evalAL02" style="width:18px;height:18px"> AL02</label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:14px"><input type="checkbox" id="evalAL03" style="width:18px;height:18px"> AL03</label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:14px"><input type="checkbox" id="evalAL04" style="width:18px;height:18px"> AL04</label>
-      </div></div>
+      <div id="evalAnalyzerSection">
+        <div class="fg"><label>Vpisano na analizatorje</label><div style="display:flex;gap:16px;flex-wrap:wrap;padding:4px 0">
+          <label style="display:flex;align-items:center;gap:6px;font-size:14px"><input type="checkbox" id="evalAL01" style="width:18px;height:18px"> AL01</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:14px"><input type="checkbox" id="evalAL02" style="width:18px;height:18px"> AL02</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:14px"><input type="checkbox" id="evalAL03" style="width:18px;height:18px"> AL03</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:14px"><input type="checkbox" id="evalAL04" style="width:18px;height:18px"> AL04</label>
+        </div></div>
+      </div>
+      <div id="evalDocSection" style="display:none">
+        <div class="fg"><label>Sklic na dokument (lot-to-lot primerjava)</label><input type="text" id="lotEvalDoc" placeholder="npr. LTL-2026-042, protokol validacije..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)"></div>
+      </div>
     </div>
     <div class="mf">
       <button class="btn btn-g" onclick="closeMo('moLotEval')">Prekliči</button>
@@ -2234,6 +2238,11 @@ function openLotEval(gtin,lot){
   var nb=$i('lotEvalNote');
   if(note){nb.style.display='block';nb.innerHTML='&#9888; '+note;}else nb.style.display='none';
   $i('lotEvalDate').value=l.evalDate||new Date().toISOString().slice(0,10);
+  var isCalib=(l.type==='calibrator');
+  var as=$i('evalAnalyzerSection'),ds=$i('evalDocSection');
+  if(as)as.style.display=isCalib?'block':'none';
+  if(ds)ds.style.display=isCalib?'none':'block';
+  if(!isCalib){var dinp=$i('lotEvalDoc');if(dinp)dinp.value=l.evalDoc||'';}
   var ea=l.evalAnalyzers||[];
   ['AL01','AL02','AL03','AL04'].forEach(function(a){var el=$i('eval'+a);if(el)el.checked=ea.indexOf(a)>=0;});
   showMo('moLotEval');
@@ -2242,14 +2251,21 @@ function confirmLotEval(){
   if(!_lotEvalKey)return;
   var l=(DB.lots||[]).filter(function(x){return x.gtin===_lotEvalKey.gtin&&x.lot===_lotEvalKey.lot;})[0];
   if(!l)return;
-  var analyzers=['AL01','AL02','AL03','AL04'].filter(function(a){var el=$i('eval'+a);return el&&el.checked;});
-  if(analyzers.length<4){notify('Označite vse analizatorje (AL01–AL04)','warn');return;}
+  var isCalib=(l.type==='calibrator');
+  if(isCalib){
+    var analyzers=['AL01','AL02','AL03','AL04'].filter(function(a){var el=$i('eval'+a);return el&&el.checked;});
+    if(analyzers.length<4){notify('Označite vse analizatorje (AL01–AL04)','warn');return;}
+    l.evalAnalyzers=analyzers;
+  }else{
+    var doc=($i('lotEvalDoc')?$i('lotEvalDoc').value||'':'').trim();
+    if(!doc){notify('Vnesite sklic na dokument lot-to-lot primerjave','warn');return;}
+    l.evalDoc=doc;
+  }
   l.evalDate=$i('lotEvalDate').value||new Date().toISOString().slice(0,10);
-  l.evalAnalyzers=analyzers;
   l.checked=true;
   l.checkedAt=new Date().toISOString();
   _lotEvalKey=null;
-  auditEntry('lot-eval',l.gtin+'·'+l.lot,l.name+' evalDate:'+l.evalDate);
+  auditEntry('lot-eval',l.gtin+'·'+l.lot,l.name+' evalDate:'+l.evalDate+(l.evalDoc?' doc:'+l.evalDoc:''));
   closeMo('moLotEval');renderLots();
   notify('Lot '+l.lot+' ovrednoten','ok');
   msUploadLotLog(l.type);
@@ -2851,9 +2867,10 @@ var NAROC_GTINS=[
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:141,
+  build:142,
   date:'2026-06-25',
   history:[
+    {build:142,date:'2026-06-25',notes:'Operator login: matična številka (text input, iskanje po DB.operators.id) namesto dropdowna. Header fix: odstranjen currentOpLabel ki je povzročal overflow. Loti: kalibratorji → AL01-AL04 checkboxi; reagenti/kontrole → sklic na dokument lot-to-lot primerjave (evalDoc). Salus auto-import: ob zagonu prebere /sdcard/Download/salus_deliveries.json prek AndroidBridge.readFile in uvozi dobavnice, nato izbriše datoteko.'},
     {build:141,date:'2026-06-25',notes:'Uvoz Salus dobavnic iz JSON datoteke: gumb "Uvozi JSON" v Dobavnicah odpre file picker; sprejme seznam dobavnic v formatu DB.deliveries[]; preskoči že uvožene (po file ključu); pokliče enrichDeliveryItems za ujemanje z GTIN katalogom.'},
     {build:140,date:'2026-06-24',notes:'ALCOA+ revizijska sled: vsaka sprememba podatkov (sprejem, zaloga, loti, GTIN) se beleži z operaterjem, časom in podrobnostmi. Prijava operaterja ob zagonu aplikacije (modal; velja za sejo). Gumb "Zamenjaj operaterja" v Več → Operaterji. Revizijska sled prikazana v Več s filtrom po tipu akcije. Izvoz "Revizijska sled CSV". IVDR UDI prikaz v GS1 formatu (01)GTIN(10)LOT(17)EXPIRY v evidenci sprejema in lotih.'},
     {build:139,date:'2026-06-23',notes:'IVDR skladnost (EU 2017/746): (1) razred tveganja A/B/C/D per GTIN (Priloga VIII) — ročno polje v GTIN obrazcu + barvna značka v seznamu; (2) sprejem materiala — lot in rok izteka OBVEZNA (razen potrošni material), dodani polji Dobavitelj in Št. dobavnice (predizpolnjena iz Salus dobavnice, ostaneta med serijskim skeniranjem); (3) navodila za uporabo (IFU) označena kot OBVEZNA za artikle razreda C/D brez povezave + povzetek manjkajočih; nov izvoz "Sledljivost CSV (IVDR)" — celotna evidenca prejema z UDI-DI, lotom, rokom, dobaviteljem, dobavnico in statusom (čl. 10).'},
@@ -4786,19 +4803,18 @@ function exportGtinCSV(){
 }
 // ===== ALCOA+ OPERATER LOGIN =====
 function openOperatorModal(){
-  var sel=$i('opLoginSel');if(!sel)return;
-  var ops=DB.operators||[];
-  sel.innerHTML=ops.length?ops.map(function(o){return '<option value="'+o.id+'">'+o.id+' – '+o.name+'</option>';}).join(''):'<option value="">— ni operaterjev —</option>';
+  var inp=$i('opLoginId');if(inp)inp.value='';
   showMo('moOperator');
+  setTimeout(function(){var inp=$i('opLoginId');if(inp)inp.focus();},200);
 }
 function confirmOperatorLogin(){
-  var sel=$i('opLoginSel');if(!sel)return;
-  var id=sel.value;if(!id){notify('Izberite operaterja','warn');return;}
+  var inp=$i('opLoginId');if(!inp)return;
+  var id=(inp.value||'').trim();
+  if(!id){notify('Vpišite matično številko','warn');return;}
   var op=(DB.operators||[]).filter(function(o){return o.id===id;})[0];
-  if(!op){notify('Operater ni najden','warn');return;}
+  if(!op){notify('Operater '+id+' ni v bazi','warn');return;}
   currentOperator={id:op.id,name:op.name};
   closeMo('moOperator');
-  var el=$i('currentOpLabel');if(el)el.textContent=op.name;
   notify('Prijavljen: '+op.name,'ok');
 }
 
@@ -5289,6 +5305,23 @@ try { setMode('rfid'); } catch(e){}
 try { focusScan(); } catch(e){}
 // ALCOA+: prikaži login modal ob zagonu če obstajajo operaterji
 try { if((DB.operators||[]).length>0&&!currentOperator)openOperatorModal(); } catch(e){}
+// Auto-import Salus dobavnice iz /sdcard/Download/salus_deliveries.json
+try{
+  if(typeof AndroidBridge!=='undefined'&&AndroidBridge.readFile){
+    var _sp='/sdcard/Download/salus_deliveries.json';
+    var _sj=AndroidBridge.readFile(_sp);
+    if(_sj){
+      var _sa=JSON.parse(_sj);
+      if(Array.isArray(_sa)&&_sa.length){
+        if(!DB.deliveries)DB.deliveries=[];
+        var _sk={};DB.deliveries.forEach(function(d){_sk[d.file]=true;});
+        var _sc=0;
+        _sa.forEach(function(d){if(!d.file||_sk[d.file])return;enrichDeliveryItems(d.items||[]);DB.deliveries.push(d);_sc++;});
+        if(_sc>0){saveDB();AndroidBridge.deleteFile(_sp);notify(_sc+' Salus dobavnic uvoženih','ok');}
+      }
+    }
+  }
+}catch(e){}
 // Show current file path
 try {
   var el=document.getElementById('filePathDisplay');

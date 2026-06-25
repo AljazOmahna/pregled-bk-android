@@ -457,6 +457,21 @@ public class MainActivity extends Activity implements RFIDHandler.Callback {
         }
 
         @JavascriptInterface
+        public String readFile(String path) {
+            try {
+                java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader(path));
+                StringBuilder sb = new StringBuilder(); String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close(); return sb.toString();
+            } catch (Exception e) { return null; }
+        }
+
+        @JavascriptInterface
+        public boolean deleteFile(String path) {
+            try { return new java.io.File(path).delete(); } catch (Exception e) { return false; }
+        }
+
+        @JavascriptInterface
         public void startRfidSprejemScan() {
             if (rfidHandler != null) rfidHandler.startRfidInventory(600);
         }
