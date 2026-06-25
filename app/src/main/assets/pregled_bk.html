@@ -454,8 +454,12 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
 <div class="page" id="page-deliveries">
   <div class="sec-hdr">
     <div class="sec-title">&#128666; Dobavnice</div>
-    <button class="btn btn-a" onclick="salusCheckNew()" style="font-size:11px;padding:4px 10px">&#8635; Preveri</button>
+    <div style="-webkit-display:flex;display:flex;gap:6px">
+      <button class="btn btn-g" onclick="$i('importDelivJson').click()" style="font-size:11px;padding:4px 10px">&#8679; Uvozi JSON</button>
+      <button class="btn btn-a" onclick="salusCheckNew()" style="font-size:11px;padding:4px 10px">&#8635; Preveri</button>
+    </div>
   </div>
+  <input type="file" id="importDelivJson" accept=".json" style="display:none" onchange="importDeliveriesJson(event)">
   <div id="deliveriesBody" style="padding:8px"></div>
 </div>
 
@@ -1874,6 +1878,27 @@ function enrichDeliveryItems(items){
     it.isNewLot=unknownLot&&EVAL_TYPES.indexOf(it.matchedType)>=0;
   });
 }
+function importDeliveriesJson(e){
+  var file=e.target.files[0];if(!file)return;
+  e.target.value='';
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    var arr;try{arr=JSON.parse(ev.target.result);}catch(ex){notify('Napaka pri branju JSON: '+ex.message,'warn');return;}
+    if(!Array.isArray(arr)){notify('JSON mora biti seznam dobavnic','warn');return;}
+    if(!DB.deliveries)DB.deliveries=[];
+    var known={};DB.deliveries.forEach(function(d){known[d.file]=true;});
+    var added=0;
+    arr.forEach(function(d){
+      if(!d.file||known[d.file])return;
+      enrichDeliveryItems(d.items||[]);
+      DB.deliveries.push(d);
+      added++;
+    });
+    if(added>0){saveDB();renderDeliveries();notify(added+' dobavnic uvoženih','ok');}
+    else{notify('Vse dobavnice že uvožene','ok');}
+  };
+  reader.readAsText(file);
+}
 function salusCheckNew(){
   if(typeof AndroidBridge==='undefined'||!AndroidBridge.msIsSignedIn||!AndroidBridge.msIsSignedIn())return;
   if(!AndroidBridge.msListFolder)return;
@@ -2826,9 +2851,10 @@ var NAROC_GTINS=[
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:140,
-  date:'2026-06-24',
+  build:141,
+  date:'2026-06-25',
   history:[
+    {build:141,date:'2026-06-25',notes:'Uvoz Salus dobavnic iz JSON datoteke: gumb "Uvozi JSON" v Dobavnicah odpre file picker; sprejme seznam dobavnic v formatu DB.deliveries[]; preskoči že uvožene (po file ključu); pokliče enrichDeliveryItems za ujemanje z GTIN katalogom.'},
     {build:140,date:'2026-06-24',notes:'ALCOA+ revizijska sled: vsaka sprememba podatkov (sprejem, zaloga, loti, GTIN) se beleži z operaterjem, časom in podrobnostmi. Prijava operaterja ob zagonu aplikacije (modal; velja za sejo). Gumb "Zamenjaj operaterja" v Več → Operaterji. Revizijska sled prikazana v Več s filtrom po tipu akcije. Izvoz "Revizijska sled CSV". IVDR UDI prikaz v GS1 formatu (01)GTIN(10)LOT(17)EXPIRY v evidenci sprejema in lotih.'},
     {build:139,date:'2026-06-23',notes:'IVDR skladnost (EU 2017/746): (1) razred tveganja A/B/C/D per GTIN (Priloga VIII) — ročno polje v GTIN obrazcu + barvna značka v seznamu; (2) sprejem materiala — lot in rok izteka OBVEZNA (razen potrošni material), dodani polji Dobavitelj in Št. dobavnice (predizpolnjena iz Salus dobavnice, ostaneta med serijskim skeniranjem); (3) navodila za uporabo (IFU) označena kot OBVEZNA za artikle razreda C/D brez povezave + povzetek manjkajočih; nov izvoz "Sledljivost CSV (IVDR)" — celotna evidenca prejema z UDI-DI, lotom, rokom, dobaviteljem, dobavnico in statusom (čl. 10).'},
     {build:138,date:'2026-06-22',notes:'Dopolnitev NAROC_GTINS iz DB backupa: 19 GTINov zapolnjenih (LIPID MULTI C CAL, URINE/CSF PROT CAL, BRAHMS PCT CAL, STAT CK-MB CAL + 15 potrošnih). Dodani Randox kontroli HUM ASY L2 in L3. Skupaj 380 vnosov, 123 z GTIN.'},
