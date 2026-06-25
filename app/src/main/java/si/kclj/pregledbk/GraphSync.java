@@ -33,9 +33,10 @@ public class GraphSync {
 
     private static final String TAG = "PregledBK.Graph";
 
-    // organizations = Azure AD org računi (kclj.si). Za osebne (Hotmail) račune zamenjaj
-    // v Več → Napredno na "consumers" in URL bo microsoft.com/link namesto devicelogin.
-    private static final String DEFAULT_TENANT = "organizations";
+    // consumers = osebni Microsoft računi (Hotmail/Outlook). Za device code flow je to pravi
+    // endpoint za osebne račune (common se pri osebnih računih obesi). Za kclj.si org račune
+    // zamenjaj v Več → Napredno na "organizations" ali kclj tenant ID.
+    private static final String DEFAULT_TENANT = "consumers";
     // BIO Alinity Sync app registration (82b539ce-...) — ista registracija za tablico in Zebro
     private static final String DEFAULT_CLIENT = "82b539ce-e064-4643-a0df-41dde15b39a4";
 
