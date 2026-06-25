@@ -2886,9 +2886,15 @@ var NAROC_GTINS=[
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:142,
-  date:'2026-06-25',
+  build:148,
+  date:'2026-06-26',
   history:[
+    {build:148,date:'2026-06-26',notes:'APP_VERSION.build posodobljen na 148; popravek manjkajočih vnosov v zgodovini (143–147).'},
+    {build:147,date:'2026-06-26',notes:'Revert: GraphSync DEFAULT_TENANT nazaj na "consumers" (Hotmail) — kclj.si blokiran z Conditional Access politiko (53003).'},
+    {build:146,date:'2026-06-26',notes:'GraphSync DEFAULT_TENANT: consumers → organizations za kclj.si. Login modal: koda brez fiksne dolžine, separator na polovici. (Reverted v 147.)'},
+    {build:145,date:'2026-06-26',notes:'Dobavnice: iztek roka preverjen na letnico (expiry format YYMMDD). Nov lot badge modre barve namesto rdeče. Operator modal: inputmode=numeric za številčnico.'},
+    {build:144,date:'2026-06-26',notes:'reconcileDeliveriesFromReceived: timestamp filter — šteje samo DB.received vnose kjer receivedAt >= d.fetchedAt (prepreči štetje artiklov iz prejšnjih dobav).'},
+    {build:143,date:'2026-06-26',notes:'Sprejem ↔ dobavnica konection: reconcileDeliveriesFromReceived() samodejno posodobi confirmed v dobavnicah ob sprejemu (confirmSprejem), uvozu JSON in Salus auto-import. Gumb Uskladi v Dobavnice tabu.'},
     {build:142,date:'2026-06-25',notes:'Operator login: matična številka (text input, iskanje po DB.operators.id) namesto dropdowna. Header fix: odstranjen currentOpLabel ki je povzročal overflow. Loti: kalibratorji → AL01-AL04 checkboxi; reagenti/kontrole → sklic na dokument lot-to-lot primerjave (evalDoc). Salus auto-import: ob zagonu prebere /sdcard/Download/salus_deliveries.json prek AndroidBridge.readFile in uvozi dobavnice, nato izbriše datoteko.'},
     {build:141,date:'2026-06-25',notes:'Uvoz Salus dobavnic iz JSON datoteke: gumb "Uvozi JSON" v Dobavnicah odpre file picker; sprejme seznam dobavnic v formatu DB.deliveries[]; preskoči že uvožene (po file ključu); pokliče enrichDeliveryItems za ujemanje z GTIN katalogom.'},
     {build:140,date:'2026-06-24',notes:'ALCOA+ revizijska sled: vsaka sprememba podatkov (sprejem, zaloga, loti, GTIN) se beleži z operaterjem, časom in podrobnostmi. Prijava operaterja ob zagonu aplikacije (modal; velja za sejo). Gumb "Zamenjaj operaterja" v Več → Operaterji. Revizijska sled prikazana v Več s filtrom po tipu akcije. Izvoz "Revizijska sled CSV". IVDR UDI prikaz v GS1 formatu (01)GTIN(10)LOT(17)EXPIRY v evidenci sprejema in lotih.'},
