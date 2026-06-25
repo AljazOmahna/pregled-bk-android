@@ -656,7 +656,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <div style="margin-top:8px">
         <div class="fg" style="margin-bottom:6px"><label style="font-size:11px">Client ID (prazno = privzeti Microsoft)</label>
           <input type="text" id="syncClientId" placeholder="14d82eec-204b-4c2f-b7e8-296a70dab67e" style="font-family:var(--mono);font-size:11px;padding:6px;width:100%;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)"></div>
-        <div class="fg" style="margin-bottom:6px"><label style="font-size:11px">Tenant (prazno = kclj.si)</label>
+        <div class="fg" style="margin-bottom:6px"><label style="font-size:11px">Tenant (prazno = organizations/kclj.si)</label>
           <input type="text" id="syncTenant" placeholder="59ac58db-e485-4520-aa8b-4ae22d6534e6" style="font-family:var(--mono);font-size:11px;padding:6px;width:100%;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)"></div>
         <button class="btn btn-g btn-sm" onclick="msSaveConfig()" style="width:100%;-webkit-justify-content:center;justify-content:center">Shrani nastavitve</button>
       </div>
@@ -914,7 +914,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <div id="msLoginCode" style="display:none">
         <div style="font-size:12px;color:var(--text2);margin-bottom:10px">1. Na telefonu/računalniku odpri:</div>
         <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent);text-align:center;padding:10px;background:var(--bg3);border-radius:8px;margin-bottom:12px;letter-spacing:1px" id="msVerUri">microsoft.com/link</div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:8px">2. Vnesi <b>8-mestno kodo</b> in se prijavi:</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px">2. Vnesi <b>kodo</b> in se prijavi z aljaz.omahna@kclj.si:</div>
         <div id="msUserCode" style="display:-webkit-flex;display:flex;-webkit-justify-content:center;justify-content:center;gap:5px;padding:12px;background:var(--bg3);border-radius:8px;-webkit-user-select:all;user-select:all">&#8230;</div>
         <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:10px">&#8987; Čakam na potrditev prijave&#8230;</div>
       </div>
@@ -5049,8 +5049,9 @@ function onMsDeviceCode(userCode,verUri,message){
   $i('msLoginWait').style.display='none';
   $i('msLoginCode').style.display='block';
   var code=(userCode||'').replace(/[^A-Z0-9]/gi,'').toUpperCase();
+  var mid=Math.floor(code.length/2);
   var boxes=code.split('').map(function(ch,i){
-    var sep=(i===3&&code.length>=8)?'<div style="font-size:22px;color:var(--text3);line-height:42px">-</div>':'';
+    var sep=(i===mid&&code.length>=6)?'<div style="font-size:22px;color:var(--text3);line-height:42px">-</div>':'';
     return sep+'<div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--purple);background:var(--bg2);border:1px solid var(--border);border-radius:6px;width:36px;height:42px;line-height:42px;text-align:center">'+ch+'</div>';
   }).join('');
   $i('msUserCode').innerHTML=boxes||'…';
