@@ -455,6 +455,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     <div class="sec-title">&#128666; Dobavnice</div>
     <div style="-webkit-display:flex;display:flex;gap:6px">
       <button class="btn btn-g" onclick="$i('importDelivJson').click()" style="font-size:11px;padding:4px 10px">&#8679; Uvozi JSON</button>
+      <button class="btn btn-g" onclick="if(reconcileDeliveriesFromReceived()){renderDeliveries();notify('Dobavnice usklajene s sprejemom','ok');}else{notify('Ni sprememb','ok');}" style="font-size:11px;padding:4px 10px">&#8644; Uskladi</button>
       <button class="btn btn-a" onclick="salusCheckNew()" style="font-size:11px;padding:4px 10px">&#8635; Preveri</button>
     </div>
   </div>
@@ -1882,6 +1883,19 @@ function enrichDeliveryItems(items){
     it.isNewLot=unknownLot&&EVAL_TYPES.indexOf(it.matchedType)>=0;
   });
 }
+function reconcileDeliveriesFromReceived(){
+  var changed=false;
+  (DB.deliveries||[]).forEach(function(d){
+    if(d.status==='done'||d.status==='skipped')return;
+    (d.items||[]).forEach(function(it){
+      var cnt=(DB.received||[]).filter(function(r){return r.gtin===it.gtin&&r.lot===it.lot;}).length;
+      if(cnt!==(it.confirmed||0)){it.confirmed=cnt;changed=true;}
+    });
+    d.status=_delivStatus(d);
+  });
+  if(changed)saveDB();
+  return changed;
+}
 function importDeliveriesJson(e){
   var file=e.target.files[0];if(!file)return;
   e.target.value='';
@@ -1898,7 +1912,7 @@ function importDeliveriesJson(e){
       DB.deliveries.push(d);
       added++;
     });
-    if(added>0){saveDB();renderDeliveries();notify(added+' dobavnic uvoženih','ok');}
+    if(added>0){reconcileDeliveriesFromReceived();renderDeliveries();notify(added+' dobavnic uvoženih','ok');}
     else{notify('Vse dobavnice že uvožene','ok');}
   };
   reader.readAsText(file);
@@ -3386,6 +3400,7 @@ function confirmSprejem(){
     DB.inventory.push(newItem);
   }
   auditEntry('sprejem',sprejemData.gtin+'·'+(sprejemData.lot||''),sprejemData.name+' LOT '+(sprejemData.lot||'—'));
+  reconcileDeliveriesFromReceived();
   renderReceived(); renderInventory(); updateStats();
   checkNewLot(sprejemData.gtin,sprejemData.lot,sprejemData.name,sprejemData.type,sprejemData.expiry);
   notify('Sprejeto: '+sprejemData.name+(sprejemData.serial?' #'+sprejemData.serial:''),'ok');
@@ -5317,7 +5332,7 @@ try{
         var _sk={};DB.deliveries.forEach(function(d){_sk[d.file]=true;});
         var _sc=0;
         _sa.forEach(function(d){if(!d.file||_sk[d.file])return;enrichDeliveryItems(d.items||[]);DB.deliveries.push(d);_sc++;});
-        if(_sc>0){saveDB();AndroidBridge.deleteFile(_sp);notify(_sc+' Salus dobavnic uvoženih','ok');}
+        if(_sc>0){saveDB();AndroidBridge.deleteFile(_sp);reconcileDeliveriesFromReceived();notify(_sc+' Salus dobavnic uvoženih','ok');}
       }
     }
   }
