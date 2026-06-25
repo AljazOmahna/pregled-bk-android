@@ -1887,8 +1887,11 @@ function reconcileDeliveriesFromReceived(){
   var changed=false;
   (DB.deliveries||[]).forEach(function(d){
     if(d.status==='done'||d.status==='skipped')return;
+    var since=d.fetchedAt||'';
     (d.items||[]).forEach(function(it){
-      var cnt=(DB.received||[]).filter(function(r){return r.gtin===it.gtin&&r.lot===it.lot;}).length;
+      var cnt=(DB.received||[]).filter(function(r){
+        return r.gtin===it.gtin&&r.lot===it.lot&&(!since||r.receivedAt>=since);
+      }).length;
       if(cnt!==(it.confirmed||0)){it.confirmed=cnt;changed=true;}
     });
     d.status=_delivStatus(d);
