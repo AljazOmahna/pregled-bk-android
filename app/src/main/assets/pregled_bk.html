@@ -752,7 +752,7 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     <div class="mh"><h3>&#128100; Identifikacija operaterja</h3></div>
     <div class="mb">
       <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Vnesite matično številko. Vaše ime bo zabeleženo v revizijski sledi (ALCOA+).</div>
-      <div class="fg"><label>Matična številka</label><input type="text" id="opLoginId" placeholder="Vpišite matično številko" onkeydown="if(event.key==='Enter')confirmOperatorLogin()" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px"></div>
+      <div class="fg"><label>Matična številka</label><input type="text" id="opLoginId" placeholder="Vpišite matično številko" inputmode="numeric" pattern="[0-9]*" onkeydown="if(event.key==='Enter')confirmOperatorLogin()" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px"></div>
     </div>
     <div class="mf">
       <button class="btn btn-a" onclick="confirmOperatorLogin()" style="-webkit-justify-content:center;justify-content:center;width:100%">&#10003; Potrdi</button>
@@ -1482,6 +1482,8 @@ function daysLeft(exp){
   else{d=new Date(exp);}
   return Math.floor((d-new Date())/86400000);
 }
+// Salus dobavnice shranijo rok kot DDMMYY; kanonični format (skenirano, daysLeft, fmtExp) je YYMMDD.
+function _delivExpIso(exp){return (exp&&exp.length===6)?exp.slice(4,6)+exp.slice(2,4)+exp.slice(0,2):(exp||'');}
 function fmtExp(exp){
   if(!exp)return '-';
   if(exp.length===6)return '20'+exp.slice(0,2)+'-'+exp.slice(2,4)+'-'+exp.slice(4,6);
@@ -1987,7 +1989,7 @@ function _renderDelivCard(d,canConfirm){
   var totConf=items.reduce(function(s,it){return s+(it.confirmed||0);},0);
   var hasUnknown=items.some(function(it){return !it.matched;});
   var newLots=items.filter(function(it){return it.isNewLot;});
-  var nearExp=items.filter(function(it){return it.expiry&&daysLeft(it.expiry)<=90;});
+  var nearExp=items.filter(function(it){return it.expiry&&daysLeft(_delivExpIso(it.expiry))<=90;});
   var pct=totExp?Math.round(totRec/totExp*100):0;
   var badge=d.status==='done'?'<span style="color:var(--green);font-weight:700">&#10003; Sprejeto</span>':
     d.status==='delno'?'<span style="color:var(--orange);font-weight:700">&#9696; Delno</span>':
@@ -2003,9 +2005,9 @@ function _renderDelivCard(d,canConfirm){
     h+='<div style="height:7px;background:var(--bg);border-radius:99px;overflow:hidden;margin-bottom:8px"><div style="width:'+pct+'%;height:100%;background:'+pcol+';border-radius:99px"></div></div>';
   }
   if(newLots.length&&d.status!=='done'){
-    h+='<div style="display:-webkit-flex;display:flex;gap:6px;-webkit-align-items:flex-start;align-items:flex-start;background:var(--obg,rgba(245,158,11,.08));border:1px solid var(--orange);border-radius:7px;padding:7px 9px;margin-bottom:8px">';
-    h+='<span style="color:var(--orange);font-size:14px;-webkit-flex-shrink:0;flex-shrink:0">&#9888;</span>';
-    h+='<span style="font-size:10px;color:var(--orange);line-height:1.4"><strong>'+newLots.length+' nov'+(newLots.length===1?' lot':(newLots.length===2?'a lota':' novi loti'))+'</strong> v tej dobavnici &mdash; ob sprejemu bo dodan v Lote za ovrednotenje.</span></div>';
+    h+='<div style="display:-webkit-flex;display:flex;gap:6px;-webkit-align-items:flex-start;align-items:flex-start;background:rgba(59,130,246,.08);border:1px solid #3b82f6;border-radius:7px;padding:7px 9px;margin-bottom:8px">';
+    h+='<span style="color:#3b82f6;font-size:14px;-webkit-flex-shrink:0;flex-shrink:0">&#9679;</span>';
+    h+='<span style="font-size:10px;color:#3b82f6;line-height:1.4"><strong>'+newLots.length+' nov'+(newLots.length===1?' lot':(newLots.length===2?'a lota':' novi loti'))+'</strong> v tej dobavnici &mdash; ob sprejemu bo dodan v Lote za ovrednotenje.</span></div>';
   }
   if(hasUnknown&&canConfirm)h+='<div style="font-size:10px;color:var(--orange);margin-bottom:6px">&#9888; Nekateri GTIN niso v šifrantu</div>';
   if(nearExp.length&&d.status!=='done'){
@@ -2020,14 +2022,14 @@ function _renderDelivCard(d,canConfirm){
     var rec=it.received||0, exp=it.qty||1, conf=it.confirmed||0;
     var full=rec>=exp, part=rec>0&&rec<exp;
     var ic=full?'<span style="color:var(--green)">&#10003;</span>':part?'<span style="color:var(--orange)">&#9696;</span>':'<span style="color:var(--text3)">&#9675;</span>';
-    var dl=it.expiry?daysLeft(it.expiry):9999;
+    var dl=it.expiry?daysLeft(_delivExpIso(it.expiry)):9999;
     var expCol=dl<0?'#dc2626':dl<=90?'var(--orange)':'var(--text3)';
     var expWarn=dl<0?' &#10060;':dl<=90?' &#9888;':'';
     h+='<div style="display:-webkit-flex;display:flex;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);-webkit-align-items:center;align-items:center">';
     h+='<span style="min-width:16px;text-align:center;font-size:13px">'+ic+'</span>';
     h+='<div style="flex:1;min-width:0">';
     h+='<div style="font-size:11px;color:'+(it.matched?'var(--text)':'var(--orange)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(it.matched?'':'&#9888; ')+it.name;
-    if(it.isNewLot)h+=' <span style="font-size:9px;font-weight:700;background:var(--orange);color:#fff;padding:1px 5px;border-radius:4px">NOV LOT</span>';
+    if(it.isNewLot)h+=' <span style="font-size:9px;font-weight:700;background:#3b82f6;color:#fff;padding:1px 5px;border-radius:4px">NOV LOT</span>';
     h+='</div>';
     h+='<div style="font-size:9px;color:'+expCol+'">'+it.lot+(expStr?' &middot; '+expStr+expWarn:'')+'</div>';
     h+='</div>';
@@ -2084,14 +2086,14 @@ function confirmDelivery(id){
     if(conf===0&&!_lotKnown(it.gtin,it.lot)){
       if(!DB.lots)DB.lots=[];
       DB.lots.push({gtin:it.gtin,lot:it.lot,name:it.name||'',type:type,
-        expiry:it.expiry||'',firstReceivedAt:new Date().toISOString(),
+        expiry:_delivExpIso(it.expiry)||'',firstReceivedAt:new Date().toISOString(),
         checked:false,checkedAt:null,evalDate:'',evalAnalyzers:[]});
       if(EVAL_TYPES.indexOf(type)>=0)newLotsReg++;
     }
     for(var i=0;i<delta;i++){
       if(!DB.received)DB.received=[];
       DB.received.push({id:(Date.now()+added).toString(),gtin:it.gtin,name:it.name||'',
-        type:type,lot:it.lot||'',expiry:it.expiry||'',serial:'',
+        type:type,lot:it.lot||'',expiry:_delivExpIso(it.expiry)||'',serial:'',
         catalog:it.catalog||'',ident:'',rfidEpc:'',
         supplier:d.supplier||'Salus',delivery:(d.file||'').replace('.pdf',''),
         receivedAt:new Date().toISOString(),status:'active',source:'salus'});
