@@ -265,9 +265,12 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
 <div class="page active" id="page-scan">
   <div class="sec-hdr">
     <div class="sec-title">&#128225; Skeniranje</div>
-    <div id="sessHdrBtns" style="display:none;-webkit-flex;display:flex;gap:6px">
-      <button class="btn btn-d btn-sm" onclick="cancelSession()">&#10007; Prekliči</button>
-      <button class="btn btn-a btn-sm" onclick="closeSession()">&#10003; Zaključi</button>
+    <div style="display:-webkit-flex;display:flex;gap:6px;-webkit-align-items:center;align-items:center">
+      <button class="btn btn-g btn-sm" onclick="currentOperator=null;openOperatorModal()" style="font-size:10px;padding:3px 8px">&#128100; Odjava</button>
+      <div id="sessHdrBtns" style="display:none;-webkit-flex;display:flex;gap:6px">
+        <button class="btn btn-d btn-sm" onclick="cancelSession()">&#10007; Prekliči</button>
+        <button class="btn btn-a btn-sm" onclick="closeSession()">&#10003; Zaključi</button>
+      </div>
     </div>
   </div>
 
@@ -394,14 +397,18 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <option value="ok">OK</option>
     </select>
   </div>
-  <div id="invCards" style="padding-bottom:8px"></div>
-  <tbody id="invBody" style="display:none"></tbody>
-  <div class="sec-hdr" style="margin-top:8px">
+  <div style="max-height:220px;overflow-y:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:8px;margin-bottom:10px">
+    <table style="width:100%;border-collapse:collapse">
+      <thead style="position:sticky;top:0;background:var(--bg2);z-index:1"><tr><th>Artikel</th><th>Lot</th><th>Rok</th><th>Prj.</th><th>Zal.</th><th></th></tr></thead>
+      <tbody id="invBody"></tbody>
+    </table>
+  </div>
+  <div class="sec-hdr" style="margin-top:4px">
     <div class="sec-title">&#128683; Poraba / history</div>
   </div>
-  <div class="tbl-wrap">
-    <table>
-      <thead><tr><th>Artikel</th><th>Lot</th><th>Porabljeno</th><th>Kos</th><th></th></tr></thead>
+  <div style="max-height:160px;overflow-y:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:8px">
+    <table style="width:100%;border-collapse:collapse">
+      <thead style="position:sticky;top:0;background:var(--bg2);z-index:1"><tr><th>Artikel</th><th>Lot</th><th>Porabljeno</th><th>Kos</th><th></th></tr></thead>
       <tbody id="consumedBody"></tbody>
     </table>
   </div>
@@ -2873,9 +2880,10 @@ var NAROC_GTINS=[
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:149,
+  build:150,
   date:'2026-06-26',
   history:[
+    {build:150,date:'2026-06-26',notes:'Zaloga tab: tabela v okenčku s scrolerjem (220px), stolpca Prj.+Zal. skupaj. Poraba prav tako v okenčku (160px). Gumb Odjava na prvi strani.'},
     {build:149,date:'2026-06-26',notes:'Zaloga tab: kartice z Prejeto+Zaloga skupaj (ne tabela). Potrošni material: nov lot auto-ovrednoten, brez opozorila.'},
     {build:148,date:'2026-06-26',notes:'APP_VERSION.build posodobljen na 148; popravek manjkajočih vnosov v zgodovini (143–147).'},
     {build:147,date:'2026-06-26',notes:'Revert: GraphSync DEFAULT_TENANT nazaj na "consumers" (Hotmail) — kclj.si blokiran z Conditional Access politiko (53003).'},
@@ -3924,37 +3932,22 @@ function renderInventory(){
     '<div class="stat-card"><div class="stat-num" style="color:var(--red)">'+expN+'</div><div class="stat-lbl">Potekli</div></div>'+
     '<div class="stat-card"><div class="stat-num" style="color:var(--orange)">'+warnN+'</div><div class="stat-lbl">Opozorila</div></div>'+
     '<div class="stat-card"><div class="stat-num" style="color:var(--green)">'+typeCount+'</div><div class="stat-lbl">Tipov</div></div>';
-  var tc2={calibrator:'#8b5cf6','reagent-bio':'#3b82f6','reagent-imuno':'#06b6d4',control:'#f59e0b',consumable:'#6b7280'};
-  var invCards=$i('invCards');
-  if(!items.length){invCards.innerHTML='<div style="text-align:center;color:var(--text3);padding:30px">Ni artiklov.</div>';try{renderConsumed();}catch(e){}return;}
-  invCards.innerHTML=items.map(function(it){
+  var tbody=$i('invBody');
+  if(!items.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px">Ni artiklov.</td></tr>';try{renderConsumed();}catch(e){}return;}
+  tbody.innerHTML=items.map(function(it){
     var recCnt=(DB.received||[]).filter(function(r){return r.gtin===it.gtin&&r.lot===it.lot&&r.status==='active';}).length;
-    var d=daysLeft(it.expiry);
-    var expCol=d<0?'var(--red)':d<=28?'var(--orange)':'var(--text3)';
-    var typeColor=tc2[it.type]||'var(--text3)';
-    return '<div style="border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;background:var(--bg2)">'+
-      '<div style="display:-webkit-flex;display:flex;-webkit-justify-content:space-between;justify-content:space-between;-webkit-align-items:flex-start;align-items:flex-start;margin-bottom:8px">'+
-      '<div style="-webkit-flex:1;flex:1;min-width:0">'+
-      '<div style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(it.name||'Neznan')+'</div>'+
-      '<div style="font-size:10px;color:var(--text3);margin-top:2px">'+(it.lot||'-')+' &middot; <span style="color:'+expCol+'">'+fmtExp(it.expiry)+'</span></div>'+
-      '</div>'+
-      '<span style="font-size:9px;font-weight:700;color:'+typeColor+';background:'+typeColor+'22;padding:2px 7px;border-radius:10px;white-space:nowrap;margin-left:6px">'+typeName(it.type)+'</span>'+
-      '</div>'+
-      '<div style="display:-webkit-flex;display:flex;gap:8px;margin-bottom:8px">'+
-      '<div style="-webkit-flex:1;flex:1;text-align:center;background:var(--bg3);border-radius:8px;padding:8px 4px">'+
-      '<div style="font-size:22px;font-weight:700;color:var(--accent)">'+recCnt+'</div>'+
-      '<div style="font-size:9px;color:var(--text3);margin-top:2px">Prejeto</div>'+
-      '</div>'+
-      '<div style="-webkit-flex:1;flex:1;text-align:center;background:var(--bg3);border-radius:8px;padding:8px 4px">'+
-      '<div style="font-size:22px;font-weight:700;color:'+(it.qty>0?'var(--green)':'var(--text3)')+'">'+it.qty+'</div>'+
-      '<div style="font-size:9px;color:var(--text3);margin-top:2px">Zaloga</div>'+
-      '</div>'+
-      '</div>'+
-      '<div style="display:-webkit-flex;display:flex;gap:6px">'+
-      '<button class="btn btn-g btn-sm" style="-webkit-flex:1;flex:1;-webkit-justify-content:center;justify-content:center" onclick="showDetail(\''+it.gtin+'\',\''+it.lot+'\')">&#128269; Podrobnosti</button>'+
-      '<button class="btn btn-g btn-sm" style="min-width:38px;-webkit-justify-content:center;justify-content:center" onclick="openQtyMo(\''+it.gtin+'\',\''+it.lot+'\')">&#9998;</button>'+
-      '</div>'+
-      '</div>';
+    var rc=rowCls(it.expiry);
+    return '<tr class="'+rc+'">'+
+      '<td><div style="font-weight:600;font-size:11px">'+(it.name||'Neznan')+'</div>'+
+      '<div style="font-size:9px;color:var(--text3)">'+typeName(it.type)+'</div></td>'+
+      '<td class="lot-n">'+(it.lot||'-')+'</td>'+
+      '<td style="font-size:10px;white-space:nowrap">'+fmtExp(it.expiry)+'</td>'+
+      '<td style="font-family:var(--mono);font-weight:700;color:var(--accent)">'+recCnt+'</td>'+
+      '<td style="font-family:var(--mono);font-weight:700;color:'+(it.qty>0?'var(--green)':'var(--text3)')+'">'+it.qty+'</td>'+
+      '<td style="white-space:nowrap">'+
+      '<button class="btn btn-g btn-sm" onclick="showDetail(\''+it.gtin+'\',\''+it.lot+'\')" style="padding:4px 7px;min-height:30px">&#128269;</button> '+
+      '<button class="btn btn-g btn-sm" onclick="openQtyMo(\''+it.gtin+'\',\''+it.lot+'\')" style="padding:4px 7px;min-height:30px">&#9998;</button>'+
+      '</td></tr>';
   }).join('');
   try{renderConsumed();}catch(e){}
 }
