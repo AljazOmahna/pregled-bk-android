@@ -2892,9 +2892,10 @@ var NAROC_GTINS=[
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:152,
+  build:153,
   date:'2026-06-27',
   history:[
+    {build:153,date:'2026-06-27',notes:'closeSession: ob zaprtju seje porabljeni artikli (used[]) se samodejno vpišejo v DB.consumed; če je artikel v naslednji seji skeniran, se auto-vrne iz Porabe v zalogo (restoredAt).'},
     {build:152,date:'2026-06-27',notes:'Več: Seje inventure v scroller okenčku (240px) z lepljivo glavo.'},
     {build:151,date:'2026-06-27',notes:'Revizijska sled (Več): seznam v scroller okenčku (300px) z lepljivo glavo; stolpec ID v eni vrsti (white-space:nowrap). Zaloga: povrnjeno okno Prejeto (scroller 200px) s podrobnostmi prejetih kosov (serijska, RFID, datum) + gumba Sprejmi/Reset.'},
     {build:150,date:'2026-06-26',notes:'Zaloga tab: tabela v okenčku s scrolerjem (220px), stolpca Prj.+Zal. skupaj. Poraba prav tako v okenčku (160px). Gumb Odjava na prvi strani.'},
@@ -3838,6 +3839,33 @@ function closeSession(){
       it.units=pu.slice(0,it.qty||pu.length);
     }
     it.rfidEpcs=it.units.map(function(u){return u.epc;}).filter(Boolean);
+  });
+  // Auto-vrni iz consumed: artikel najden v tej seji → ni več porabljen
+  (DB.consumed||[]).forEach(function(c){
+    if(c.restoredAt)return;
+    var inSess=sessItems.some(function(si){return si.gtin===c.gtin&&si.lot===c.lot;});
+    if(inSess)c.restoredAt=sess.closed;
+  });
+  // Vpiši porabljene v DB.consumed (grupirano po gtin+lot)
+  if(!DB.consumed)DB.consumed=[];
+  var usedMap={};
+  used.forEach(function(u){
+    var k=u.gtin+'|'+(u.lot||'');
+    if(!usedMap[k])usedMap[k]={gtin:u.gtin,lot:u.lot,name:u.name,type:u.type,
+      expiry:u.expiry||'',serials:[],qty:0};
+    usedMap[k].qty++;
+    if(u.serial)usedMap[k].serials.push(u.serial);
+  });
+  Object.keys(usedMap).forEach(function(k){
+    var ue=usedMap[k];
+    var already=DB.consumed.some(function(c){
+      return c.gtin===ue.gtin&&c.lot===ue.lot&&!c.restoredAt;
+    });
+    if(!already){
+      DB.consumed.push({gtin:ue.gtin,lot:ue.lot,name:ue.name,type:ue.type,qty:ue.qty,
+        serials:ue.serials,rfidEpcs:[],expiry:ue.expiry,
+        consumedAt:sess.closed,restoredAt:null,source:'session',sessionId:sess.id});
+    }
   });
   DB.lastUsed=used;
   saveDB();updateBanner();updateStats();
