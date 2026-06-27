@@ -667,9 +667,9 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
   </div>
   <div class="card">
     <div class="card-title">&#128203; Seje inventure</div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr><th>Naziv</th><th>Datum</th><th>OK</th><th>Zavrn.</th><th>Status</th><th></th></tr></thead>
+    <div style="max-height:240px;overflow-y:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:8px">
+      <table style="width:100%;border-collapse:collapse">
+        <thead style="position:sticky;top:0;background:var(--bg2);z-index:1"><tr><th>Naziv</th><th>Datum</th><th>OK</th><th>Zavrn.</th><th>Status</th><th></th></tr></thead>
         <tbody id="sessBody"></tbody>
       </table>
     </div>
@@ -2892,9 +2892,10 @@ var NAROC_GTINS=[
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:151,
+  build:152,
   date:'2026-06-27',
   history:[
+    {build:152,date:'2026-06-27',notes:'Več: Seje inventure v scroller okenčku (240px) z lepljivo glavo.'},
     {build:151,date:'2026-06-27',notes:'Revizijska sled (Več): seznam v scroller okenčku (300px) z lepljivo glavo; stolpec ID v eni vrsti (white-space:nowrap). Zaloga: povrnjeno okno Prejeto (scroller 200px) s podrobnostmi prejetih kosov (serijska, RFID, datum) + gumba Sprejmi/Reset.'},
     {build:150,date:'2026-06-26',notes:'Zaloga tab: tabela v okenčku s scrolerjem (220px), stolpca Prj.+Zal. skupaj. Poraba prav tako v okenčku (160px). Gumb Odjava na prvi strani.'},
     {build:149,date:'2026-06-26',notes:'Zaloga tab: kartice z Prejeto+Zaloga skupaj (ne tabela). Potrošni material: nov lot auto-ovrednoten, brez opozorila.'},
