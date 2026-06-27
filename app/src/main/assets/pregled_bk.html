@@ -412,7 +412,19 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <tbody id="consumedBody"></tbody>
     </table>
   </div>
-  <tbody id="receivedBody" style="display:none"></tbody>
+  <div class="sec-hdr" style="margin-top:4px">
+    <div class="sec-title">&#128230; Prejeto</div>
+    <div style="display:-webkit-flex;display:flex;gap:6px">
+      <button class="btn btn-d btn-sm" onclick="clearAllReceived()">&#128465; Reset (test)</button>
+      <button class="btn btn-a btn-sm" onclick="openSprejem()">+ Sprejmi</button>
+    </div>
+  </div>
+  <div style="max-height:200px;overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:8px">
+    <table style="width:100%;border-collapse:collapse">
+      <thead style="position:sticky;top:0;background:var(--bg2);z-index:1"><tr><th>Artikel</th><th>Lot</th><th>Rok</th><th>#Serial</th><th>RFID</th><th>Sprejet</th><th></th></tr></thead>
+      <tbody id="receivedBody"></tbody>
+    </table>
+  </div>
 </div>
 
 <!-- LOTI -->
@@ -610,9 +622,9 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       </select>
       <label style="font-size:11px;color:var(--text2);white-space:nowrap"><input type="checkbox" id="auditShowAll" onchange="renderAuditLog()"> Vse</label>
     </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead><tr><th>Čas</th><th>Operater</th><th>Akcija</th><th>ID</th><th>Podrobnosti</th></tr></thead>
+    <div style="max-height:300px;overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:8px">
+      <table style="width:100%;border-collapse:collapse">
+        <thead style="position:sticky;top:0;background:var(--bg2);z-index:1"><tr><th>Čas</th><th>Operater</th><th>Akcija</th><th>ID</th><th>Podrobnosti</th></tr></thead>
         <tbody id="auditBody"></tbody>
       </table>
     </div>
@@ -2880,9 +2892,10 @@ var NAROC_GTINS=[
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:150,
-  date:'2026-06-26',
+  build:151,
+  date:'2026-06-27',
   history:[
+    {build:151,date:'2026-06-27',notes:'Revizijska sled (Več): seznam v scroller okenčku (300px) z lepljivo glavo; stolpec ID v eni vrsti (white-space:nowrap). Zaloga: povrnjeno okno Prejeto (scroller 200px) s podrobnostmi prejetih kosov (serijska, RFID, datum) + gumba Sprejmi/Reset.'},
     {build:150,date:'2026-06-26',notes:'Zaloga tab: tabela v okenčku s scrolerjem (220px), stolpca Prj.+Zal. skupaj. Poraba prav tako v okenčku (160px). Gumb Odjava na prvi strani.'},
     {build:149,date:'2026-06-26',notes:'Zaloga tab: kartice z Prejeto+Zaloga skupaj (ne tabela). Potrošni material: nov lot auto-ovrednoten, brez opozorila.'},
     {build:148,date:'2026-06-26',notes:'APP_VERSION.build posodobljen na 148; popravek manjkajočih vnosov v zgodovini (143–147).'},
@@ -3414,12 +3427,34 @@ function confirmSprejem(){
   if(APP_SETTINGS.serialSprejem){spReset();}else{closeSprejem();}
 }
 function renderReceived(){
-  try{renderInventory();}catch(e){}
+  var tb=$i('receivedBody');
+  if(!tb)return;
+  var items=(DB.received||[]).filter(function(r){return r.status==='active';});
+  if(!items.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Ni prejetih artiklov.</td></tr>';return;}
+  items.sort(function(a,b){return (b.receivedAt||'').localeCompare(a.receivedAt||'');});
+  var h='';
+  items.forEach(function(r){
+    var d=daysLeft(r.expiry);
+    var dc=d<0?'var(--red)':d<=14?'var(--orange)':'var(--green)';
+    var rfidShort=r.rfidEpc?r.rfidEpc.slice(0,8)+'…':'-';
+    var srcLine=[r.supplier,r.delivery].filter(function(x){return x;}).join(' · ');
+    var _udi=(r.gtin&&r.lot)?formatUDI(r.gtin,r.lot,r.expiry,r.serial):'';
+    h+='<tr>';
+    h+='<td><div style="font-size:11px;font-weight:600">'+r.name+'</div><div class="gtin">'+r.gtin+'</div>'+(srcLine?'<div style="font-size:9px;color:var(--text3)">'+srcLine+'</div>':'')+(_udi?'<div style="font-size:8px;color:var(--text3);font-family:var(--mono)">'+_udi+'</div>':'')+'</td>';
+    h+='<td class="lot-n">'+(r.lot||'-')+'</td>';
+    h+='<td style="color:'+dc+'">'+fmtExp(r.expiry)+'</td>';
+    h+='<td class="lot-n">'+(r.serial||'-')+'</td>';
+    h+='<td style="font-size:9px;font-family:var(--mono);color:var(--text3)" title="'+(r.rfidEpc||'')+'">'+rfidShort+'</td>';
+    h+='<td style="font-size:10px;color:var(--text3);white-space:nowrap">'+(r.receivedAt?r.receivedAt.slice(0,16).replace('T',' '):'-')+'</td>';
+    h+='<td><button class="btn btn-d btn-sm" onclick="deleteReceived(\''+r.id+'\')">&#10005;</button></td>';
+    h+='</tr>';
+  });
+  tb.innerHTML=h;
 }
 function deleteReceived(id){
   if(!confirm('Odstraniti artikel iz evidence?'))return;
   var r=(DB.received||[]).filter(function(x){return x.id===id;})[0];
-  if(r){r.status='removed';saveDB();renderReceived();notify('Odstranjeno','ok');}
+  if(r){r.status='removed';saveDB();renderReceived();renderInventory();notify('Odstranjeno','ok');}
 }
 function clearAllReceived(){
   // TESTNI RESET: izbriše prejeto, zalogo, seje in lote. GTIN katalog OSTANE.
@@ -4840,7 +4875,7 @@ function renderAuditLog(){
       '<td style="font-size:10px;white-space:nowrap;color:var(--text3)">'+(l.ts||'').slice(0,16).replace('T',' ')+'</td>'+
       '<td style="font-size:11px">'+(l.opName||'—')+'</td>'+
       '<td><span class="badge" style="background:transparent;border:1px solid '+c+';color:'+c+';font-size:9px">'+(l.action||'')+'</span></td>'+
-      '<td style="font-family:var(--mono);font-size:9px;word-break:break-all">'+(l.entityId||'')+'</td>'+
+      '<td style="font-family:var(--mono);font-size:9px;white-space:nowrap">'+(l.entityId||'')+'</td>'+
       '<td style="font-size:10px;color:var(--text2)">'+(l.detail||'')+'</td>'+
       '</tr>';
   }).join('')+((!showAll&&total>50)?'<tr><td colspan="5" style="text-align:center;font-size:10px;color:var(--text3);padding:8px">Prikazano 50 od '+total+' vnosov</td></tr>':'');
