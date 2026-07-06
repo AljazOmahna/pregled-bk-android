@@ -302,8 +302,15 @@ public class GraphSync {
                 String at = freshAccessToken();
                 if (at == null) { cb.folderListed(null, "Niste prijavljeni"); return; }
                 String rp = relPath == null ? "" : relPath.replaceAll("^/+", "");
-                String url = "https://graph.microsoft.com/v1.0/me/drive/root:/DigiLab/" + rp + ":/children"
-                        + "?$select=name,size,lastModifiedDateTime&$top=500";
+                // URL-kodiraj segmente poti (presledki, šumniki — npr. "Reagenčni listi")
+                StringBuilder rpEnc = new StringBuilder();
+                for (String seg : rp.split("/")) {
+                    if (seg.isEmpty()) continue;
+                    if (rpEnc.length() > 0) rpEnc.append("/");
+                    rpEnc.append(android.net.Uri.encode(seg));
+                }
+                String url = "https://graph.microsoft.com/v1.0/me/drive/root:/DigiLab/" + rpEnc + ":/children"
+                        + "?$select=name,size,lastModifiedDateTime,webUrl,folder&$top=500";
                 String[] r = httpGetRaw(url, at);
                 int code = Integer.parseInt(r[0]);
                 if (code == 200) {
