@@ -2979,9 +2979,10 @@ var NAROC_GTINS=[
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:154,
+  build:155,
   date:'2026-07-05',
   history:[
+    {build:155,date:'2026-07-05',notes:'Popravek tiska RFID nalepk: človeku berljiv GS1 zapis GTIN je napačno prikazoval (00) namesto (01) kot AI (Application Identifier), ker je koda pomotoma vzela prvi dve številki GTIN vrednosti namesto trdo kodiranega (01). buildLabelZpl() popravljen.'},
     {build:154,date:'2026-07-05',notes:'Novi dizajn (BIO Alinity slog): Abbott barvna paleta (modra/teal), gradient header z logotipom, pill navigacija z animacijami, sence in zaobljeni robovi, gumbi z gradientom, teal aktivni zavihki, moIn animacija modalov, focus obroči na inputih, posodobljen dark mode.'},
     {build:153,date:'2026-06-27',notes:'closeSession: ob zaprtju seje porabljeni artikli (used[]) se samodejno vpišejo v DB.consumed; če je artikel v naslednji seji skeniran, se auto-vrne iz Porabe v zalogo (restoredAt).'},
     {build:152,date:'2026-06-27',notes:'Več: Seje inventure v scroller okenčku (240px) z lepljivo glavo.'},
@@ -4646,7 +4647,7 @@ function buildLabelZpl(p){
   // p = {ln, lot, gtin14 (14 cif.), serial, epcHex (24 hex, opcijsko)}
   // 300 dpi, 60×35 mm; tiskalna cona y=200..600 (offset 200 dots)
   var g=p.gtin14||'';
-  var gHr='('+g.slice(0,2)+') '+g.slice(2,9)+' '+g.slice(9,15)+' '+g.slice(15);
+  var gHr='(01) '+g.slice(0,1)+' '+g.slice(1,7)+' '+g.slice(7,13)+' '+g.slice(13);
   var dm='_1D01'+g+'21'+(p.serial||'');
   return '^XA\n'
     +'^CI28\n'
