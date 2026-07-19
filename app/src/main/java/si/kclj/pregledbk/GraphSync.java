@@ -41,10 +41,10 @@ public class GraphSync {
     private static final String DEFAULT_CLIENT = "82b539ce-e064-4643-a0df-41dde15b39a4";
 
     private static final String SCOPE = "offline_access Files.ReadWrite User.Read";
-    // Mapa DigiLab v OneDrive — isti ključ kot BIO Alinity tablica (pregledBK_db.json)
-    private static final String FILE_PATH = "/me/drive/root:/DigiLab/pregledBK_db.json";
-    // Imenik operaterjev — vir resnice je BIO Alinity (samo bere se sem)
-    private static final String OPERATORS_PATH = "/me/drive/root:/DigiLab/operators.json";
+    // Shema B: zaloga PBK pod PBK/ predpono (isti ključ kot BIO Alinity tablica)
+    private static final String FILE_PATH = "/me/drive/root:/DigiLab/PBK/pbk_sync.json";
+    // Imenik operaterjev — vir resnice je BIO Alinity (samo bere se sem), pod BIO/ predpono
+    private static final String OPERATORS_PATH = "/me/drive/root:/DigiLab/BIO/operaterji.json";
 
     private static final String PREFS = "ms_auth";
     private static final String K_REFRESH = "refresh_token";
@@ -459,7 +459,7 @@ public class GraphSync {
                 byte[] bytes = android.util.Base64.decode(base64 == null ? "" : base64, android.util.Base64.DEFAULT);
                 String safe = (filename == null || filename.isEmpty()) ? "PregledBK.pdf"
                             : filename.replaceAll("[^a-zA-Z0-9_\\-.]", "_");
-                String url = "https://graph.microsoft.com/v1.0/me/drive/root:/DigiLab/Pregled_BK_PDF/" + safe + ":/content";
+                String url = "https://graph.microsoft.com/v1.0/me/drive/root:/DigiLab/PBK/Arhiv/" + safe + ":/content";
                 String[] r = httpPutBytes(url, at, bytes, "application/pdf");
                 int code = Integer.parseInt(r[0]);
                 if (code == 200 || code == 201) {
