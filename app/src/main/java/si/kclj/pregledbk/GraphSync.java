@@ -38,7 +38,7 @@ public class GraphSync {
     // zamenjaj v Več → Napredno na "organizations" ali kclj tenant ID.
     private static final String DEFAULT_TENANT = "consumers";
     // BIO Alinity Sync app registration (82b539ce-...) — ista registracija za tablico in Zebro
-    private static final String DEFAULT_CLIENT = "82b539ce-e064-4643-a0df-41dde15b39a4";
+    private static final String DEFAULT_CLIENT = "d80dd868-33d3-40aa-b7c3-10f494509030";
 
     private static final String SCOPE = "offline_access Files.ReadWrite User.Read";
     // Shema B: zaloga PBK pod PBK/ predpono (isti ključ kot BIO Alinity tablica)

@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/>
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
 
     <!-- Bluetooth tiskanje RFID nalepk (Zebra ZT610R prek SPP) -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>

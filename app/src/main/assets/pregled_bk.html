@@ -685,7 +685,10 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       </div>
       <div style="display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:space-between;justify-content:space-between">
         <div id="syncLast" style="font-size:10px;color:var(--text3)"></div>
-        <button class="btn btn-g btn-sm" onclick="msSignOut()">Odjava</button>
+        <div style="display:-webkit-flex;display:flex;gap:6px">
+          <button class="btn btn-g btn-sm" onclick="msChangeAccount()">Zamenjaj račun</button>
+          <button class="btn btn-g btn-sm" onclick="msSignOut()">Odjava</button>
+        </div>
       </div>
     </div>
     <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
@@ -1564,6 +1567,22 @@ function onLangChange(){
 
 var nT;
 function notify(msg,t){var el=$i('notif');el.textContent=msg;el.className='notif show'+(t?' '+t:'');clearTimeout(nT);nT=setTimeout(function(){el.classList.remove('show');},3000);}
+function vibrateShort(){try{if(navigator.vibrate)navigator.vibrate(30);}catch(e){}}
+function vibrateAlert(){try{if(navigator.vibrate)navigator.vibrate([80,60,80]);}catch(e){}}
+var _actx=null;
+function beepAlert(){
+  try{
+    if(!_actx)_actx=new (window.AudioContext||window.webkitAudioContext)();
+    if(_actx.state==='suspended')_actx.resume();
+    var o=_actx.createOscillator(),g=_actx.createGain();
+    o.type='square';o.frequency.value=1200;
+    g.gain.setValueAtTime(0.25,_actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,_actx.currentTime+0.22);
+    o.connect(g);g.connect(_actx.destination);
+    o.start();o.stop(_actx.currentTime+0.22);
+  }catch(e){}
+}
+function alertDuplicateEpc(){vibrateAlert();beepAlert();}
 
 function daysLeft(exp){
   if(!exp)return 9999;
@@ -2979,9 +2998,10 @@ var NAROC_GTINS=[
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:155,
+  build:156,
   date:'2026-07-05',
   history:[
+    {build:156,date:'2026-07-05',notes:'Sprejem materiala: rok izteka in lot sta opcijska pri RFID skeniranju za potrošni material (spCanScanRfid/spStartRfid/confirmSprejemManual/spGenRfidLabel usklajeni z confirmSprejem). Vibracija+zvočni alarm ob skeniranju že znanega/sprejetega EPC. MultiRFID skeniranje: vibracija ob vsakem novem tagu na seznamu (samodejno preneha, ko ni več novih). RFID nalepka (spGenRfidLabel/buildLabelZpl): dodana naziv artikla in rok uporabe znotraj obstoječega okvira nalepke.'},
     {build:155,date:'2026-07-05',notes:'Popravek tiska RFID nalepk: človeku berljiv GS1 zapis GTIN je napačno prikazoval (00) namesto (01) kot AI (Application Identifier), ker je koda pomotoma vzela prvi dve številki GTIN vrednosti namesto trdo kodiranega (01). buildLabelZpl() popravljen.'},
     {build:154,date:'2026-07-05',notes:'Novi dizajn (BIO Alinity slog): Abbott barvna paleta (modra/teal), gradient header z logotipom, pill navigacija z animacijami, sence in zaobljeni robovi, gumbi z gradientom, teal aktivni zavihki, moIn animacija modalov, focus obroči na inputih, posodobljen dark mode.'},
     {build:153,date:'2026-06-27',notes:'closeSession: ob zaprtju seje porabljeni artikli (used[]) se samodejno vpišejo v DB.consumed; če je artikel v naslednji seji skeniran, se auto-vrne iz Porabe v zalogo (restoredAt).'},
@@ -3277,7 +3297,9 @@ function spUpdateItemInfo(){
   spUpdateRfidBtn();
 }
 function spCanScanRfid(){
-  return !!(sprejemData&&sprejemData.gtin&&sprejemData.lot&&sprejemData.expiry&&sprejemData.serial);
+  if(!sprejemData||!sprejemData.gtin||!sprejemData.serial)return false;
+  if(sprejemData.type==='consumable')return true;
+  return !!(sprejemData.lot&&sprejemData.expiry);
 }
 function spUpdateRfidBtn(){
   var btn=$i('spRfidScanBtn'),st=$i('spRfidStatus');
@@ -3285,9 +3307,10 @@ function spUpdateRfidBtn(){
   var ok=spCanScanRfid();
   btn.disabled=!ok;
   if(!ok&&st){
+    var isCons=sprejemData&&sprejemData.type==='consumable';
     var m=[];
-    if(!sprejemData||!sprejemData.lot)m.push('lot');
-    if(!sprejemData||!sprejemData.expiry)m.push('rok');
+    if(!isCons&&(!sprejemData||!sprejemData.lot))m.push('lot');
+    if(!isCons&&(!sprejemData||!sprejemData.expiry))m.push('rok');
     if(!sprejemData||!sprejemData.serial)m.push('SN');
     st.textContent='Manjka: '+m.join(', ')+' — skenirajte kodo';
   } else if(ok&&st){
@@ -3350,7 +3373,8 @@ function spCaptureEpc(epc,rssi){
   if(sprejemEpc) return;
   epc=epc.toUpperCase();
   var dup=(DB.received||[]).filter(function(r){return r.rfidEpc===epc&&r.status==='active';})[0];
-  if(dup){notify('Ta EPC je že povezan z: '+dup.name,'warn');spStopRfid();return;}
+  if(dup){alertDuplicateEpc();notify('Ta EPC je že povezan z: '+dup.name,'warn');spStopRfid();return;}
+  vibrateShort();
   sprejemEpc=epc;
   $i('spRfidWait').style.display='none';
   $i('spRfidOk').style.display='block';
@@ -3362,9 +3386,10 @@ function spStartRfid(){
   if(typeof AndroidBridge==='undefined'){notify('Samo na napravi','warn');return;}
   if(sprejemEpc){notify('RFID že zajeto — potrdite ali prekličite','warn');return;}
   if(!spCanScanRfid()){
+    var isCons=sprejemData&&sprejemData.type==='consumable';
     var m=[];
-    if(!sprejemData||!sprejemData.lot)m.push('lot');
-    if(!sprejemData||!sprejemData.expiry)m.push('rok');
+    if(!isCons&&(!sprejemData||!sprejemData.lot))m.push('lot');
+    if(!isCons&&(!sprejemData||!sprejemData.expiry))m.push('rok');
     if(!sprejemData||!sprejemData.serial)m.push('SN');
     notify('Manjka: '+m.join(', '),'warn');return;
   }
@@ -3434,14 +3459,14 @@ function spManualEpc(){
 }
 function confirmSprejemManual(){
   if(!sprejemData){notify('Najprej skenirajte barcode','warn');return;}
-  if(!sprejemData.lot||!sprejemData.expiry){notify('Manjka lot ali rok — skenirajte kodo','warn');return;}
+  if(sprejemData.type!=='consumable'&&(!sprejemData.lot||!sprejemData.expiry)){notify('Manjka lot ali rok — skenirajte kodo','warn');return;}
   if(!sprejemData.serial){sprejemData.serial='MAN'+Date.now();}
   _spManual=true;
   try{confirmSprejem();}finally{_spManual=false;}
 }
 function spGenRfidLabel(){
   if(!sprejemData){notify('Najprej skenirajte barcode','warn');return;}
-  if(!sprejemData.lot||!sprejemData.expiry){notify('Manjka lot ali rok','warn');return;}
+  if(sprejemData.type!=='consumable'&&(!sprejemData.lot||!sprejemData.expiry)){notify('Manjka lot ali rok','warn');return;}
   if(!sprejemData.serial){sprejemData.serial='GEN'+Date.now();}
   if(!DB.kcljEpcSerial)DB.kcljEpcSerial=1;
   var epc;
@@ -3449,8 +3474,10 @@ function spGenRfidLabel(){
   DB.kcljEpcSerial++;
   // Shrani tiskovne podatke PRED confirmSprejem (ki resetira sprejemData)
   var pData={
+    name:sprejemData.name,
     ln:sprejemData.catalog||sprejemData.gtin,
     lot:sprejemData.lot,
+    expiry:sprejemData.expiry,
     gtin14:sprejemData.gtin,
     serial:sprejemData.serial,
     epcHex:epc
@@ -3646,6 +3673,7 @@ function processRawScan(raw,rssi){
         rfidStaging.unknown.push(rawUp);
       }
     }
+    vibrateShort(); // nov tag na seznamu — vibracija se sama ustavi, ko ni več novih tagov
     renderStagingList();
     return;
   }
@@ -4644,18 +4672,22 @@ function onBtPrinters(json){
 }
 function prnPick(mac){if(mac){localStorage.setItem('pbk_printer_mac',mac);prnRefreshStatus();notify('Tiskalnik izbran','ok');}}
 function buildLabelZpl(p){
-  // p = {ln, lot, gtin14 (14 cif.), serial, epcHex (24 hex, opcijsko)}
+  // p = {name, ln, lot, expiry, gtin14 (14 cif.), serial, epcHex (24 hex, opcijsko)}
   // 300 dpi, 60×35 mm; tiskalna cona y=200..600 (offset 200 dots)
   var g=p.gtin14||'';
   var gHr='(01) '+g.slice(0,1)+' '+g.slice(1,7)+' '+g.slice(7,13)+' '+g.slice(13);
   var dm='_1D01'+g+'21'+(p.serial||'');
+  var nm=(p.name||'').slice(0,32).replace(/\^/g,'').replace(/~/g,'');
+  var rok=p.expiry?fmtExp(p.expiry):'';
   return '^XA\n'
     +'^CI28\n'
     +'^PW708\n'
     +'^LL700\n'
     +(p.epcHex?'^RS8,,,3\n^RFW,H^FD'+p.epcHex+'^FS\n':'')
-    +'^FO35,248^A0N,50,50^FDLN: '+(p.ln||'')+'  ^FS\n'
-    +'^FO35,305^A0N,40,40^FDLOT: '+(p.lot||'')+'  ^FS\n'
+    +(nm?'^FO35,204^A0N,26,26^FD'+nm+'^FS\n':'')
+    +'^FO35,236^A0N,30,30^FDLN: '+(p.ln||'')+'  ^FS\n'
+    +'^FO35,270^A0N,28,28^FDLOT: '+(p.lot||'')+'  ^FS\n'
+    +(rok?'^FO35,302^A0N,26,26^FDRok: '+rok+'  ^FS\n':'')
     +'^FO548,245^FH_^BXN,5,200^FD'+dm+'^FS\n'
     +'^FO35,352^BY2,2,72^BCN,72,N,N,N^FD'+g+'^FS\n'
     +'^FO35,434^A0N,30,30^FD'+gHr+'^FS\n'
@@ -5082,6 +5114,14 @@ function msCancelLogin(){
 function msSignOut(){
   if(!_hasBridge())return;
   try{AndroidBridge.msSignOut();}catch(e){}
+}
+function msChangeAccount(){
+  if(!_hasBridge()){notify('Samo na napravi','warn');return;}
+  try{AndroidBridge.msSignOut();}catch(e){}
+  $i('msLoginWait').style.display='block';
+  $i('msLoginCode').style.display='none';
+  showMo('moMsLogin');
+  try{AndroidBridge.msSignIn();}catch(e){notify('Napaka prijave','err');closeMo('moMsLogin');}
 }
 function msUpload(){
   if(!_hasBridge()){notify('Samo na napravi','warn');return;}
