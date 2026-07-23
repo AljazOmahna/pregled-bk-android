@@ -2998,9 +2998,10 @@ var NAROC_GTINS=[
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:156,
-  date:'2026-07-05',
+  build:157,
+  date:'2026-07-23',
   history:[
+    {build:157,date:'2026-07-23',notes:'Popravek mergeDB(): uskladitev zaloge glede na porabo (consumed[]) je brisala/vračala CELO gtin+lot vrstico namesto samo porabljenih enot (SN/EPC) — zato je sinhronizacija med napravami znala pomotoma izbrisati sveže sprejete kose z istim gtin+lot kot star porabljen zapis. Zdaj se odstranjujejo/vračajo samo konkretne enote po serijski/EPC identiteti, količina pa se ustrezno zmanjša/poveča.'},
     {build:156,date:'2026-07-05',notes:'Sprejem materiala: rok izteka in lot sta opcijska pri RFID skeniranju za potrošni material (spCanScanRfid/spStartRfid/confirmSprejemManual/spGenRfidLabel usklajeni z confirmSprejem). Vibracija+zvočni alarm ob skeniranju že znanega/sprejetega EPC. MultiRFID skeniranje: vibracija ob vsakem novem tagu na seznamu (samodejno preneha, ko ni več novih). RFID nalepka (spGenRfidLabel/buildLabelZpl): dodana naziv artikla in rok uporabe znotraj obstoječega okvira nalepke.'},
     {build:155,date:'2026-07-05',notes:'Popravek tiska RFID nalepk: človeku berljiv GS1 zapis GTIN je napačno prikazoval (00) namesto (01) kot AI (Application Identifier), ker je koda pomotoma vzela prvi dve številki GTIN vrednosti namesto trdo kodiranega (01). buildLabelZpl() popravljen.'},
     {build:154,date:'2026-07-05',notes:'Novi dizajn (BIO Alinity slog): Abbott barvna paleta (modra/teal), gradient header z logotipom, pill navigacija z animacijami, sence in zaobljeni robovi, gumbi z gradientom, teal aktivni zavihki, moIn animacija modalov, focus obroči na inputih, posodobljen dark mode.'},
@@ -5384,19 +5385,43 @@ function mergeDB(cloud){
     else if(!lc.restoredAt&&cc.restoredAt){lc.restoredAt=cc.restoredAt;}
   });
   // Inventory reconcile: consumed[] določa končno stanje zaloge
+  // POMEMBNO: brisati/vračati je treba SAMO porabljene enote (po SN/EPC), NIKOLI cele
+  // gtin+lot vrstice — sicer se ob naslednjem mergeDB() izbriše tudi kos, ki je bil
+  // medtem znova sprejet (isti gtin+lot, druga fizična enota).
   invMap={};DB.inventory.forEach(function(i){invMap[invKey(i)]=i;});
   DB.consumed.forEach(function(c){
     if(!c)return;
     var k=invKey(c);
+    var li=invMap[k];
+    var cSns=c.serials||[],cEpcs=c.rfidEpcs||[];
     if(!c.restoredAt){
-      // Porabljeno (brez razveljavitve) → odstrani iz inventory
-      if(invMap[k]){DB.inventory=DB.inventory.filter(function(i){return invKey(i)!==k;});delete invMap[k];}
+      // Porabljeno (brez razveljavitve) → odstrani samo porabljene enote
+      if(!li)return;
+      if(li.units&&li.units.length&&(cSns.length||cEpcs.length)){
+        li.units=li.units.filter(function(u){return !((u.epc&&cEpcs.indexOf(u.epc)>=0)||(u.sn&&cSns.indexOf(u.sn)>=0));});
+        li.serials=li.units.map(function(u){return u.sn;}).filter(Boolean);
+        li.rfidEpcs=li.units.map(function(u){return u.epc;}).filter(Boolean);
+        li.qty=li.units.length;
+      }else{
+        li.qty=Math.max(0,(li.qty||0)-(c.qty||1));
+      }
+      if(li.qty<=0){DB.inventory=DB.inventory.filter(function(i){return invKey(i)!==k;});delete invMap[k];}
     }else{
-      // Razveljavitev porabe → vrni v inventory, če ga ni
-      if(!invMap[k]){
+      // Razveljavitev porabe → vrni SAMO porabljene enote (ne cele vrstice na novo)
+      var addUnits=cSns.length||cEpcs.length?cSns.map(function(s,idx){return {sn:s,epc:cEpcs[idx]||''};}):null;
+      if(!li){
         var r={gtin:c.gtin,lot:c.lot,name:c.name,type:c.type,qty:c.qty||1,
-          serials:c.serials||[],rfidEpcs:c.rfidEpcs||[],expiry:c.expiry||''};
+          serials:cSns,rfidEpcs:cEpcs,expiry:c.expiry||'',units:addUnits||[]};
         DB.inventory.push(r);invMap[k]=r;
+      }else if(addUnits){
+        if(!li.units)li.units=(li.serials||[]).map(function(s){return {sn:s,epc:''};});
+        addUnits.forEach(function(u){
+          var exists=li.units.some(function(x){return (u.epc&&x.epc===u.epc)||(u.sn&&x.sn===u.sn);});
+          if(!exists)li.units.push(u);
+        });
+        li.serials=li.units.map(function(u){return u.sn;}).filter(Boolean);
+        li.rfidEpcs=li.units.map(function(u){return u.epc;}).filter(Boolean);
+        li.qty=li.units.length;
       }
     }
   });
