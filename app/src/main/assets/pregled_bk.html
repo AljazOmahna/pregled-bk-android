@@ -466,6 +466,29 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
       <tbody id="receivedBody"></tbody>
     </table>
   </div>
+  <div class="sec-hdr" style="margin-top:4px">
+    <div class="sec-title">&#129380; Odprta embalaža</div>
+    <button class="btn btn-a btn-sm" onclick="openOpkModal()">+ Zabeleži odprtje</button>
+  </div>
+  <div class="fr">
+    <input type="text" id="opkSearch" placeholder="&#128269; Išči..." oninput="renderOpenedOpk()">
+    <select id="opkType" onchange="renderOpenedOpk()">
+      <option value="">Vsi tipi</option>
+      <option value="control">Kontrole</option>
+      <option value="calibrator">Kalibratorji</option>
+      <option value="reagent-bio">Reagenti Bio</option>
+      <option value="reagent-imuno">Reagenti IMUNO</option>
+      <option value="consumable">Potrošni material</option>
+    </select>
+    <select id="opkStatus" onchange="renderOpenedOpk()">
+      <option value="open">Odprte (aktivne)</option>
+      <option value="soon">Poteka kmalu</option>
+      <option value="exp">Poteklo</option>
+      <option value="closed">Zavržene / arhiv</option>
+      <option value="">Vse</option>
+    </select>
+  </div>
+  <div id="openedOpkBody" style="max-height:260px;overflow:auto;-webkit-overflow-scrolling:touch"></div>
 </div>
 
 <!-- LOTI -->
@@ -933,6 +956,35 @@ body.dark .fr input,body.dark .fr select{background:var(--bg3);color:var(--text)
     </div>
     <div class="mf">
       <button class="btn btn-a" onclick="closeMo('moPkgIns')" style="width:100%;-webkit-justify-content:center;justify-content:center">Zapri</button>
+    </div>
+  </div>
+</div>
+
+<div class="mo" id="moOpkOpen">
+  <div class="modal" style="max-width:480px">
+    <div class="mh"><h3>&#129380; Zabeleži odprtje škatle</h3><button class="mc" onclick="closeMo('moOpkOpen')">&#10005;</button></div>
+    <div class="mb">
+      <div class="fg"><label>Artikel iz zaloge</label>
+        <input type="text" id="opkSearchPick" placeholder="&#128269; Išči po nazivu, lotu ali GTIN..." oninput="renderOpkPick()">
+        <div id="opkPickList" style="max-height:150px;overflow:auto;border:1px solid var(--border);border-radius:8px;margin-top:6px"></div>
+      </div>
+      <div id="opkChosen" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:10px;font-size:12px"></div>
+      <div class="fg"><label>Datum in ura odprtja</label><input type="datetime-local" id="opkOpenedAt" onchange="_opkUpdPreview()"></div>
+      <div class="fg"><label>Stabilnost po odprtju (dni)</label><input type="number" id="opkDays" min="0" max="3650" oninput="_opkUpdPreview()" placeholder="ni omejitve"></div>
+      <div id="opkUseByPrev" style="font-size:12px;margin:-4px 0 10px 2px;color:var(--text3)"></div>
+      <div id="opkVialsRow" style="display:none">
+        <div class="fr">
+          <div class="fg" style="flex:1"><label>Št. stekleničk / alikvotov</label><input type="number" id="opkVialCount" min="0" max="200" value="0"></div>
+          <div class="fg" style="flex:1"><label>Vrsta</label>
+            <select id="opkVialKind"><option value="vial">Steklenička</option><option value="aliquot">Alikvot</option></select></div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin:-4px 0 10px 2px">Ustvarijo se kot <b>neodprte</b> — vsako odpreš posebej na seznamu.</div>
+      </div>
+      <div class="fg"><label>Opomba</label><input type="text" id="opkNote" placeholder="neobvezno"></div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeMo('moOpkOpen')">Prekliči</button>
+      <button class="btn btn-a" onclick="saveOpkOpen()">&#10003; Zabeleži odprtje</button>
     </div>
   </div>
 </div>
@@ -1408,7 +1460,7 @@ const BUILTIN_OPERATORS = [
 ];
 
 // ===== STATE =====
-var DB={gtins:[],inventory:[],sessions:[],activeSessionId:null,lastUsed:[],received:[],operators:[],auditLog:[]};
+var DB={gtins:[],inventory:[],sessions:[],activeSessionId:null,lastUsed:[],received:[],operators:[],auditLog:[],openedPackages:[]};
 var currentOperator=null;
 function loadDB(){
   try{
@@ -2234,7 +2286,7 @@ function nav(page){
   });
   var pg=$i('page-'+page);if(pg)pg.classList.add('active');
   var bn=$i('bn-'+page);if(bn)bn.classList.add('active');
-  if(page==='inventory'){renderInventory();renderReceived();}
+  if(page==='inventory'){renderInventory();renderReceived();renderOpenedOpk();}
   if(page==='lots')renderLots();
   if(page==='deliveries')renderDeliveries();
   if(page==='expiry')setExpTab('exp');
@@ -2998,9 +3050,10 @@ var NAROC_GTINS=[
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:157,
+  build:158,
   date:'2026-07-23',
   history:[
+    {build:158,date:'2026-07-23',notes:'Nova funkcija Odprta embalaža (Zaloga → dno strani): beleženje odprtja škatel (vezano na konkreten sprejet kos), stabilnost po odprtju z rokom "uporabi do" (omejen s proizvajalčevim rokom), stekleničke/alikvoti znotraj škatle, opozorila ob poteku, arhiv zavrženih. Portirano iz BIO Alinity (DB.openedPackages/DB.opkSettings) — sinhronizira se prek mergeDB() na vse naprave.'},
     {build:157,date:'2026-07-23',notes:'Popravek mergeDB(): uskladitev zaloge glede na porabo (consumed[]) je brisala/vračala CELO gtin+lot vrstico namesto samo porabljenih enot (SN/EPC) — zato je sinhronizacija med napravami znala pomotoma izbrisati sveže sprejete kose z istim gtin+lot kot star porabljen zapis. Zdaj se odstranjujejo/vračajo samo konkretne enote po serijski/EPC identiteti, količina pa se ustrezno zmanjša/poveča.'},
     {build:156,date:'2026-07-05',notes:'Sprejem materiala: rok izteka in lot sta opcijska pri RFID skeniranju za potrošni material (spCanScanRfid/spStartRfid/confirmSprejemManual/spGenRfidLabel usklajeni z confirmSprejem). Vibracija+zvočni alarm ob skeniranju že znanega/sprejetega EPC. MultiRFID skeniranje: vibracija ob vsakem novem tagu na seznamu (samodejno preneha, ko ni več novih). RFID nalepka (spGenRfidLabel/buildLabelZpl): dodana naziv artikla in rok uporabe znotraj obstoječega okvira nalepke.'},
     {build:155,date:'2026-07-05',notes:'Popravek tiska RFID nalepk: človeku berljiv GS1 zapis GTIN je napačno prikazoval (00) namesto (01) kot AI (Application Identifier), ker je koda pomotoma vzela prvi dve številki GTIN vrednosti namesto trdo kodiranega (01). buildLabelZpl() popravljen.'},
@@ -3602,6 +3655,283 @@ function clearAllReceived(){
   try{updateBanner();}catch(e){}
   try{renderOverview();}catch(e){}
   notify('Testni reset opravljen — GTIN katalog ohranjen','ok');
+}
+
+/* ============================================================
+   ODPRTA EMBALAŽA — dnevnik odprtij škatel in stekleničk/alikvotov
+   Škatla je vezana na KONKRETEN kos (serijska/EPC) iz sprejema, izbran
+   ročno s seznama. Zaloga (DB.inventory) se pri tem NE spreminja — to
+   je ločen dnevnik. Portirano iz BIO Alinity (ista logika, ista shema
+   podatkov — DB.openedPackages/DB.opkSettings), da se sinhronizirata.
+   ============================================================ */
+var OPK_TYPE_BADGE={control:'b-ctrl',calibrator:'b-cal',consumable:'b-gray','reagent-bio':'b-gray','reagent-imuno':'b-gray'};
+var OPK_SETTINGS_DEFAULT={
+  warnDaysAhead:7,
+  types:{
+    'control':      {warn:true, vials:true, defaultDays:30,  defaultVials:0},
+    'calibrator':   {warn:true, vials:true, defaultDays:30,  defaultVials:0},
+    'reagent-bio':  {warn:false,vials:false,defaultDays:null,defaultVials:0},
+    'reagent-imuno':{warn:false,vials:false,defaultDays:null,defaultVials:0},
+    'consumable':   {warn:false,vials:false,defaultDays:null,defaultVials:0}
+  }
+};
+function OPKSET(){if(!DB.opkSettings)DB.opkSettings=JSON.parse(JSON.stringify(OPK_SETTINGS_DEFAULT));return DB.opkSettings;}
+function OPKTYPE(type){var t=OPKSET().types[type];return t||{warn:false,vials:false,defaultDays:null,defaultVials:0};}
+function _opkId(p){return p+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6);}
+function _opkResolveDays(gtin,type){
+  var g=(DB.gtins||[]).filter(function(x){return x.gtin===gtin;})[0];
+  if(g&&g.stabilityDays!=null&&g.stabilityDays!=='')return g.stabilityDays;
+  var d=OPKTYPE(type).defaultDays;
+  return (d==null||d==='')?null:d;
+}
+function _opkResolveVials(gtin,type){
+  var g=(DB.gtins||[]).filter(function(x){return x.gtin===gtin;})[0];
+  if(g&&g.vialsPerBox!=null&&g.vialsPerBox!=='')return g.vialsPerBox;
+  return OPKTYPE(type).defaultVials||0;
+}
+function _opkYmd(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
+function _opkExpDate(exp){
+  if(!exp)return null;
+  if(exp.length===6)return new Date(2000+parseInt(exp.slice(0,2)),parseInt(exp.slice(2,4))-1,parseInt(exp.slice(4,6)));
+  var d=new Date(exp);return isNaN(d)?null:d;
+}
+/* Rok uporabe po odprtju = odprtje + dni, a NIKOLI čez proizvajalčev rok. */
+function _opkUseBy(openedAt,days,expiry){
+  if(days==null||days==='')return null;
+  var o=new Date(openedAt);if(isNaN(o))return null;
+  var u=new Date(o.getFullYear(),o.getMonth(),o.getDate()+Number(days));
+  var mfr=_opkExpDate(expiry);
+  if(mfr&&mfr<u)u=mfr;
+  return _opkYmd(u);
+}
+function _opkWarns(type){return !!OPKTYPE(type).warn;}
+function _opkIsOpen(x){return !x.closedAt;}
+function _opkActiveUseBys(box){
+  var out=[];
+  if(!_opkWarns(box.type))return out;
+  if(_opkIsOpen(box)){
+    if(box.vials&&box.vials.length){
+      box.vials.forEach(function(v){if(v.openedAt&&!v.closedAt&&v.useBy)out.push({useBy:v.useBy,label:v.label,vial:true,id:v.id});});
+      if(box.useBy&&!box.vials.some(function(v){return v.openedAt&&!v.closedAt;}))out.push({useBy:box.useBy,label:'',vial:false,id:box.id});
+    } else if(box.useBy){out.push({useBy:box.useBy,label:'',vial:false,id:box.id});}
+  }
+  return out;
+}
+function _opkWorstDays(box){
+  var a=_opkActiveUseBys(box);if(!a.length)return null;
+  var ds=a.map(function(x){return daysLeft(x.useBy);}).filter(function(d){return d!=null;});
+  return ds.length?Math.min.apply(null,ds):null;
+}
+/* ---- Izbirnik kosa: aktivni sprejeti kosi (s serijsko), sicer zaloga brez serijske ---- */
+function _opkUnitOptions(){
+  var opened={};
+  (DB.openedPackages||[]).filter(_opkIsOpen).forEach(function(b){opened[(b.gtin||'')+'|'+(b.lot||'')+'|'+(b.serial||'')]=true;});
+  var out=[];
+  (DB.received||[]).forEach(function(r){
+    if(r.status!=='active')return;
+    if(opened[(r.gtin||'')+'|'+(r.lot||'')+'|'+(r.serial||'')])return;
+    out.push({gtin:r.gtin||'',lot:r.lot||'',name:r.name||'',type:r.type||'',expiry:r.expiry||'',serial:r.serial||'',rfidEpc:r.rfidEpc||''});
+  });
+  var haveSer={};out.forEach(function(u){haveSer[u.gtin+'|'+u.lot]=true;});
+  (DB.inventory||[]).forEach(function(it){
+    var k=(it.gtin||'')+'|'+(it.lot||'');
+    if(haveSer[k])return;
+    if(opened[k+'|'])return;
+    if(!(it.qty>0))return;
+    out.push({gtin:it.gtin||'',lot:it.lot||'',name:it.name||'',type:it.type||'',expiry:it.expiry||'',serial:'',rfidEpc:''});
+  });
+  return out;
+}
+var _opkUnits=[],_opkChosenUnit=null;
+function openOpkModal(){
+  _opkChosenUnit=null;
+  $i('opkSearchPick').value='';$i('opkNote').value='';$i('opkDays').value='';$i('opkVialCount').value='0';
+  $i('opkChosen').style.display='none';$i('opkVialsRow').style.display='none';$i('opkUseByPrev').innerHTML='';
+  var n=new Date();n.setMinutes(n.getMinutes()-n.getTimezoneOffset());
+  $i('opkOpenedAt').value=n.toISOString().slice(0,16);
+  _opkUnits=_opkUnitOptions();
+  renderOpkPick();
+  showMo('moOpkOpen');
+}
+function renderOpkPick(){
+  var q=($i('opkSearchPick').value||'').toLowerCase().trim();
+  var list=_opkUnits.filter(function(u){
+    if(!q)return true;
+    return ((u.name||'')+' '+(u.lot||'')+' '+(u.gtin||'')+' '+(u.serial||'')).toLowerCase().indexOf(q)>=0;
+  }).slice(0,60);
+  var h='';
+  if(!list.length){h='<div style="padding:12px;font-size:12px;color:var(--text3)">Ni prostih kosov'+(q?' za "'+escHtml(q)+'"':'')+'.</div>';}
+  else h=list.map(function(u){
+    var i=_opkUnits.indexOf(u);
+    return '<div style="cursor:pointer;padding:8px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px" onclick="opkChooseUnit('+i+')">'+
+      '<span style="flex:1;font-size:12px"><b>'+escHtml(u.name||u.gtin)+'</b>'+
+      '<div style="font-size:10px;color:var(--text3)">Lot '+escHtml(u.lot||'–')+' · rok '+fmtExp(u.expiry)+
+      (u.serial?' · SN <span style="font-family:var(--mono)">'+escHtml(u.serial)+'</span>':' · <i>brez serijske</i>')+'</div></span>'+
+      '<span class="badge '+(OPK_TYPE_BADGE[u.type]||'b-gray')+'" style="font-size:9px">'+(LOT_TYPE_LABEL[u.type]||u.type||'?')+'</span></div>';
+  }).join('');
+  $i('opkPickList').innerHTML=h;
+}
+function opkChooseUnit(i){
+  var u=_opkUnits[i];if(!u)return;
+  _opkChosenUnit=u;
+  $i('opkChosen').style.display='';
+  $i('opkChosen').innerHTML='<b>'+escHtml(u.name||u.gtin)+'</b> <span class="badge '+(OPK_TYPE_BADGE[u.type]||'b-gray')+'" style="font-size:9px">'+(LOT_TYPE_LABEL[u.type]||u.type||'?')+'</span>'+
+    '<div style="margin-top:3px">Lot <b>'+escHtml(u.lot||'–')+'</b> · rok '+fmtExp(u.expiry)+'</div>'+
+    '<div>Serijska: <b style="font-family:var(--mono)">'+escHtml(u.serial||'—')+'</b>'+(u.rfidEpc?' · RFID '+escHtml(u.rfidEpc.slice(0,12))+'…':'')+'</div>';
+  var d=_opkResolveDays(u.gtin,u.type);
+  $i('opkDays').value=(d==null?'':d);
+  var c=OPKTYPE(u.type);
+  $i('opkVialsRow').style.display=c.vials?'':'none';
+  if(c.vials)$i('opkVialCount').value=_opkResolveVials(u.gtin,u.type)||0;
+  _opkUpdPreview();
+}
+function _opkUpdPreview(){
+  var el=$i('opkUseByPrev');if(!el)return;
+  if(!_opkChosenUnit){el.innerHTML='';return;}
+  var days=$i('opkDays').value.trim();
+  var ub=_opkUseBy($i('opkOpenedAt').value,days===''?null:days,_opkChosenUnit.expiry);
+  if(!ub){el.innerHTML='<span style="color:var(--text3)">Brez omejitve stabilnosti — beleži se le datum odprtja.</span>';return;}
+  var capped=_opkExpDate(_opkChosenUnit.expiry)&&ub===String(_opkChosenUnit.expiry).slice(0,10);
+  el.innerHTML='Uporabi do: <b>'+fmtExp(ub)+'</b> '+expBadge(ub)+(capped?' <span style="color:var(--text3)">(omejeno s proizvajalčevim rokom)</span>':'');
+}
+function saveOpkOpen(){
+  if(!_opkChosenUnit){notify('Izberi kos iz zaloge','warn');return;}
+  var u=_opkChosenUnit;
+  var openedAtRaw=$i('opkOpenedAt').value;
+  if(!openedAtRaw){notify('Vpiši datum in uro odprtja','warn');return;}
+  var openedAt=new Date(openedAtRaw).toISOString();
+  var daysRaw=$i('opkDays').value.trim();
+  var days=daysRaw===''?null:Math.max(0,parseInt(daysRaw,10)||0);
+  var c=OPKTYPE(u.type);
+  var box={id:_opkId('op'),gtin:u.gtin,lot:u.lot,name:u.name,type:u.type,expiry:u.expiry,
+    serial:u.serial||'',rfidEpc:u.rfidEpc||'',
+    openedAt:openedAt,stabilityDays:days,useBy:_opkUseBy(openedAt,days,u.expiry),
+    note:$i('opkNote').value.trim(),closedAt:null,closedReason:'',vials:[]};
+  if(c.vials){
+    var n=Math.max(0,parseInt($i('opkVialCount').value,10)||0);
+    var kind=$i('opkVialKind').value;
+    for(var k=1;k<=n;k++)box.vials.push({id:_opkId('v'),label:String(k),kind:kind,
+      openedAt:null,stabilityDays:days,useBy:null,note:'',closedAt:null,closedReason:''});
+  }
+  if(!DB.openedPackages)DB.openedPackages=[];
+  DB.openedPackages.push(box);
+  auditEntry('create',box.id,'Odprta embalaža: '+(box.name||box.gtin)+' · lot '+(box.lot||'–')+(box.serial?' · SN '+box.serial:'')+
+    (box.useBy?' · uporabi do '+box.useBy:'')+(box.vials.length?' · '+box.vials.length+' stekleničk':''),null,box);
+  saveDB();closeMo('moOpkOpen');renderOpenedOpk();
+  notify('Odprtje zabeleženo ✓','ok');
+}
+/* ---- Seznam ---- */
+function _opkFiltered(){
+  var q=($i('opkSearch')?$i('opkSearch').value:'').toLowerCase().trim();
+  var tf=$i('opkType')?$i('opkType').value:'';
+  var st=$i('opkStatus')?$i('opkStatus').value:'';
+  var warnAhead=OPKSET().warnDaysAhead;
+  return (DB.openedPackages||[]).filter(function(b){
+    if(tf&&b.type!==tf)return false;
+    if(q&&((b.name||'')+' '+(b.lot||'')+' '+(b.gtin||'')+' '+(b.serial||'')).toLowerCase().indexOf(q)<0)return false;
+    var d=_opkWorstDays(b);
+    if(st==='open')return _opkIsOpen(b);
+    if(st==='closed')return !_opkIsOpen(b);
+    if(st==='soon')return _opkIsOpen(b)&&d!=null&&d>=0&&d<=warnAhead;
+    if(st==='exp')return _opkIsOpen(b)&&d!=null&&d<0;
+    return true;
+  }).sort(function(a,b){
+    var da=_opkWorstDays(a),db=_opkWorstDays(b);
+    if(da==null&&db==null)return (b.openedAt||'').localeCompare(a.openedAt||'');
+    if(da==null)return 1;if(db==null)return -1;return da-db;
+  });
+}
+function renderOpenedOpk(){
+  var wrap=$i('openedOpkBody');if(!wrap)return;
+  var list=_opkFiltered();
+  if(!list.length){wrap.innerHTML='<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">Ni zapisov o odprti embalaži za izbrani filter.</div>';return;}
+  wrap.innerHTML=list.map(function(b){
+    var open=_opkIsOpen(b);
+    var warns=_opkWarns(b.type);
+    var act=_opkActiveUseBys(b);
+    var hdrUseBy=null;
+    if(act.length){hdrUseBy=act.reduce(function(m,x){return (m==null||x.useBy<m)?x.useBy:m;},null);}
+    var od=new Date(b.openedAt);
+    var head='<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px">'+
+      '<div><b style="font-size:13px">'+escHtml(b.name||b.gtin)+'</b> <span class="badge '+(OPK_TYPE_BADGE[b.type]||'b-gray')+'" style="font-size:9px">'+(LOT_TYPE_LABEL[b.type]||b.type||'?')+'</span>'+
+      '<div style="font-size:10px;color:var(--text3);margin-top:2px">Lot '+escHtml(b.lot||'–')+' · rok '+fmtExp(b.expiry)+
+        (b.serial?' · SN <span style="font-family:var(--mono)">'+escHtml(b.serial)+'</span>':'')+'</div></div>'+
+      '<div style="text-align:right">'+
+        (!open?'<span class="badge b-gray">Zavrženo</span>':(warns&&hdrUseBy?expBadge(hdrUseBy):'<span class="badge b-ok">Odprto</span>'))+
+        (open&&warns&&hdrUseBy?'<div style="font-size:9px;color:var(--text3);margin-top:2px">do '+fmtExp(hdrUseBy)+
+          ((b.vials&&b.vials.length)?' (najkrajša)':'')+'</div>':'')+
+      '</div></div>';
+    var meta='<div style="font-size:10px;color:var(--text3);margin:6px 0">Odprto: '+od.toLocaleString('sl-SI')+
+      (b.stabilityDays!=null?' · stabilnost '+b.stabilityDays+' dni':'')+
+      (!open?' · zavrženo '+new Date(b.closedAt).toLocaleDateString('sl-SI')+(b.closedReason?' ('+escHtml(b.closedReason)+')':''):'')+'</div>'+
+      (b.note?'<div style="font-size:11px;margin-bottom:4px">'+escHtml(b.note)+'</div>':'');
+    var vials='';
+    if(b.vials&&b.vials.length){
+      vials='<div style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px">'+
+        '<div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:4px">Stekleničke / alikvoti ('+
+          b.vials.filter(function(v){return v.openedAt&&!v.closedAt;}).length+' odprtih / '+b.vials.length+')</div>'+
+        '<div style="display:flex;flex-wrap:wrap;gap:6px">'+
+        b.vials.map(function(v){
+          var state=v.closedAt?'<span class="badge b-gray">zavržena</span>':
+                    (!v.openedAt?'<span class="badge b-ok">neodprta</span>':(warns&&v.useBy?expBadge(v.useBy):'<span class="badge b-ok">odprta</span>'));
+          var btn='';
+          if(open&&!v.closedAt){
+            btn=!v.openedAt
+              ?'<button class="btn btn-a btn-sm" style="padding:2px 7px;font-size:10px" onclick="opkOpenVial(\''+b.id+'\',\''+v.id+'\')">Odpri</button>'
+              :'<button class="btn btn-g btn-sm" style="padding:2px 7px;font-size:10px" onclick="opkCloseVial(\''+b.id+'\',\''+v.id+'\')">Zavrzi</button>';
+          }
+          return '<div style="border:1px solid var(--border);border-radius:8px;padding:5px 7px;font-size:10px;min-width:100px">'+
+            '<b>'+(v.kind==='aliquot'?'Alikvot ':'Stekl. ')+escHtml(v.label)+'</b><br>'+state+
+            (v.openedAt&&warns&&v.useBy?'<div style="color:var(--text3);font-size:9px">do '+fmtExp(v.useBy)+'</div>':'')+
+            (btn?'<div style="margin-top:4px">'+btn+'</div>':'')+'</div>';
+        }).join('')+'</div></div>';
+    }
+    var acts='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'+
+      (open?'<button class="btn btn-g btn-sm" onclick="opkCloseBox(\''+b.id+'\')">&#128465;&#65039; Zavrzi škatlo</button>':'')+
+      '<button class="btn btn-d btn-sm" onclick="opkDelete(\''+b.id+'\')">&#128465;&#65039;</button></div>';
+    return '<div class="card" style="margin-bottom:8px'+(open?'':';opacity:.72')+'">'+head+meta+vials+acts+'</div>';
+  }).join('');
+}
+function _opkFind(id){return (DB.openedPackages||[]).filter(function(b){return b.id===id;})[0];}
+function opkOpenVial(boxId,vialId){
+  var b=_opkFind(boxId);if(!b)return;
+  var v=(b.vials||[]).filter(function(x){return x.id===vialId;})[0];if(!v)return;
+  var now=new Date().toISOString();
+  var before={openedAt:v.openedAt,useBy:v.useBy};
+  v.openedAt=now;
+  v.stabilityDays=(v.stabilityDays!=null?v.stabilityDays:b.stabilityDays);
+  v.useBy=_opkUseBy(now,v.stabilityDays,b.expiry);
+  auditEntry('update',b.id,'Odprta '+(v.kind==='aliquot'?'alikvot ':'steklenička ')+v.label+' · '+(b.name||b.gtin)+(v.useBy?' · uporabi do '+v.useBy:''),before,{openedAt:v.openedAt,useBy:v.useBy});
+  saveDB();renderOpenedOpk();
+  notify('Steklenička odprta'+(v.useBy?' · uporabi do '+fmtExp(v.useBy):''),'ok');
+}
+function opkCloseVial(boxId,vialId){
+  var b=_opkFind(boxId);if(!b)return;
+  var v=(b.vials||[]).filter(function(x){return x.id===vialId;})[0];if(!v)return;
+  var r=prompt('Razlog zaprtja (porabljeno / zavrženo / poteklo):','porabljeno');
+  if(r===null)return;
+  v.closedAt=new Date().toISOString();v.closedReason=(r||'').trim();
+  auditEntry('update',b.id,'Zaprta '+(v.kind==='aliquot'?'alikvot ':'steklenička ')+v.label+' · '+(b.name||b.gtin)+' ('+v.closedReason+')',null,null);
+  saveDB();renderOpenedOpk();
+}
+function opkCloseBox(id){
+  var b=_opkFind(id);if(!b)return;
+  var r=prompt('Razlog zaprtja škatle (porabljeno / zavrženo / poteklo):','porabljeno');
+  if(r===null)return;
+  var now=new Date().toISOString();
+  b.closedAt=now;b.closedReason=(r||'').trim();
+  (b.vials||[]).forEach(function(v){if(!v.closedAt){v.closedAt=now;v.closedReason=v.closedReason||b.closedReason;}});
+  auditEntry('update',b.id,'Zaprta škatla: '+(b.name||b.gtin)+' · lot '+(b.lot||'–')+(b.serial?' · SN '+b.serial:'')+' ('+b.closedReason+')',null,null);
+  saveDB();renderOpenedOpk();
+  notify('Škatla zaprta','ok');
+}
+function opkDelete(id){
+  var b=_opkFind(id);if(!b)return;
+  if(!confirm('Izbrišem zapis o odprtju "'+(b.name||b.gtin)+'" (lot '+(b.lot||'–')+')?'))return;
+  DB.openedPackages=(DB.openedPackages||[]).filter(function(x){return x.id!==id;});
+  auditEntry('delete',id,'Izbrisan zapis odprte embalaže: '+(b.name||b.gtin)+' · lot '+(b.lot||'–'),b,null);
+  saveDB();renderOpenedOpk();
+  notify('Zapis izbrisan','ok');
 }
 
 // ===== SCAN PROCESSING =====
@@ -5433,6 +5763,26 @@ function mergeDB(cloud){
     var k=cd.file||cd.id;
     if(!locDel[k]){DB.deliveries.push(cd);locDel[k]=cd;}
     else if(locDel[k].status==='pending'&&cd.status!=='pending'){locDel[k].status=cd.status;}
+  });
+  // Odprta embalaža — union po id; če zapis že obstaja, prevzemi zaprtje/vials spremembe
+  if(!DB.openedPackages)DB.openedPackages=[];
+  var locOpk={};DB.openedPackages.forEach(function(b){locOpk[b.id]=b;});
+  (cloud.openedPackages||[]).forEach(function(cb){
+    if(!cb||!cb.id)return;
+    var lb=locOpk[cb.id];
+    if(!lb){DB.openedPackages.push(cb);locOpk[cb.id]=cb;stats.openedPackages=(stats.openedPackages||0)+1;}
+    else{
+      if(!lb.closedAt&&cb.closedAt){lb.closedAt=cb.closedAt;lb.closedReason=cb.closedReason;}
+      var vm={};(lb.vials||[]).forEach(function(v){vm[v.id]=v;});
+      (cb.vials||[]).forEach(function(cv){
+        var lv=vm[cv.id];
+        if(!lv){(lb.vials=lb.vials||[]).push(cv);vm[cv.id]=cv;}
+        else{
+          if(!lv.openedAt&&cv.openedAt){lv.openedAt=cv.openedAt;lv.useBy=cv.useBy;}
+          if(!lv.closedAt&&cv.closedAt){lv.closedAt=cv.closedAt;lv.closedReason=cv.closedReason;}
+        }
+      });
+    }
   });
   // lastUsed — union, omeji na 20
   DB.lastUsed=_arrUnion(DB.lastUsed,cloud.lastUsed).slice(0,20);
