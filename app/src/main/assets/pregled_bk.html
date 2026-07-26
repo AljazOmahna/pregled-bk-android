@@ -1619,7 +1619,7 @@ function onLangChange(){
 
 var nT;
 function notify(msg,t){var el=$i('notif');el.textContent=msg;el.className='notif show'+(t?' '+t:'');clearTimeout(nT);nT=setTimeout(function(){el.classList.remove('show');},3000);}
-function vibrateShort(){try{if(navigator.vibrate)navigator.vibrate(30);}catch(e){}}
+function vibrateShort(){try{if(navigator.vibrate)navigator.vibrate(150);}catch(e){}}
 function vibrateAlert(){try{if(navigator.vibrate)navigator.vibrate([80,60,80]);}catch(e){}}
 var _actx=null;
 function beepAlert(){
@@ -1764,7 +1764,7 @@ function parseSGTIN96(hex){
   var M=pt[partition][0],L=pt[partition][1],N=pt[partition][2],K=pt[partition][3];
   var cp=parseInt(bin.substring(14,14+M),2).toString().padStart(L,'0');
   var ir=parseInt(bin.substring(14+M,14+M+N),2).toString().padStart(K,'0');
-  var serial=parseInt(bin.substring(58,96),2).toString();
+  var serial=parseInt(bin.substring(58,96),2).toString().padStart(12,'0');
   var base=cp+ir;
   if(base.length!==13)return null;
   return{gtin:base+calcGtinCheck(base),serial:serial};
@@ -1820,6 +1820,28 @@ function onRfidStatus(connected,msg){
 // MultiRFID staging
 var rfidMultiActive=false;
 var rfidStaging={recognized:[],unknown:[]};
+// Hitre O(1) strukture (namesto .some()/.indexOf()/.filter() nad celotnimi seznami ob VSAKEM
+// tagu — pri stotinah artiklov je RFID bralnik isti tag javljal tudi desetkrat/sek, kar je
+// prejšnjo O(n) logiko spremenilo v O(n²) in skeniranje vidno upočasnilo).
+var _stagingSeen=null;      // {epc:true} — ze videni tagi (prepoznani ali neznani) v tej seji skeniranja
+var _epcRecvMap=null;       // {epc: receivedRecord} — zgrajeno enkrat ob zacetku skeniranja
+var _epcInvMap=null;        // {epc: {inv, gtin}} — zgrajeno enkrat ob zacetku skeniranja
+var _stagingRenderPending=false;
+function _stagingRenderThrottled(){
+  if(_stagingRenderPending)return;
+  _stagingRenderPending=true;
+  setTimeout(function(){_stagingRenderPending=false;renderStagingList();},180);
+}
+function _buildEpcLookupMaps(){
+  _epcRecvMap={};
+  (DB.received||[]).forEach(function(r){if(r.status==='active'&&r.rfidEpc)_epcRecvMap[r.rfidEpc]=r;});
+  _epcInvMap={};
+  (DB.inventory||[]).forEach(function(it){
+    if(!it.rfidEpcs)return;
+    var gt=DB.gtins.filter(function(g){return g.gtin===it.gtin;})[0];
+    it.rfidEpcs.forEach(function(epc){_epcInvMap[epc]={inv:it,gt:gt};});
+  });
+}
 var statusRfidOn=false,statusBcOn=true;
 function setStatusRfid(on){
   statusRfidOn=on;
@@ -1907,6 +1929,8 @@ function startMultiRfid(){
   if(typeof AndroidBridge==='undefined'){notify('RFID samo na napravi','warn');return;}
   rfidMultiActive=true;
   rfidStaging={recognized:[],unknown:[]};
+  _stagingSeen={};
+  _buildEpcLookupMaps();
   try{AndroidBridge.startMultiRfidScan();}
   catch(e){notify('Napaka RFID: '+e,'err');rfidMultiActive=false;return;}
   setStatusRfid(true);setStatusBc(false);
@@ -1966,21 +1990,36 @@ function renderStagingList(){
 }
 function clearStaging(){
   rfidStaging={recognized:[],unknown:[]};
+  _stagingSeen={};
   renderStagingList();
 }
 function acceptAllStaged(){
   var sess=getActiveSess();
   if(!sess){notify('Ni aktivne seje','warn');return;}
   var accepted=0;
+  // Hitri lookup obstoječih (gtin+serial oz. gtin+lot) namesto .some() po celotnem sess.items
+  // za vsak staged kos posebej — pri velikem številu artiklov je O(n*m) prepočasno.
+  var bySerial={},byGtinLot={};
+  sess.items.forEach(function(si){
+    if(!si.valid)return;
+    if(si.serial)bySerial[si.gtin+'|'+si.serial]=true;
+    else byGtinLot[si.gtin+'|'+(si.lot||'')]=true;
+  });
+  // silent=true: acceptScan NE klice saveDB()/renderRecent() za vsak kos — pri npr.
+  // 300+ prepoznanih artiklih bi to pomenilo 300+ zaporednih JSON.stringify+setItem na
+  // celotni bazi (>1.5MB) v tesni zanki, kar izcrpa pomnilnik in sesuje napravo (OOM).
+  // Shranimo in izrišemo SAMO ENKRAT, po tem ko so vsi kosi dodani v sess.items.
   rfidStaging.recognized.forEach(function(item){
-    var dup=sess.items.some(function(si){
-      if(!si.valid)return false;
-      if(item.p.serial)return si.serial===item.p.serial&&si.gtin===item.p.gtin;
-      return si.gtin===item.p.gtin&&(si.lot||'')===(item.p.lot||'');
-    });
-    if(!dup){acceptScan(sess,item.raw,item.p,item.gr,true);accepted++;}
+    var dup=item.p.serial?bySerial[item.p.gtin+'|'+item.p.serial]:byGtinLot[item.p.gtin+'|'+(item.p.lot||'')];
+    if(!dup){
+      acceptScan(sess,item.raw,item.p,item.gr,true,true);
+      if(item.p.serial)bySerial[item.p.gtin+'|'+item.p.serial]=true;
+      else byGtinLot[item.p.gtin+'|'+(item.p.lot||'')]=true;
+      accepted++;
+    }
   });
   rfidStaging={recognized:[],unknown:[]};
+  if(accepted>0){saveDB();updateBanner();}
   renderStagingList();
   if(accepted>0)notify('Sprejeto '+accepted+' artiklov','ok');
   else notify('Vsi artikli so že v seji','warn');
@@ -3050,9 +3089,14 @@ var NAROC_GTINS=[
 
 // ===== APP INFO =====
 var APP_VERSION={
-  build:158,
-  date:'2026-07-23',
+  build:163,
+  date:'2026-07-26',
   history:[
+    {build:163,date:'2026-07-26',notes:'Popravek generirane RFID nalepke (Sprejem materiala → "Generiraj RFID nalepko"): (1) DataMatrix je vseboval samo GTIN+SN, zdaj vsebuje poln GS1 zapis (01)(17)(10)(21)(240) — GTIN, rok, lot, serijska, kataloška; (2) linearni Code128 je bil brez AI oznak/SN (napis "(21) GEN…" na nalepki je bil le besedilo, ne del kode) — SN se zato ni zabeležil ob ponovnem skeniranju; (3) serijska na nalepki (GEN+časovni žig, 16 znakov) je bila neodvisna od EPC serijske na čipu in predolga za GS1-128 — zdaj obe izhajata iz istega števca, 12-mestni, usklajeni. parseSGTIN96() dosledno doda vodilne ničle (12 znakov) za skladnost z Abbottovim formatom.'},
+    {build:162,date:'2026-07-25',notes:'Pohitritev MultiRFID skeniranja: O(n)/O(n²) preverjanje podvojenih tagov (.some()/.indexOf() nad rastočim seznamom) zamenjano z O(1) lookup objektom. Iskanje po DB.received/DB.inventory za vsak tag (.filter nad celotno bazo) zamenjano z vnaprej zgrajenimi mapami po EPC. Ponovni izris seznama ob vsakem posameznem tagu združen v en izris na ~180ms (namesto O(n²) DOM prerisov pri stotinah tagov). Pri velikem številu artiklov je bilo skeniranje vidno vse počasnejše proti koncu — zdaj ostane enako hitro ne glede na število že najdenih tagov.'},
+    {build:161,date:'2026-07-25',notes:'Vibracija ob skeniranju: vsak uspešno sprejet kos v seji zdaj vibrira (prej brez vibracije), moč/trajanje vibracije povečano (30ms→150ms) za bolj opazen odziv na terenu.'},
+    {build:160,date:'2026-07-25',notes:'Popravek sesutja pri "Sprejmi prepoznane" (MultiRFID): acceptScan() je ob vsakem posameznem kosu klical saveDB() (JSON.stringify+localStorage.setItem cele baze) in renderRecent() — pri velikem številu prepoznanih artiklov (300+) je to v tesni zanki izcrpalo pomnilnik in sesulo napravo (OOM). Zdaj acceptAllStaged() doda vse kose v sejo brez shranjevanja/izrisa (nov silent parameter), nato shrani in izriše SAMO ENKRAT na koncu. Tudi preverjanje podvojenih kosov je hitrejše (lookup namesto O(n*m) iskanja).'},
+    {build:159,date:'2026-07-25',notes:'Popravek _reconcileInvFromLatestSession(): sprejemi po zaprtju popisa BREZ serijske/EPC (npr. skupinsko potrjene Salus dobavnice) so bili pri uskladitvi zaloge popolnoma izpuščeni — zaloga je zato po sinhronizaciji kazala manj kosov kot je bilo dejansko sprejetih. Zdaj se štejejo tudi kosi brez identitete. RFID nalepka (buildLabelZpl): vsebina tiska premaknjena ~20 pik nižje.'},
     {build:158,date:'2026-07-23',notes:'Nova funkcija Odprta embalaža (Zaloga → dno strani): beleženje odprtja škatel (vezano na konkreten sprejet kos), stabilnost po odprtju z rokom "uporabi do" (omejen s proizvajalčevim rokom), stekleničke/alikvoti znotraj škatle, opozorila ob poteku, arhiv zavrženih. Portirano iz BIO Alinity (DB.openedPackages/DB.opkSettings) — sinhronizira se prek mergeDB() na vse naprave.'},
     {build:157,date:'2026-07-23',notes:'Popravek mergeDB(): uskladitev zaloge glede na porabo (consumed[]) je brisala/vračala CELO gtin+lot vrstico namesto samo porabljenih enot (SN/EPC) — zato je sinhronizacija med napravami znala pomotoma izbrisati sveže sprejete kose z istim gtin+lot kot star porabljen zapis. Zdaj se odstranjujejo/vračajo samo konkretne enote po serijski/EPC identiteti, količina pa se ustrezno zmanjša/poveča.'},
     {build:156,date:'2026-07-05',notes:'Sprejem materiala: rok izteka in lot sta opcijska pri RFID skeniranju za potrošni material (spCanScanRfid/spStartRfid/confirmSprejemManual/spGenRfidLabel usklajeni z confirmSprejem). Vibracija+zvočni alarm ob skeniranju že znanega/sprejetega EPC. MultiRFID skeniranje: vibracija ob vsakem novem tagu na seznamu (samodejno preneha, ko ni več novih). RFID nalepka (spGenRfidLabel/buildLabelZpl): dodana naziv artikla in rok uporabe znotraj obstoječega okvira nalepke.'},
@@ -3521,15 +3565,20 @@ function confirmSprejemManual(){
 function spGenRfidLabel(){
   if(!sprejemData){notify('Najprej skenirajte barcode','warn');return;}
   if(sprejemData.type!=='consumable'&&(!sprejemData.lot||!sprejemData.expiry)){notify('Manjka lot ali rok','warn');return;}
-  if(!sprejemData.serial){sprejemData.serial='GEN'+Date.now();}
   if(!DB.kcljEpcSerial)DB.kcljEpcSerial=1;
+  var _n=DB.kcljEpcSerial;
   var epc;
-  try{epc=genKcljEpc(DB.kcljEpcSerial);}catch(e){notify('Napaka EPC: '+e.message,'err');return;}
+  try{epc=genKcljEpc(_n);}catch(e){notify('Napaka EPC: '+e.message,'err');return;}
   DB.kcljEpcSerial++;
+  // Serijska na nalepki/DataMatrixu = isti stevec kot v EPC-ju (usklajeno, 12-mestno) —
+  // tako se pri poznejsem branju cipa (parseSGTIN96) ali skeniranju DataMatrixa (parseGS1)
+  // vedno dobi ISTA serijska.
+  if(!sprejemData.serial){sprejemData.serial=String(_n).padStart(12,'0');}
   // Shrani tiskovne podatke PRED confirmSprejem (ki resetira sprejemData)
   var pData={
     name:sprejemData.name,
     ln:sprejemData.catalog||sprejemData.gtin,
+    catalog:sprejemData.catalog,
     lot:sprejemData.lot,
     expiry:sprejemData.expiry,
     gtin14:sprejemData.gtin,
@@ -3991,21 +4040,25 @@ function processRawScan(raw,rssi){
   // MultiRFID staging: collect EPCs into staging buffer — no active session required
   if(rfidMultiActive&&/^[0-9A-Fa-f]{8,}$/.test(rawUp)&&/[A-Fa-f]/.test(rawUp)){
 
-    if(rfidStaging.recognized.some(function(x){return x.raw===rawUp;})||rfidStaging.unknown.indexOf(rawUp)>=0)return;
-    var mRec=(DB.received||[]).filter(function(r){return r.rfidEpc===rawUp&&r.status==='active';})[0];
+    // O(1) preverjanje ze videnih tagov namesto .some()/.indexOf() nad rastocim seznamom —
+    // RFID bralnik isti tag med aktivnim skeniranjem javi tudi desetkrat na sekundo.
+    if(!_stagingSeen)_stagingSeen={};
+    if(_stagingSeen[rawUp])return;
+    _stagingSeen[rawUp]=true;
+    if(!_epcRecvMap||!_epcInvMap)_buildEpcLookupMaps();
+    var mRec=_epcRecvMap[rawUp];
     if(mRec){
       rfidStaging.recognized.push({raw:rawUp,p:{gtin:mRec.gtin,lot:mRec.lot,expiry:mRec.expiry,serial:mRec.serial},gr:{name:mRec.name,type:mRec.type}});
     } else {
-      var mInv=(DB.inventory||[]).filter(function(i){return i.rfidEpcs&&i.rfidEpcs.indexOf(rawUp)>=0;})[0];
+      var mInv=_epcInvMap[rawUp];
       if(mInv){
-        var mGt=DB.gtins.filter(function(g){return g.gtin===mInv.gtin;})[0];
-        rfidStaging.recognized.push({raw:rawUp,p:{gtin:mInv.gtin,lot:mInv.lot,expiry:mInv.expiry,serial:''},gr:mGt?{name:mGt.name,type:mGt.type}:{name:mInv.name,type:mInv.type}});
+        rfidStaging.recognized.push({raw:rawUp,p:{gtin:mInv.inv.gtin,lot:mInv.inv.lot,expiry:mInv.inv.expiry,serial:''},gr:mInv.gt?{name:mInv.gt.name,type:mInv.gt.type}:{name:mInv.inv.name,type:mInv.inv.type}});
       } else {
         rfidStaging.unknown.push(rawUp);
       }
     }
     vibrateShort(); // nov tag na seznamu — vibracija se sama ustavi, ko ni več novih tagov
-    renderStagingList();
+    _stagingRenderThrottled(); // izris zdruzen (max ~5-6x/sek) namesto ob vsakem tagu posebej
     return;
   }
   if(rfidMultiActive)return;  // ignore any non-EPC scan while MultiRFID is active
@@ -4111,20 +4164,27 @@ function processRawScan(raw,rssi){
   }
   acceptScan(sess,raw,p,gr,fromRfid);
 }
-function acceptScan(sess,raw,p,gr,fromRfid){
+function acceptScan(sess,raw,p,gr,fromRfid,silent){
+  // silent=true (paketno sprejemanje, npr. acceptAllStaged): brez saveDB/render/UI-flash
+  // na vsak posamezen kos — to prepreči, da bi npr. 300+ zaporednih JSON.stringify+
+  // localStorage.setItem klicev na celotni (>1.5MB) bazi izcrpalo pomnilnik in sesulo napravo.
   // Pregled BK: če ima seja omejen nabor tipov, zavrni artikle izven obsega
   if(sess.typeScope&&sess.typeScope.length&&gr&&gr.type&&sess.typeScope.indexOf(gr.type)<0){
     var lbl=lotLabel(gr.type);
-    sess.rejected=(sess.rejected||0)+1;saveDB();updateBanner();
-    showFb('Izven obsega pregleda: '+gr.name+' ('+lbl+')','warn');flash('warn');return;
+    sess.rejected=(sess.rejected||0)+1;
+    if(!silent){saveDB();updateBanner();showFb('Izven obsega pregleda: '+gr.name+' ('+lbl+')','warn');flash('warn');}
+    return;
   }
   if(p.serial&&sess.items.some(function(si){return si.valid&&si.serial===p.serial&&si.gtin===p.gtin;})){
-    showFb('Že v seji: '+gr.name+' #'+p.serial,'warn');flash('warn');return;
+    if(!silent){showFb('Že v seji: '+gr.name+' #'+p.serial,'warn');flash('warn');}
+    return;
   }
   var item={raw:raw,gtin:p.gtin,lot:p.lot||'',expiry:p.expiry||'',serial:p.serial||'',
     rfidEpc:p.rfidEpc||'',
     valid:true,dt:new Date().toISOString(),mode:scanMode,name:gr.name,type:gr.type,fromRfid:!!fromRfid};
   sess.items.push(item);sess.scanned=(sess.scanned||0)+1;
+  if(silent)return;
+  vibrateShort();
   saveDB();updateBanner();renderRecent(sess);
   var d=daysLeft(p.expiry);
   if(p.serial)showFb('OK: '+gr.name+(p.lot?' L:'+p.lot:'')+(p.serial?' #'+p.serial:''),'ok');
@@ -5003,11 +5063,23 @@ function onBtPrinters(json){
 }
 function prnPick(mac){if(mac){localStorage.setItem('pbk_printer_mac',mac);prnRefreshStatus();notify('Tiskalnik izbran','ok');}}
 function buildLabelZpl(p){
-  // p = {name, ln, lot, expiry, gtin14 (14 cif.), serial, epcHex (24 hex, opcijsko)}
+  // p = {name, ln, catalog, lot, expiry, gtin14 (14 cif.), serial, epcHex (24 hex, opcijsko)}
   // 300 dpi, 60×35 mm; tiskalna cona y=200..600 (offset 200 dots)
   var g=p.gtin14||'';
   var gHr='(01) '+g.slice(0,1)+' '+g.slice(1,7)+' '+g.slice(7,13)+' '+g.slice(13);
-  var dm='_1D01'+g+'21'+(p.serial||'');
+  // Polna GS1 DataMatrix: (01)GTIN (17)rok (10)lot (21)serijska (240)kataloska —
+  // parseGS1() bere isti nabor AI-jev nazaj. Lot dobi eksplicitno FNC1 (_1D) locnico,
+  // ker je spremenljive dolzine; (21) je fiksnih 12 znakov, (240) je zadnji v nizu —
+  // ta dva locnice ne potrebujeta.
+  var expEnc=(p.expiry||'').replace(/-/g,'').slice(-6);
+  var lotEnc=(p.lot||'').replace(/[^\x20-\x7E]/g,'');
+  var catEnc=(p.catalog||'').replace(/[^\x20-\x7E]/g,'');
+  var snEnc=(p.serial||'').padStart(12,'0');
+  var dm='_1D01'+g
+    +(expEnc?'17'+expEnc:'')
+    +(lotEnc?'10'+lotEnc+'_1D':'')
+    +'21'+snEnc
+    +(catEnc?'240'+catEnc:'');
   var nm=(p.name||'').slice(0,32).replace(/\^/g,'').replace(/~/g,'');
   var rok=p.expiry?fmtExp(p.expiry):'';
   return '^XA\n'
@@ -5015,14 +5087,14 @@ function buildLabelZpl(p){
     +'^PW708\n'
     +'^LL700\n'
     +(p.epcHex?'^RS8,,,3\n^RFW,H^FD'+p.epcHex+'^FS\n':'')
-    +(nm?'^FO35,204^A0N,26,26^FD'+nm+'^FS\n':'')
-    +'^FO35,236^A0N,30,30^FDLN: '+(p.ln||'')+'  ^FS\n'
-    +'^FO35,270^A0N,28,28^FDLOT: '+(p.lot||'')+'  ^FS\n'
-    +(rok?'^FO35,302^A0N,26,26^FDRok: '+rok+'  ^FS\n':'')
-    +'^FO548,245^FH_^BXN,5,200^FD'+dm+'^FS\n'
-    +'^FO35,352^BY2,2,72^BCN,72,N,N,N^FD'+g+'^FS\n'
-    +'^FO35,434^A0N,30,30^FD'+gHr+'^FS\n'
-    +'^FO35,470^A0N,30,30^FD(21) '+(p.serial||'')+'  ^FS\n'
+    +(nm?'^FO35,224^A0N,26,26^FD'+nm+'^FS\n':'')
+    +'^FO35,256^A0N,30,30^FDLN: '+(p.ln||'')+'  ^FS\n'
+    +'^FO35,290^A0N,28,28^FDLOT: '+(p.lot||'')+'  ^FS\n'
+    +(rok?'^FO35,322^A0N,26,26^FDRok: '+rok+'  ^FS\n':'')
+    +'^FO548,265^FH_^BXN,5,200^FD'+dm+'^FS\n'
+    +'^FO35,372^BY2,2,72^BCN,72,N,N,N^FD'+g+'^FS\n'
+    +'^FO35,454^A0N,30,30^FD'+gHr+'^FS\n'
+    +'^FO35,490^A0N,30,30^FD(21) '+snEnc+'  ^FS\n'
     +'^XZ';
 }
 function buildTestZpl(){
@@ -5821,17 +5893,22 @@ function _reconcileInvFromLatestSession(db){
     if(!r||r.status!=='active'||!r.receivedAt||r.receivedAt<=closedAt)return;
     var sn=r.serial||'';
     var epc=r.rfidEpc||'';
-    if(!sn&&!epc)return; // brez identitete preskoči
     var k=(r.gtin||'')+'|'+(r.lot||'');
     if(!invMap[k])invMap[k]={gtin:r.gtin,lot:r.lot||'',expiry:r.expiry||'',qty:0,
       name:r.name,type:gtinTypeMap[r.gtin]||r.type,serials:[],units:[],lastScan:r.receivedAt};
     var e=invMap[k];
     if(!e.units)e.units=[];
-    // dedup po EPC (kadar obstaja) ali SN — enako kot mergeDB
-    var dup=e.units.some(function(u){return (epc&&u.epc===epc)||(sn&&u.sn===sn);});
-    if(dup)return;
-    e.units.push({sn:sn,epc:epc});
-    if(sn&&e.serials.indexOf(sn)<0)e.serials.push(sn);
+    if(sn||epc){
+      // dedup po EPC (kadar obstaja) ali SN — enako kot mergeDB
+      var dup=e.units.some(function(u){return (epc&&u.epc===epc)||(sn&&u.sn===sn);});
+      if(dup)return;
+      e.units.push({sn:sn,epc:epc});
+      if(sn&&e.serials.indexOf(sn)<0)e.serials.push(sn);
+    }else{
+      // brez identitete (razsuti material sprejet le s črtno kodo) — vsak zapis je ločen fizičen kos,
+      // ne moremo ga dedupirati po SN/EPC, a ga NE smemo preskočiti (prej je to izpuščalo kose iz zaloge)
+      e.units.push({sn:'',epc:''});
+    }
     e.qty++;
     if(r.expiry&&!e.expiry)e.expiry=r.expiry;
   });
